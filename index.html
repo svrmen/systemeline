@@ -2,7 +2,7 @@
 <html lang="ru">
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>НКУ/ТР + шинопровод — ΔH возвращён; выноски «прилипают» к сцене</title>
+<title>НКУ/ТР + шинопровод — ΔH только на 2D-видах; выноски помноговидовые</title>
 <style>
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
@@ -47,7 +47,7 @@
   .hid{display:none}
 </style>
 
-<header><b>НКУ/Трансформатор + шинопровод</b> — ΔH возвращён; выноски «следуют» за сценой при пан/зуме; виды 2D</header>
+<header><b>НКУ/Трансформатор + шинопровод</b> — ΔH скрыта в ISO; выноски запоминаются по видам</header>
 
 <div class="wrap">
   <div class="panel">
@@ -238,7 +238,7 @@ const state={
   editingIdx:null,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}, // offsets для L/H и ΔH
   annos:[], addAnnoMode:false,
-  movingAnno:{id:null, what:null} // what: 'box' | 'anchor'
+  movingAnno:{id:null, what:null, view:null} // what: 'box' | 'anchor'
 };
 const P=()=>({
   startType:$('startType').value, endType:$('endType').value,
@@ -410,7 +410,7 @@ function segMid(i, withCuts){
   return {x:panX,y:panY};
 }
 
-/* ===== трасса/отрисовка ===== */
+/* ===== трасса/ΔH ===== */
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
   if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L); }
@@ -430,20 +430,18 @@ function drawEndCap(bw,bh){
 function getDimOffset(key){ return state.dimOffsets[viewMode][key] || {dx:0,dy:0}; }
 function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; }
 
-/* —— ΔH: разница по высоте между низом начала и низом конца (если конец — ГРЩ) —— */
+/* —— ΔH: скрыта в ISO, видна в остальных видах —— */
 function renderDeltaH(){
-  // только не в TOP
-  if(viewMode==='TOP') return;
+  if(viewMode==='ISO') return;                  // <<<<<< ТУТ: не показываем в ISO
   const p=P();
-  if($('endType').value!=='NKU') return; // заглушка не учитывается — как и просили
-  // низы шкафов:
+  if($('endType').value!=='NKU') return;        // заглушка не учитывается
+
   const topStart = originTop()[2];
   const baseStart = topStart - p.startH;
   const endTop = endPoint()[2];
   const baseEnd = endTop - p.endH;
   const delta = Math.abs(baseEnd - baseStart) | 0;
 
-  // возьмём середину между проекциями низов, чтобы поставить бейдж
   const sPt = proj(p.startW/2, p.startD/2, baseStart);
   const ePt = proj(endPoint()[0], endPoint()[1], baseEnd);
   const mid = {u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
@@ -453,11 +451,9 @@ function renderDeltaH(){
   const off=getDimOffset(key);
   const x=base.x + (off.dx||0), y=base.y + (off.dy||0);
 
-  // бейдж
   const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`;
   el.style.left=x+'px'; el.style.top=y+'px';
 
-  // перетаскивание
   let dragging=false, sx=0, sy=0, startDX=0, startDY=0;
   el.addEventListener('pointerdown', e=>{
     dragging=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY;
@@ -479,8 +475,7 @@ function renderDeltaH(){
 /* ===== рисование пути и размерных бейджей L/H ===== */
 function drawPath(){
   const prm=P(), bw=prm.busW, bh=prm.busH;
-  let pos=originTop(); const dims=[];
-  dimLayer.innerHTML=''; // очищаем слой размеров (и ΔH добавим после)
+  let pos=originTop(); dimLayer.innerHTML='';
 
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
@@ -506,11 +501,9 @@ function drawPath(){
       const off=getDimOffset(key);
       const scrX=base.x+(off.dx||0), scrY=base.y+(off.dy||0);
 
-      if(state.calc){ // бейджи показываем в режиме «разбито»
+      if(state.calc){
         const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i;
         el.style.left=scrX+'px'; el.style.top=scrY+'px';
-
-        // перетаскивание без открытия окна
         let dragging=false, sx=0, sy=0, startDX=0, startDY=0;
         el.addEventListener('pointerdown', e=>{
           dragging=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY;
@@ -524,11 +517,9 @@ function drawPath(){
           if(!dragging) return; dragging=false; el.classList.remove('dragging');
           const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key, dx, dy);
         });
-        // двойной клик — правка длины
         el.addEventListener('dblclick', (ev)=>{
           ev.stopPropagation(); state.editingIdx=i; epop.style.display='block'; updateEditPopupPosition(); editInput.value=state.segs[i].len|0; setTimeout(()=>editInput.focus(),0);
         });
-
         dimLayer.appendChild(el);
       }
     }
@@ -542,35 +533,27 @@ function drawPath(){
     pos=adv(pos,cur.dir,L);
   }
 
-  // ΔH — добавляем в конце, чтобы не затиралось
   renderDeltaH();
 }
 
-/* ===== шкафы ===== */
+/* ===== шкафы / база пола для фасадов ===== */
 function drawStartCab(){
-  const p=P();
-  const topZ = originTop()[2];
-  const baseZ = topZ - p.startH;
+  const p=P(); const topZ = originTop()[2]; const baseZ = topZ - p.startH;
   box(0,0,baseZ,p.startW,p.startD,p.startH);
   box(p.startW/2-60,p.startD/2-60,topZ,120,120,8);
   box(p.startW/2-110,p.startD/2-110,topZ,220,220,4);
 }
 function drawEndCab(){
   if($('endType').value!=='NKU') return;
-  const p=P(), pad1=8, pad2=4;
-  const end=endPoint();
-  const topZ = end[2];
-  const baseZ = topZ - p.endH;
+  const p=P(), pad1=8, pad2=4; const end=endPoint(); const topZ=end[2]; const baseZ=topZ-p.endH;
   const base=[end[0]-p.endW/2,end[1]-p.endD/2,baseZ];
   box(base[0],base[1],base[2],p.endW,p.endD,p.endH);
   box(end[0]-60,end[1]-60,topZ,120,120,pad1);
   box(end[0]-110,end[1]-110,topZ,220,220,pad2);
 }
-
-/* ===== «уровень пола» для фасадов ===== */
 function drawGroundLine(){ if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return; ctx.save(); apply(); const p0=proj(0,0,0); ctx.strokeStyle='#c8c8c8'; ctx.lineWidth=1/scale; ctx.setLineDash([8/scale,6/scale]); ctx.beginPath(); ctx.moveTo(-1e5,p0[1]); ctx.lineTo(1e5,p0[1]); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
 
-/* ===== джойстик направления (ISO, не «разбито») ===== */
+/* ===== джойстик направления (ISO, только до разбиения) ===== */
 const AXES=[
   {dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},
   {dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},
@@ -588,8 +571,8 @@ function drawArrow2D(p,q,color,thick,alpha,text){
   gz.beginPath(); gz.moveTo(x2,y2);
   gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6));
   gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6));
-  gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1;
-  if(text){ gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
+  gz.closePath(); gz.fillStyle=color; gz.fill();
+  gz.globalAlpha=1; if(text){ gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
 }
 function angleOf(vx,vy){ return Math.atan2(vy,vx); }
 function angDiff(a,b){ let d=Math.abs(a-b)% (Math.PI*2); return d>Math.PI ? 2*Math.PI - d : d; }
@@ -667,18 +650,17 @@ document.getElementById('editOk').addEventListener('click', applyEdit);
 document.getElementById('editCancel').addEventListener('click', hideEdit);
 editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')hideEdit(); });
 
-/* правка ДО разбиения — клик по сегменту (любой вид) */
-wrap.addEventListener('click', e=>{
-  if(e.target.closest('#gizmo, .viewbar, .prompt, .anno, .dim, .toolbar, .anchor-dot')) return;
-  const pick=pickSegByPoint(e,false);
-  if(pick.idx>=0){
-    state.editingIdx=pick.idx; epop.style.display='block'; updateEditPopupPosition();
-    editInput.value=state.segs[pick.idx].len|0; setTimeout(()=>editInput.focus(),0);
-  }
-});
-
-/* ===== свободные выноски в координатах сцены (после проекции) ===== */
+/* ===== выноски: помноговидовые ===== */
 let annoId=1;
+function newEmptyPos(){ return {ax:0,ay:0,bx:0,by:0}; }
+function ensureAnnoViewPos(anno, view){
+  if(!anno.pos[view]){
+    // если нет позиции для этого вида — копируем из ISO или из любого доступного
+    const src = anno.pos[viewMode] || anno.pos.ISO || anno.pos.TOP || anno.pos.FRONT || anno.pos.LEFT || anno.pos.RIGHT || anno.pos.BACK;
+    anno.pos[view] = src ? {...src} : newEmptyPos();
+  }
+  return anno.pos[view];
+}
 $('addAnno').addEventListener('click', ()=>{
   state.addAnnoMode=true;
   msg.textContent='Кликните в любом месте для кончика линии выноски (якорь).';
@@ -686,112 +668,99 @@ $('addAnno').addEventListener('click', ()=>{
 });
 wrap.addEventListener('pointerdown', e=>{
   if(!state.addAnnoMode) return;
-  const {x:ux,y:uy}=screenToLocal(e); // координаты сцены (проекции)
-  // окно ввода рядом в экране
+  const {x:ux,y:uy}=screenToLocal(e);
   const scr=localToScreen(ux,uy);
   apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; ainput.value=''; apop.style.display='block'; setTimeout(()=>ainput.focus(),0);
-  apop.dataset.ux=ux; apop.dataset.uy=uy;
+  apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode;
   state.addAnnoMode=false;
 });
 aok.addEventListener('click', ()=>{
   const text=ainput.value.trim()||'Примечание';
-  const ux=+apop.dataset.ux, uy=+apop.dataset.uy;
-  // бейдж сместим на ~60px вправо и 20px вверх от якоря — пересчёт в локальные
+  const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view;
   const bx=ux + 60/scale, by=uy - 20/scale;
   const id=annoId++;
-  state.annos.push({id, text, ax:ux, ay:uy, bx, by, movingBox:false, movingAnchor:false});
+  const baseViewSet={ISO:newEmptyPos(),TOP:newEmptyPos(),FRONT:newEmptyPos(),BACK:newEmptyPos(),LEFT:newEmptyPos(),RIGHT:newEmptyPos()};
+  baseViewSet[vw]={ax:ux,ay:uy,bx,by};
+  const a={id, text, pos:baseViewSet, movingBox:false, movingAnchor:false};
+  state.annos.push(a);
   apop.style.display='none'; draw();
 });
 acancel.addEventListener('click', ()=>{ apop.style.display='none'; });
 
 function renderAnnos(){
-  // сначала очищаем слой
   ctx.save(); ctx.setTransform(1,0,0,1,0,0);
   annoLayer.innerHTML='';
-
   state.annos.forEach(anno=>{
-    const aScr=localToScreen(anno.ax, anno.ay);
-    const anchor=document.createElement('div'); anchor.className='anchor-dot'+(anno.movingAnchor?' moving':'');
-    anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px';
-    anchor.dataset.id=anno.id;
+    const pv=ensureAnnoViewPos(anno, viewMode);
+    const aScr=localToScreen(pv.ax, pv.ay);
+    const bScr=localToScreen(pv.bx, pv.by);
 
-    const bScr=localToScreen(anno.bx, anno.by);
-    const box=document.createElement('div'); box.className='anno'+(anno.movingBox?' moving':'');
-    box.textContent=anno.text; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=anno.id;
+    const anchor=document.createElement('div'); anchor.className='anchor-dot'+(anno.movingAnchor?' moving':'');
+    anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=anno.id;
+
+    const box=document.createElement('div'); box.className='anno'+(anno.movingBox?' moving':''); box.textContent=anno.text;
+    box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=anno.id;
 
     annoLayer.appendChild(anchor); annoLayer.appendChild(box);
 
-    // линия от якоря к центру бейджа (учитываем размеры бейджа)
     const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect();
     const cx = (rect.left - host.left) + rect.width/2;
     const cy = (rect.top  - host.top ) + rect.height/2;
     ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x, aScr.y); ctx.lineTo(cx, cy); ctx.stroke();
 
-    // BOX: клик — старт/стоп следования за мышью; dblclick — правка текста
     box.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      const id=+box.dataset.id;
-      const a=state.annos.find(x=>x.id===id);
+      const a=state.annos.find(x=>x.id===+box.dataset.id);
       a.movingBox = !a.movingBox;
-      if(a.movingBox){ a.movingAnchor=false; state.movingAnno={id,what:'box'}; }
-      else { if(state.movingAnno.id===id && state.movingAnno.what==='box') state.movingAnno={id:null,what:null}; }
+      if(a.movingBox){ a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; }
+      else { if(state.movingAnno.id===a.id && state.movingAnno.what==='box') state.movingAnno={id:null,what:null,view:null}; }
       draw();
     });
     box.addEventListener('dblclick', (ev)=>{
       ev.stopPropagation();
-      const id=+box.dataset.id; const a=state.annos.find(x=>x.id===id);
+      const a=state.annos.find(x=>x.id===+box.dataset.id);
       ainput.value=a.text;
-      const b=localToScreen(a.bx,a.by);
-      apop.style.left=(b.x)+'px'; apop.style.top=(b.y-30)+'px'; apop.style.display='block';
+      apop.style.left=bScr.x+'px'; apop.style.top=(bScr.y-30)+'px'; apop.style.display='block';
       aok.onclick=()=>{ a.text=ainput.value.trim()||'Примечание'; apop.style.display='none'; draw(); };
       acancel.onclick=()=>{ apop.style.display='none'; };
     });
 
-    // ANCHOR: клик — старт/стоп следования
     anchor.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      const id=+anchor.dataset.id;
-      const a=state.annos.find(x=>x.id===id);
+      const a=state.annos.find(x=>x.id===+anchor.dataset.id);
       a.movingAnchor = !a.movingAnchor;
-      if(a.movingAnchor){ a.movingBox=false; state.movingAnno={id,what:'anchor'}; }
-      else { if(state.movingAnno.id===id && state.movingAnno.what==='anchor') state.movingAnno={id:null,what:null}; }
+      if(a.movingAnchor){ a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; }
+      else { if(state.movingAnno.id===a.id && state.movingAnno.what==='anchor') state.movingAnno={id:null,what:null,view:null}; }
       draw();
     });
   });
   ctx.restore();
 }
 
-/* глобальное слежение за мышью для движущейся выноски (в локальных координатах) */
+/* глобальное слежение за мышью для движущейся выноски (локальные координаты текущего вида) */
 wrap.addEventListener('pointermove', (e)=>{
   const mv=state.movingAnno; if(!mv.id || !mv.what) return;
   const {x:ux,y:uy}=screenToLocal(e);
   const a=state.annos.find(z=>z.id===mv.id); if(!a) return;
-  if(mv.what==='box'){ a.bx=ux; a.by=uy; }
-  else if(mv.what==='anchor'){ a.ax=ux; a.ay=uy; }
+  const pv=ensureAnnoViewPos(a, mv.view||viewMode);
+  if(mv.what==='box'){ pv.bx=ux; pv.by=uy; }
+  else if(mv.what==='anchor'){ pv.ax=ux; pv.ay=uy; }
   draw();
 });
 document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape'){
     const mv=state.movingAnno;
-    if(mv.id){ const a=state.annos.find(z=>z.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null}; draw(); }
+    if(mv.id){ const a=state.annos.find(z=>z.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); }
   }
 });
 
 /* ===== кадр ===== */
 function draw(){
-  // очистка
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
-
-  // мир
   apply(); drawGroundLine(); drawStartCab(); drawPath(); drawEndCab(); drawEndCap(P().busW,P().busH);
-
-  // джойстик только в ISO и только когда НЕ разбиение
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; }
   else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
-
-  // выноски (экранные элементы, но с локальным якорем)
   renderAnnos();
-
   updateEditPopupPosition();
 }
 
@@ -902,7 +871,7 @@ $('endType').addEventListener('change', ()=>{
 ['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep','moduleLen']
   .forEach(id=>{ $(id).addEventListener('input', ()=>{ draw(); if(state.calc) renderSpec(); }); });
 
-/* ===== кнопки разбиения ===== */
+/* ===== разбиение/сброс ===== */
 $('calc').addEventListener('click', ()=>{
   const m=+$('moduleLen').value||0;
   if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; }
@@ -914,6 +883,8 @@ $('uncalc').addEventListener('click', ()=>{
   state.calc=false;
   draw(); renderSpec();
 });
+$('undo').addEventListener('click', ()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); });
+$('clear').addEventListener('click', ()=>{ state.segs.length=0; state.calc=false; draw(); renderSpec(); });
 
 /* ===== старт ===== */
 function start(){ fillRatings(); $('endDims').classList.add('hid'); resize(); setProjection('ISO'); }
