@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Шинопровод — чертёж, виды, спецификация, экспорт</title>
+<title>Шинопровод — чертёж, виды, спецификация, экспорт + цены</title>
 <style>
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
@@ -22,14 +22,15 @@
   .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
   .viewbtn.active{background:#eef3ff;border-color:#bcd}
   #view{width:100%;height:100%;display:block;background:#fff}
-  #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
-  #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
-  .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
+  #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:50} /* выше выносок */
+  #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:51}
+  .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:60}
   .warn{color:#c43;font-size:12px}
-  .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:9}
+  .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:30}
   .dim.dragging{cursor:grabbing;opacity:.96}
-  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
-  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:10}
+  #annoLayer{position:absolute;inset:0;pointer-events:none;z-index:40}
+  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none}
+  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer}
   .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
@@ -37,10 +38,20 @@
   .sub{color:#555}
   table{width:100%;border-collapse:collapse;margin-top:6px}
   th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
+
+  /* ===== admin modal ===== */
+  #admin{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000}
+  #admin .box{width:min(980px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:12px;border:1px solid #ddd;padding:14px}
+  #admin textarea{width:100%;min-height:200px;border:1px solid #cfcfcf;border-radius:8px;padding:8px;background:#fafafa}
+  #admin .grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  #admin h2{margin:0 0 10px}
+  #costs h4{margin:10px 0 6px}
+  #costs table{margin:0}
+  #autofitToggle{margin-left:6px}
 </style>
 </head>
 <body>
-<header><b>Шинопровод</b> — виды, размеры, спецификация, экспорт (PNG/DXF/XLS/PDF)</header>
+<header><b>Шинопровод</b> — виды, размеры, спецификация, экспорт (PNG/DXF/XLS/PDF) + цены (Alt+P)</header>
 
 <div class="wrap">
   <div class="panel">
@@ -85,13 +96,11 @@
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr">
       <button class="btn" id="fit">Подогнать</button>
-      <button class="btn" id="addAnno">➕ Выноска</button>
+      <label style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><input type="checkbox" id="autofitToggle" checked>Автоподгон</label>
     </div>
-
     <div class="row" style="grid-template-columns:1fr 1fr">
-      <button class="btn" id="saveProj">Сохранить проект</button>
-      <button class="btn" id="loadProj">Загрузить проект</button>
-      <input id="loadInput" type="file" accept="application/json" style="display:none">
+      <button class="btn" id="addAnno">➕ Выноска</button>
+      <button class="btn" id="openAdmin">Цены (Alt+P)</button>
     </div>
 
     <div id="msg" class="warn"></div>
@@ -115,9 +124,19 @@
       <div class="spec-row"><div>Повороты: вертикальные</div><div id="spVert"></div></div>
       <div class="spec-row"><div>Повороты: горизонтальные</div><div id="spHoriz"></div></div>
       <div class="spec-row"><div>Крепления, шт</div><div id="spMounts"></div></div>
+
       <div style="margin:6px 0 2px;font-weight:600">Сегменты по длинам</div>
       <table id="spTable"><thead><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr></thead><tbody></tbody></table>
-      <div style="margin-top:8px"><button class="btn" id="saveCSV">Сохранить CSV</button></div>
+
+      <div id="costs">
+        <h4>Стоимость</h4>
+        <table id="costTable"><thead><tr><th>Позиция</th><th>Ед.</th><th>Кол-во</th><th>Цена, ₽/ед</th><th>Сумма, ₽</th></tr></thead><tbody></tbody><tfoot><tr><th colspan="4" style="text-align:right">Итого</th><th id="costTotal">—</th></tr></tfoot></table>
+        <div id="costHint" class="warn" style="margin-top:6px;display:none">Цены не загружены. Нажмите Alt+P → импортируйте список цен → Сохранить.</div>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="saveCSV">Сохранить CSV</button>
+      </div>
     </div>
   </div>
 
@@ -161,7 +180,7 @@
       </div>
     </div>
 
-    <!-- ввод текста выноски -->
+    <!-- ввод/правка текста выноски -->
     <div id="annoPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr auto">
         <input id="annoInput" type="text" placeholder="текст выноски">
@@ -174,8 +193,31 @@
   </div>
 </div>
 
+<!-- Admin modal -->
+<div id="admin">
+  <div class="box">
+    <div class="grid">
+      <h2>Цены (импорт/редактирование)</h2>
+      <div><button class="btn" id="adminClose">Закрыть</button></div>
+    </div>
+    <div style="margin:6px 0 10px;color:#555">Нажмите <b>Alt+P</b> или кнопку в панели, чтобы открыть это окно. Вставьте список «как есть». Копейки игнорируются, «IP55» и т.п. игнорируются.</div>
+    <textarea id="priceText" placeholder="Вставьте сюда список цен…"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn" id="adminParse">Импорт из текста</button>
+      <button class="btn" id="adminSave">Сохранить (localStorage)</button>
+      <button class="btn" id="adminExport">Экспорт JSON</button>
+      <input id="adminImportJsonInput" type="file" accept="application/json" style="display:none">
+      <button class="btn" id="adminImportJson">Импорт JSON</button>
+      <span id="adminInfo" style="align-self:center;color:#333"></span>
+    </div>
+    <div id="adminTableWrap" style="margin-top:10px;max-height:45vh;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px">
+      <table id="adminTable"><thead><tr><th>Код</th><th>Тип</th><th>Мат.</th><th>Номинал (A)</th><th>Диапазон</th><th>Цена, ₽</th><th>Описание</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ====== данные ====== */
+/* ====== данные по размерам/номиналам ====== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
 const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
 const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
@@ -202,6 +244,7 @@ let viewMode='ISO';
 const DPR=Math.max(1,window.devicePixelRatio||1);
 const ISO=Math.PI/6, C=Math.cos(ISO), S=Math.sin(ISO);
 let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
+let autoFit=true;
 
 function setProjection(mode){
   viewMode=mode;
@@ -212,7 +255,7 @@ function setProjection(mode){
   if(mode==='LEFT') proj=(x,y,z)=>[ y, -z ];
   if(mode==='RIGHT') proj=(x,y,z)=>[ -y, -z ];
   document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===mode));
-  fit();
+  fit(true);
 }
 
 document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
@@ -376,16 +419,16 @@ function drawPath(){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
     const sc=prev?elbowCuts(prev.dir,cur.dir).b:0;
     const ec=next?elbowCuts(cur.dir,next.dir).a:0;
-    const startPos=adv(pos,cur.dir,sc);
+    const start=adv(pos,cur.dir,sc);
     const Ldraw=Math.max(0,L-sc-ec);
 
     if(Ldraw>0){
-      segBox(startPos,cur.dir,Ldraw,bw,bh);
+      segBox(start,cur.dir,Ldraw,bw,bh);
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw,bh);
-        drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
+        drawJointBlocksByModule(start,cur,Ldraw,sc,bw,bh);
+        drawMountsSmart(start,cur,Ldraw,sc,ec,prev,next,bw);
       }
-      const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
+      const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
       const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
       const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
       if(state.calc){
@@ -415,7 +458,7 @@ function drawPath(){
 const AXES=[{dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},{dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},{dir:'+X',label:'+X →',color:'#e4463c',vec:[1,0,0]},{dir:'-X',label:'-X ←',color:'#e4463c',vec:[-1,0,0]},{dir:'+Y',label:'+Y ↗',color:'#2d6cdf',vec:[0,1,0]},{dir:'-Y',label:'-Y ↙',color:'#2d6cdf',vec:[0,-1,0]}];
 let hit=null, rays=[];
 function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); giz.style.left=s.x+'px'; giz.style.top=s.y+'px'; tag.style.left=s.x+'px'; tag.style.top=s.y+'px'; pop.style.left=s.x+'px'; pop.style.top=s.y+'px'; }
-function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
+function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
 function angleOf(vx,vy){return Math.atan2(vy,vx)}; function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?2*Math.PI-d:d;}
 function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active=hit&&hit.dir===r.dir; drawArrow2D(r.from,r.to,r.color,active?7:4,active?1:.95,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
 giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top; const cx=giz.width/2, cy=giz.height/2, dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy), phi=Math.atan2(dy,dx), innerR=28, outerR=108; let found=null,best=1e9; for(const rr of rays){ const ad=angDiff(phi,rr.phi); const within=(r>=innerR&&r<=outerR&&ad<=18*Math.PI/180); const tipR=Math.hypot(x-rr.to[0],y-rr.to[1]); const nearTip=tipR<=18; if(within||nearTip){ const score=(nearTip?0:ad)+Math.abs(r-90)*0.001; if(score<best){best=score;found=rr;} } } hit=found; tag.textContent='направление: '+(hit?hit.label:'—'); drawGizmo(); });
@@ -427,16 +470,16 @@ function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__
 function hideLenPopup(){ pop.style.display='none'; }
 $('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
 lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
-function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); }
+function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); if($('autofitToggle').checked) fit(true); }
 
-/* правка длины сегмента (до/после разбивки) */
+/* правка длины сегмента */
 function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
 $('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
 editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')epop.style.display='none'; });
-function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); }
+function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); if($('autofitToggle').checked) fit(true); }
 function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
 
-/* выбор сегмента кликом (работает всегда) */
+/* выбор сегмента кликом */
 cvs.addEventListener('click',e=>{
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
@@ -469,7 +512,7 @@ function segMid(i,withCuts){
   return {x:panX,y:panY};
 }
 
-/* ====== выноски ====== */
+/* ====== выноски (мульти) ====== */
 let annoId=1;
 function newPos(){ return {ax:0,ay:0,bx:0,by:0}; }
 function ensurePos(anno,view){ if(!anno.pos[view]){ const src=anno.pos[viewMode]||anno.pos.ISO||newPos(); anno.pos[view]={...src}; } return anno.pos[view]; }
@@ -477,11 +520,20 @@ $('addAnno').addEventListener('click',()=>{ state.addAnno=true; msg.textContent=
 wrap.addEventListener('pointerdown',e=>{
   if(!state.addAnno) return;
   const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy);
+  apop.dataset.mode='create'; apop.dataset.editId=''; ainput.value=''; 
   apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; apop.style.display='block';
-  ainput.value=''; apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
+  apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
 });
-$('annoOk').onclick=()=>{ const text=ainput.value.trim()||'Примечание'; const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view; const bx=ux+60/scale, by=uy-20/scale; const id=annoId++; const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()}; base[vw]={ax:ux,ay:uy,bx,by}; state.annos.push({id,text,pos:base,movingBox:false,movingAnchor:false}); apop.style.display='none'; draw(); };
+$('annoOk').onclick=()=>{
+  const mode=apop.dataset.mode||'create';
+  if(mode==='edit'){
+    const id=+apop.dataset.editId; const a=state.annos.find(t=>t.id===id); if(a){ a.text=(ainput.value||'').trim()||'Примечание'; }
+    apop.style.display='none'; draw(); return;
+  }
+  const text=ainput.value.trim()||'Примечание'; const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view; const bx=ux+60/scale, by=uy-20/scale; const id=annoId++; const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()}; base[vw]={ax:ux,ay:uy,bx,by}; state.annos.push({id,text,pos:base,movingBox:false,movingAnchor:false}); apop.style.display='none'; draw();
+};
 $('annoCancel').onclick=()=>apop.style.display='none';
+
 function renderAnnos(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
   state.annos.forEach(a=>{
@@ -491,8 +543,11 @@ function renderAnnos(){
     annoLayer.appendChild(anchor); annoLayer.appendChild(box);
     const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect(); const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
     ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(cx,cy); ctx.stroke();
+
     box.addEventListener('click',ev=>{ ev.stopPropagation(); a.movingBox=!a.movingBox; if(a.movingBox){ a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; } else state.movingAnno={id:null,what:null,view:null}; draw(); });
-    box.addEventListener('dblclick',ev=>{ ev.stopPropagation(); ainput.value=a.text; const p=localToScreen(pv.bx,pv.by); apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block'; $('annoOk').onclick=()=>{ a.text=ainput.value.trim()||'Примечание'; apop.style.display='none'; draw(); }; $('annoCancel').onclick=()=>apop.style.display='none'; });
+    box.addEventListener('dblclick',ev=>{ ev.stopPropagation(); // правка текста — один попап для edit с режимом
+      ainput.value=a.text; const p=localToScreen(pv.bx,pv.by); apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.dataset.mode='edit'; apop.dataset.editId=String(a.id); apop.style.display='block';
+    });
     anchor.addEventListener('click',ev=>{ ev.stopPropagation(); a.movingAnchor=!a.movingAnchor; if(a.movingAnchor){ a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; } else state.movingAnno={id:null,what:null,view:null}; draw(); });
   }); ctx.restore();
 }
@@ -513,18 +568,24 @@ function draw(){
   apply(); drawGroundLine(); drawStartCab(); drawPath(); drawEndCab(); drawEndCap(P().busW);
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups();
+  if(autoFit && viewMode){ fit(false); } // мягкий авто-подгон
 }
-function fit(){
+function fit(forceCenter){
   const p=P(); const pts=[[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
   for(const s of state.segs){ pos=adv(pos,s.dir,s.len|0); pts.push(pos); }
   if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
   const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
-  const minX=Math.min(...xs)-300, maxX=Math.max(...xs)+300, minY=Math.min(...ys)-300, maxY=Math.max(...ys)+300;
-  const m=30, bw=maxX-minX, bh=maxY-minY;
-  scale=Math.min((wrap.clientWidth-2*m)/Math.max(bw,800),(wrap.clientHeight-2*m)/Math.max(bh,600));
-  panX=(wrap.clientWidth - scale*(minX+maxX))/2; panY=(wrap.clientHeight - scale*(minY+maxY))/2;
-  draw();
+  const pad=380; // увеличил отступы, чтобы точно всё попадало
+  const minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
+  const m=10, bw=maxX-minX, bh=maxY-minY;
+  const newScale=Math.min((wrap.clientWidth-2*m)/Math.max(bw,600),(wrap.clientHeight-2*m)/Math.max(bh,420));
+  if(forceCenter || Math.abs(newScale-scale)/Math.max(1,scale)>0.02){ // центрируем если сильно отличается
+    scale=newScale;
+    panX=(wrap.clientWidth - scale*(minX+maxX))/2; panY=(wrap.clientHeight - scale*(minY+maxY))/2;
+  }
+  drawOnce();
 }
+function drawOnce(){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore(); apply(); drawGroundLine(); drawStartCab(); drawPath(); drawEndCab(); drawEndCap(P().busW); if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; } renderAnnos(); updatePopups(); }
 
 /* ====== PNG + DXF + XLS + PDF ====== */
 function computeDimBadges(){
@@ -563,7 +624,7 @@ $('savePNGAll').onclick=async ()=>{
   setProjection(orig); draw();
 };
 
-/* DXF (плоские линии текущего вида + подписи) */
+/* DXF — как было */
 function DXF(){ this.e=[]; this.push=s=>this.e.push(s+'\n'); this.addHeader=()=>{ this.push('0');this.push('SECTION');this.push('2');this.push('HEADER');this.push('9');this.push('$INSUNITS');this.push('70');this.push('4'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('TABLES'); this.push('0');this.push('TABLE');this.push('2');this.push('LAYER');this.push('70');this.push('12'); ['0','BUS','ELBOW','CAB','DIM','ANNO','JOINT','MOUNT','ENDCAP'].forEach((n,i)=>{ this.push('0');this.push('LAYER');this.push('2');this.push(n);this.push('70');this.push('0');this.push('62');this.push((i+1));this.push('6');this.push('CONTINUOUS'); }); this.push('0');this.push('ENDTAB'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('ENTITIES'); }; this.addLine=(x1,y1,x2,y2,layer='0')=>{ this.push('0');this.push('LINE'); this.push('8');this.push(layer); this.push('10');this.push(x1); this.push('20');this.push(-y1); this.push('30');this.push(0); this.push('11');this.push(x2); this.push('21');this.push(-y2); this.push('31');this.push(0); }; this.addText=(x,y,h,txt,layer='0')=>{ this.push('0');this.push('TEXT'); this.push('8');this.push(layer); this.push('10');this.push(x); this.push('20');this.push(-y); this.push('30');this.push(0); this.push('40');this.push(h); this.push('1');this.push(txt); }; this.end=()=>{ this.push('0');this.push('ENDSEC'); this.push('0');this.push('EOF'); return this.e.join(''); }; }
 function p2(x,y,z){ const r=proj(x,y,z); return {x:r[0],y:r[1]}; }
 function addBoxLines(out,x,y,z,w,d,h){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]].map(t=>p2(...t)); const s=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]; s.forEach(([a,b])=>out.push([v[a],v[b]])); }
@@ -601,7 +662,7 @@ $('saveDXF').onclick=()=>{
     if(next && (sc||ec)){
       const vertex=adv(pos,cur.dir,L); const U=dirVec(cur.dir), V=dirVec(next.dir), N=cross(U,V);
       const vertical=(axis(cur.dir)==='Z'||axis(next.dir)==='Z'); const thick=vertical?bw:bh; const half=vertical?(bh/2):(bw/2);
-      const poly=LpolyCornerSolid(ec,a?ec:ec,half); const t2=thick/2;
+      const poly=LpolyCornerSolid(ec,ec,half); const t2=thick/2;
       const up=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,+t2)); const dn=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,-t2));
       for(let i2=0;i2<up.length;i2++){ const j=(i2+1)%up.length; const A=p2(...up[i2]), B=p2(...up[j]), Cc=p2(...dn[i2]); dxf.addLine(A.x,A.y,B.x,B.y,'ELBOW'); dxf.addLine(A.x,A.y,Cc.x,Cc.y,'ELBOW'); }
       for(let i2=0;i2<dn.length;i2++){ const j=(i2+1)%dn.length; const A=p2(...dn[i2]), B=p2(...dn[j]); dxf.addLine(A.x,A.y,B.x,B.y,'ELBOW'); }
@@ -620,81 +681,7 @@ $('saveDXF').onclick=()=>{
   const blob=new Blob([dxf.end()],{type:'application/dxf'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`busway_${viewMode}.dxf`; a.click(); URL.revokeObjectURL(url);
 };
 
-/* XLS (SpreadsheetML) */
-$('saveXLS').onclick=()=>{
-  const sp=state.calc?computeSpec():null;
-  const xl=[];
-  xl.push(`<?xml version="1.0"?>`);
-  xl.push(`<?mso-application progid="Excel.Sheet"?>`);
-  xl.push(`<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`);
-  xl.push(`<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EEEEEE" ss:Pattern="Solid"/></Style></Styles>`);
-  xl.push(`<Worksheet ss:Name="Спецификация"><Table>`);
-  function row(a,b,head=false){ xl.push(`<Row><Cell${head?' ss:StyleID="h"':''}><Data ss:Type="String">${a}</Data></Cell><Cell><Data ss:Type="String">${b}</Data></Cell></Row>`); }
-  row('Чертёж шинопровода','');
-  if(sp){
-    row('Материал/номинал/IP', `${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`);
-    row('Модуль (мм)', sp.module); row('Итого длина (мм)', sp.totalLen);
-    row('Горизонтальные (мм)', sp.lenHoriz); row('Вертикально вверх (мм)', sp.lenUp); row('Вертикально вниз (мм)', sp.lenDown);
-    row('Блок к НКУ, шт', sp.nkuBlocks); row('Блок к ТР, шт', sp.trBlocks); row('Заглушка', sp.endCap?'есть':'—');
-    row('Соединители всего, шт', sp.joints.total); row('— модульные', sp.joints.mod); row('— на углах (×2)', sp.joints.corners); row('— у НКУ (×1)', sp.joints.nku); row('— у ТР (×1)', sp.joints.tr);
-    row('Повороты вертикальные', sp.vert); row('Повороты горизонтальные', sp.horiz); row('Крепления, шт', computeSpec().mounts);
-    xl.push(`<Row/>`); xl.push(`<Row><Cell ss:StyleID="h"><Data ss:Type="String">Длина, мм</Data></Cell><Cell ss:StyleID="h"><Data ss:Type="String">Кол-во, шт</Data></Cell></Row>`);
-    [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>row(String(len),String(cnt)));
-  } else row('Подсказка','Нажмите «Рассчитать разбиение», затем выгрузите XLS повторно.');
-  xl.push(`</Table></Worksheet></Workbook>`);
-  const blob=new Blob([xl.join('')],{type:'application/vnd.ms-excel'}), url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
-};
-
-/* PDF «Проект» (HTML-вкладка) */
-$('savePDF').onclick=async ()=>{
-  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'], orig=viewMode, shots=[];
-  for(const v of views){ setProjection(v); draw(); const off=snapshotPNG(true); shots.push({v, data:off.toDataURL('image/png')}); }
-  setProjection(orig); draw();
-  const sp=state.calc?computeSpec():null, p=P(); const startTitle=(p.startType==='NKU'?'ГРЩ':'Трансформатор'), endTitle=($('endType').value==='NKU'?'ГРЩ':'Заглушка');
-  const names={ISO:'Изометрия',TOP:'Вид сверху',FRONT:'Вид спереди',BACK:'Вид сзади',LEFT:'Вид слева',RIGHT:'Вид справа'};
-  const H=`<!doctype html><html><head><meta charset="utf-8"><title>Проект шинопровода</title>
-    <style>@page{size:A4;margin:12mm}body{margin:0;background:#fff;color:#000;font:12px/1.35 Segoe UI,Arial}
-    .page{width:210mm;min-height:297mm;padding:10mm 12mm;box-sizing:border-box;page-break-after:always;position:relative}
-    .frame{position:absolute;left:6mm;right:6mm;top:6mm;bottom:6mm;border:1px solid #000}
-    h1{font-size:18px;margin:0 0 6mm}h2{font-size:15px;margin:0 0 4mm}.img{width:100%;border:1px solid #ccc}
-    table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left}
-    .pair{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.small{color:#333}</style></head><body>`;
-  let B=`<div class="page"><div class="frame"></div><h1>Чертёж шинопровода</h1>
-    <div>Материал: <b>${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'}</b>, Номинал: <b>${$('rating').value} А</b>, IP: <b>${$('ip').value}</b></div>
-    <div>Начало: <b>${startTitle}</b> (W=${p.startW} D=${p.startD} H=${p.startH}); Конец: <b>${endTitle}</b>${$('endType').value==='NKU'?` (W=${p.endW} D=${p.endD} H=${p.endH})`:''}</div>
-    ${sp?`<div class="pair"><div><h2>Сводка</h2><table>
-      <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
-      <tr><td>Горизонтальные</td><td>${sp.lenHoriz} мм</td></tr>
-      <tr><td>Вертикально вверх</td><td>${sp.lenUp} мм</td></tr>
-      <tr><td>Вертикально вниз</td><td>${sp.lenDown} мм</td></tr>
-      <tr><td>Повороты: вертик.</td><td>${sp.vert}</td></tr>
-      <tr><td>Повороты: гориз.</td><td>${sp.horiz}</td></tr>
-      <tr><td>Крепления</td><td>${computeSpec().mounts}</td></tr>
-      <tr><td>Соединители всего</td><td>${sp.joints.total}</td></tr></table></div>
-      <div><h2>Изометрия</h2><img class="img" src="${shots.find(s=>s.v==='ISO').data}"></div></div>`:`<div class="small"><i>Нажмите «Рассчитать разбиение» для спецификации.</i></div>`}
-    </div>`;
-  if(sp){
-    let rows=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows+=`<tr><td>${len}</td><td>${cnt}</td></tr>`);
-    B+=`<div class="page"><div class="frame"></div><h2>Спецификация</h2><table>
-      <tr><td>Материал/номинал/IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
-      <tr><td>Модуль (мм)</td><td>${sp.module}</td></tr>
-      <tr><td>Итого длина (мм)</td><td>${sp.totalLen}</td></tr>
-      <tr><td>Горизонтальные (мм)</td><td>${sp.lenHoriz}</td></tr>
-      <tr><td>Вертикально вверх (мм)</td><td>${sp.lenUp}</td></tr>
-      <tr><td>Вертикально вниз (мм)</td><td>${sp.lenDown}</td></tr>
-      <tr><td>Блок к НКУ</td><td>${sp.nkuBlocks}</td></tr>
-      <tr><td>Блок к ТР</td><td>${sp.trBlocks}</td></tr>
-      <tr><td>Заглушка</td><td>${sp.endCap?'есть':'—'}</td></tr>
-      <tr><td>Соединители (итого / модульные / углы / НКУ / ТР)</td><td>${sp.joints.total} / ${sp.joints.mod} / ${sp.joints.corners} / ${sp.joints.nku} / ${sp.joints.tr}</td></tr>
-      <tr><td>Крепления (шт, целевой шаг)</td><td>${computeSpec().mounts} / ${computeSpec().mountStep} мм</td></tr></table>
-      <h2>Сегменты по длинам</h2><table><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr>${rows||''}</table></div>`;
-  }
-  shots.forEach(s=>{ B+=`<div class="page"><div class="frame"></div><h2>${names[s.v]||s.v}</h2><img class="img" src="${s.data}"></div>`; });
-  const blob=new Blob([H+B+'</body></html>'],{type:'text/html'}), url=URL.createObjectURL(blob); window.open(url,'_blank');
-};
-
-/* ====== спецификация ====== */
+/* ====== СПЕЦИФИКАЦИЯ + ЦЕНЫ ====== */
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
   let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
@@ -722,8 +709,240 @@ function renderSpec(){
   $('spJointsTotal').textContent=sp.joints.total; $('spJointsMod').textContent=sp.joints.mod; $('spJointsCorners').textContent=sp.joints.corners; $('spJointsNku').textContent=sp.joints.nku; $('spJointsTr').textContent=sp.joints.tr;
   $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—';
   const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
+  renderCosts(sp);
 }
 $('saveCSV').onclick=()=>{ if(!state.calc) return; const sp=computeSpec(); const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Горизонтальные (мм)',sp.lenHoriz],['Вертикально вверх (мм)',sp.lenUp],['Вертикально вниз (мм)',sp.lenDown],['Блок к НКУ, шт',sp.nkuBlocks],['Блок к ТР, шт',sp.trBlocks],['Заглушка',sp.endCap?'1':'0'],['Соединители всего, шт',sp.joints.total],['— модульные, шт',sp.joints.mod],['— на углах (×2), шт',sp.joints.corners],['— у НКУ (×1), шт',sp.joints.nku],['— у ТР (×1), шт',sp.joints.tr],['Повороты вертикальные, шт',sp.vert],['Повороты горизонтальные, шт',sp.horiz],['Крепления, шт',sp.mounts],['Шаг крепления, мм',sp.mountStep],[],['Длина сегмента (мм)','Кол-во, шт']]; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt])); const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url); };
+
+/* XLS + PDF с блоком стоимости */
+$('saveXLS').onclick=()=>{ const sp=state.calc?computeSpec():null; const cost=sp?calcCost(sp):null;
+  const xl=[]; xl.push(`<?xml version="1.0"?>`); xl.push(`<?mso-application progid="Excel.Sheet"?>`);
+  xl.push(`<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`);
+  xl.push(`<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EEEEEE" ss:Pattern="Solid"/></Style></Styles>`);
+  xl.push(`<Worksheet ss:Name="Спецификация"><Table>`);
+  function row(a,b,head=false){ xl.push(`<Row><Cell${head?' ss:StyleID="h"':''}><Data ss:Type="String">${a}</Data></Cell><Cell><Data ss:Type="String">${b}</Data></Cell></Row>`); }
+  row('Чертёж шинопровода','',true);
+  if(sp){
+    row('Материал/номинал/IP', `${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`);
+    row('Модуль (мм)', sp.module); row('Итого длина (мм)', sp.totalLen);
+    row('Горизонтальные (мм)', sp.lenHoriz); row('Вертикально вверх (мм)', sp.lenUp); row('Вертикально вниз (мм)', sp.lenDown);
+    row('Блок к НКУ, шт', sp.nkuBlocks); row('Блок к ТР, шт', sp.trBlocks); row('Заглушка', sp.endCap?'есть':'—');
+    row('Соединители всего, шт', sp.joints.total); row('— модульные', sp.joints.mod); row('— на углах (×2)', sp.joints.corners); row('— у НКУ (×1)', sp.joints.nku); row('— у ТР (×1)', sp.joints.tr);
+    row('Повороты вертикальные', sp.vert); row('Повороты горизонтальные', sp.horiz); row('Крепления, шт', sp.mounts);
+    xl.push(`<Row/>`); xl.push(`<Row><Cell ss:StyleID="h"><Data ss:Type="String">Длина, мм</Data></Cell><Cell ss:StyleID="h"><Data ss:Type="String">Кол-во, шт</Data></Cell></Row>`);
+    [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>row(String(len),String(cnt)));
+
+    if(cost){
+      xl.push(`<Row/>`); xl.push(`<Row><Cell ss:StyleID="h"><Data ss:Type="String">Позиция</Data></Cell><Cell ss:StyleID="h"><Data ss:Type="String">Сумма</Data></Cell></Row>`);
+      cost.lines.forEach(l=>row(`${l.name} (${l.qty} ${l.unit} × ${fmtMoney(l.price)})`, fmtMoney(l.total)));
+      row('Итого', fmtMoney(cost.total));
+    }
+  } else row('Подсказка','Нажмите «Рассчитать разбиение», затем выгрузите XLS повторно.');
+  xl.push(`</Table></Worksheet></Workbook>`);
+  const blob=new Blob([xl.join('')],{type:'application/vnd.ms-excel'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
+};
+
+$('savePDF').onclick=async ()=>{
+  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'], orig=viewMode, shots=[];
+  for(const v of views){ setProjection(v); draw(); const off=snapshotPNG(true); shots.push({v, data:off.toDataURL('image/png')}); }
+  setProjection(orig); draw();
+  const sp=state.calc?computeSpec():null, p=P(); const startTitle=(p.startType==='NKU'?'ГРЩ':'Трансформатор'), endTitle=($('endType').value==='NKU'?'ГРЩ':'Заглушка');
+  const names={ISO:'Изометрия',TOP:'Вид сверху',FRONT:'Вид спереди',BACK:'Вид сзади',LEFT:'Вид слева',RIGHT:'Вид справа'};
+  const cost = sp ? calcCost(sp) : null;
+  const H=`<!doctype html><html><head><meta charset="utf-8"><title>Проект шинопровода</title>
+    <style>@page{size:A4;margin:12mm}body{margin:0;background:#fff;color:#000;font:12px/1.35 Segoe UI,Arial}
+    .page{width:210mm;min-height:297mm;padding:10mm 12mm;box-sizing:border-box;page-break-after:always;position:relative}
+    .frame{position:absolute;left:6mm;right:6mm;top:6mm;bottom:6mm;border:1px solid #000}
+    h1{font-size:18px;margin:0 0 6mm}h2{font-size:15px;margin:0 0 4mm}.img{width:100%;border:1px solid #ccc}
+    table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left}
+    .pair{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.small{color:#333}</style></head><body>`;
+  let B=`<div class="page"><div class="frame"></div><h1>Чертёж шинопровода</h1>
+    <div>Материал: <b>${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'}</b>, Номинал: <b>${$('rating').value} А</b>, IP: <b>${$('ip').value}</b></div>
+    <div>Начало: <b>${startTitle}</b> (W=${p.startW} D=${p.startD} H=${p.startH}); Конец: <b>${endTitle}</b>${$('endType').value==='NKU'?` (W=${p.endW} D=${p.endD} H=${p.endH})`:''}</div>
+    ${sp?`<div class="pair"><div><h2>Сводка</h2><table>
+      <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
+      <tr><td>Горизонтальные</td><td>${sp.lenHoriz} мм</td></tr>
+      <tr><td>Вертикально вверх</td><td>${sp.lenUp} мм</td></tr>
+      <tr><td>Вертикально вниз</td><td>${sp.lenDown} мм</td></tr>
+      <tr><td>Повороты: вертик.</td><td>${sp.vert}</td></tr>
+      <tr><td>Повороты: гориз.</td><td>${sp.horiz}</td></tr>
+      <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
+      <tr><td>Соединители всего</td><td>${sp.joints.total}</td></tr></table></div>
+      <div><h2>Изометрия</h2><img class="img" src="${shots.find(s=>s.v==='ISO').data}"></div></div>`:`<div class="small"><i>Нажмите «Рассчитать разбиение» для спецификации.</i></div>`}
+    </div>`;
+  if(sp){
+    let rows=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows+=`<tr><td>${len}</td><td>${cnt}</td></tr>`);
+    B+=`<div class="page"><div class="frame"></div><h2>Спецификация</h2><table>
+      <tr><td>Материал/номинал/IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+      <tr><td>Модуль (мм)</td><td>${sp.module}</td></tr>
+      <tr><td>Итого длина (мм)</td><td>${sp.totalLen}</td></tr>
+      <tr><td>Горизонтальные (мм)</td><td>${sp.lenHoriz}</td></tr>
+      <tr><td>Вертикально вверх (мм)</td><td>${sp.lenUp}</td></tr>
+      <tr><td>Вертикально вниз (мм)</td><td>${sp.lenDown}</td></tr>
+      <tr><td>Блок к НКУ</td><td>${sp.nkuBlocks}</td></tr>
+      <tr><td>Блок к ТР</td><td>${sp.trBlocks}</td></tr>
+      <tr><td>Заглушка</td><td>${sp.endCap?'есть':'—'}</td></tr>
+      <tr><td>Соединители (итого / модульные / углы / НКУ / ТР)</td><td>${sp.joints.total} / ${sp.joints.mod} / ${sp.joints.corners} / ${sp.joints.nku} / ${sp.joints.tr}</td></tr>
+      <tr><td>Крепления (шт, целевой шаг)</td><td>${sp.mounts} / ${sp.mountStep} мм</td></tr></table>
+      <h2>Сегменты по длинам</h2><table><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr>${rows||''}</table></div>`;
+  }
+  if(cost){
+    const linesHTML = cost.lines.map(l=>`<tr><td>${l.name}</td><td>${l.unit}</td><td>${l.qty}</td><td>${fmtMoney(l.price)}</td><td>${fmtMoney(l.total)}</td></tr>`).join('');
+    B+=`<div class="page"><div class="frame"></div><h2>Стоимость</h2>
+        <table><tr><th>Позиция</th><th>Ед.</th><th>Кол-во</th><th>Цена, ₽/ед</th><th>Сумма, ₽</th></tr>${linesHTML}<tr><th colspan="4" style="text-align:right">Итого</th><th>${fmtMoney(cost.total)}</th></tr></table>
+      </div>`;
+  }
+  shots.forEach(s=>{ B+=`<div class="page"><div class="frame"></div><h2>${names[s.v]||s.v}</h2><img class="img" src="${s.data}"></div>`; });
+  const blob=new Blob([H+B+'</body></html>'],{type:'text/html'}), url=URL.createObjectURL(blob); window.open(url,'_blank');
+};
+
+/* ====== ЦЕНЫ: хранение/парсинг/расчёт ====== */
+const PRICE_LS_KEY='busway_prices_v1';
+
+function loadPrices(){
+  try{ const t=localStorage.getItem(PRICE_LS_KEY); if(!t) return []; const arr=JSON.parse(t); if(Array.isArray(arr)) return arr; }catch(e){}
+  return [];
+}
+function savePrices(arr){
+  localStorage.setItem(PRICE_LS_KEY, JSON.stringify(arr||[]));
+}
+let PRICE_ITEMS = loadPrices();
+
+function fmtMoney(v){ if(v==null||!isFinite(v)) return '—'; const s=(Math.round(v)).toString(); return s.replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+
+/* парсинг цены: игнорируем IPxx и берём последнее "большое" число в конце строки */
+function extractPriceInt(line){
+  const cleaned = line.replace(/\bIP\d+\b/gi, 'IP');
+  const m = cleaned.match(/(\d{1,3}(?:\s\d{3})+|\d{4,})(?:,\d+)?\s*$/);
+  if (m) {
+    const raw = m[0].split(',')[0].replace(/\s+/g, '');
+    const v = parseInt(raw, 10);
+    return Number.isFinite(v) ? v : null;
+  }
+  const all = cleaned.match(/\d[\d\s]*/g);
+  if (!all) return null;
+  for (let k = all.length - 1; k >= 0; k--) {
+    const t = all[k].replace(/\s+/g, '');
+    if (t.length >= 4) {
+      const v = parseInt(t, 10);
+      return Number.isFinite(v) ? v : null;
+    }
+  }
+  return null;
+}
+function ruHas(s,needle){ return s.toLowerCase().includes(needle.toLowerCase()); }
+function detectType(s){
+  if(ruHas(s,'Прямая секция')) return 'straight_per_m';
+  if(ruHas(s,'Угловая секция')) return 'elbow';
+  if(ruHas(s,'Соединительный блок')) return 'joint_block';
+  if(ruHas(s,'Концевая заглушка')) return 'endcap';
+  if(ruHas(s,'Фланцевый блок подачи питания')) return 'feeder';
+  if(ruHas(s,'Секция подключения к трансформатору')) return 'xfmr';
+  if(ruHas(s,'Горизонтальный крепеж')) return 'mount_bracket';
+  return 'other';
+}
+function detectMat(code, line){
+  if(/\bCU\b/i.test(line) || /^DDW/i.test(code)) return 'CU';
+  if(/\bAL\b/i.test(line) || /^BDW/i.test(code)) return 'AL';
+  return (/CU/i.test(line)?'CU':/AL/i.test(line)?'AL':null);
+}
+function parseRating(line){
+  // 5000-6300А, до 800А, 1600А
+  const range = line.match(/(\d{3,4})\s*[-–]\s*(\d{3,4})\s*А/i);
+  if(range) return {min:+range[1], max:+range[2], exact:null};
+  const to800 = line.match(/до\s*(\d{3,4})\s*А/i);
+  if(to800) return {min:0, max:+to800[1], exact:null};
+  const ex = line.match(/(\d{3,4})\s*А/i);
+  if(ex) return {min:null,max:null,exact:+ex[1]};
+  return {min:null,max:null,exact:null};
+}
+function parsePriceList(text){
+  const out=[];
+  (text||'').split(/\r?\n/).forEach(raw=>{
+    const line = raw.trim(); if(!line) return;
+    const price = extractPriceInt(line);
+    const codeM = line.match(/^\S+/);
+    const code = codeM?codeM[0]:'';
+    const type = detectType(line);
+    const mat  = detectMat(code,line);
+    const r    = parseRating(line);
+    out.push({code,type,mat,price,desc:line, rating:r.exact||null, rmin:r.min, rmax:r.max});
+  });
+  return out.filter(x=>x.price!=null && x.type!=='other');
+}
+
+function ratingMatches(item, rating){
+  if(item.rating!=null) return item.rating===rating;
+  if(item.rmin!=null && item.rmax!=null) return rating>=item.rmin && rating<=item.rmax;
+  if(item.rmax!=null && item.rmin==null) return rating<=item.rmax;
+  return false;
+}
+function findPrice(type, mat, rating){
+  const list = PRICE_ITEMS.filter(x=>x.type===type && x.mat===mat);
+  if(!list.length) return null;
+  // 1) точное совпадение по номиналу
+  const exact = list.find(x=>x.rating===rating);
+  if(exact) return exact.price;
+  // 2) попадание в диапазон
+  const inRange = list.find(x=>ratingMatches(x, rating));
+  if(inRange) return inRange.price;
+  // 3) эвристика: ближайший по номиналу (минимальная разница)
+  let best=null,bestDiff=Infinity;
+  list.forEach(x=>{
+    const rr = (x.rating!=null)?x.rating : (rating<= (x.rmax||Infinity) ? (x.rmax||rating) : (x.rmin||rating));
+    const d=Math.abs((rr||rating)-rating);
+    if(d<bestDiff){bestDiff=d;best=x;}
+  });
+  return best?best.price:null;
+}
+function calcCost(sp){
+  const mat=$('mat').value, rating=+$('rating').value;
+  const len_m = (sp.lenHoriz+sp.lenUp+sp.lenDown)/1000;
+  const lines=[];
+  function push(name, unit, qty, price){ if(price==null) return; const total=qty*price; lines.push({name, unit, qty: (unit==='м'? +len_m.toFixed(3) : qty), price, total}); }
+  const straight = findPrice('straight_per_m', mat, rating);
+  push('Прямая секция (в т.ч. вертикальная)', 'м', len_m, straight);
+
+  const elbow = findPrice('elbow', mat, rating);
+  const elbowsCount = sp.vert + sp.horiz;
+  push('Угловая секция', 'шт', elbowsCount, elbow);
+
+  const joint = findPrice('joint_block', mat, rating);
+  push('Соединительный блок', 'шт', sp.joints.total, joint);
+
+  if(sp.endCap){
+    const endcap = findPrice('endcap', mat, rating);
+    push('Концевая заглушка', 'шт', 1, endcap);
+  }
+  if(sp.nkuBlocks){
+    const feeder = findPrice('feeder', mat, rating);
+    push('Фланцевый блок подачи питания (НКУ)', 'шт', sp.nkuBlocks, feeder);
+  }
+  if(sp.trBlocks){
+    const xfmr = findPrice('xfmr', mat, rating);
+    push('Секция подключения к трансформатору', 'шт', sp.trBlocks, xfmr);
+  }
+  if($('mountOn').value==='1' && sp.mounts){
+    const bracket = findPrice('mount_bracket', mat, rating);
+    push('Горизонтальный крепеж на ребро', 'шт', sp.mounts, bracket);
+  }
+  const total = Math.round(lines.reduce((s,l)=>s+l.total,0));
+  return {lines,total};
+}
+function renderCosts(sp){
+  const tb=$('costTable').querySelector('tbody'); tb.innerHTML='';
+  const hint=$('costHint'); const totalEl=$('costTotal');
+  if(!PRICE_ITEMS.length){ hint.style.display='block'; totalEl.textContent='—'; return; }
+  hint.style.display='none';
+  const cost=calcCost(sp);
+  if(!cost || !cost.lines.length){ totalEl.textContent='—'; return; }
+  cost.lines.forEach(l=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${l.name}</td><td>${l.unit}</td><td>${l.qty}</td><td>${fmtMoney(l.price)}</td><td>${fmtMoney(l.total)}</td>`;
+    tb.appendChild(tr);
+  });
+  totalEl.textContent=fmtMoney(cost.total);
+}
 
 /* ====== управление ====== */
 function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list[0]; draw(); if(state.calc) renderSpec(); }
@@ -742,14 +961,16 @@ $('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endD
 });
 
 /* разбиение/сброс/undo */
-$('calc').onclick=()=>{ const m=+$('moduleLen').value||0; if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; } state.module=m; state.calc=true; giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; draw(); renderSpec(); };
-$('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); };
-$('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); };
-$('clear').onclick=()=>{ state.segs.length=0; state.calc=false; draw(); renderSpec(); };
+$('calc').onclick=()=>{ const m=+$('moduleLen').value||0; if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; } state.module=m; state.calc=true; giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; draw(); renderSpec(); if($('autofitToggle').checked) fit(true); };
+$('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); if($('autofitToggle').checked) fit(true); };
+$('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); if($('autofitToggle').checked) fit(true); };
+$('clear').onclick=()=>{ state.segs.length=0; state.calc=false; draw(); renderSpec(); if($('autofitToggle').checked) fit(true); };
+$('fit').onclick=()=>fit(true);
+$('autofitToggle').addEventListener('change',e=>{ autoFit=e.target.checked; if(autoFit) fit(true); });
 
 /* проект: сохранить/загрузить */
-$('saveProj').onclick=()=>{ const data={version:6,view:viewMode,params:{mat:$('mat').value,rating:+$('rating').value,ip:$('ip').value,startType:$('startType').value,startW:+$('startW').value,startD:+$('startD').value,startH:+$('startH').value,endType:$('endType').value,endW:+$('endW').value,endD:+$('endD').value,endH:+$('endH').value,moduleLen:+$('moduleLen').value,mountOn:$('mountOn').value,mountStep:+$('mountStep').value},segs:state.segs,calc:state.calc,dimOffsets:state.dimOffsets,annos:state.annos}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_project.json'; a.click(); URL.revokeObjectURL(url); };
-$('loadProj').onclick=()=>$('loadInput').click();
+$('saveProj').onclick=()=>{ const data={version:7,view:viewMode,params:{mat:$('mat').value,rating:+$('rating').value,ip:$('ip').value,startType:$('startType').value,startW:+$('startW').value,startD:+$('startD').value,startH:+$('startH').value,endType:$('endType').value,endW:+$('endW').value,endD:+$('endD').value,endH:+$('endH').value,moduleLen:+$('moduleLen').value,mountOn:$('mountOn').value,mountStep:+$('mountStep').value},segs:state.segs,calc:state.calc,dimOffsets:state.dimOffsets,annos:state.annos}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_project.json'; a.click(); URL.revokeObjectURL(url); };
+$('loadProj').onclick()=>$('loadInput').click();
 $('loadInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=()=>{ try{ const data=JSON.parse(rd.result);
@@ -758,17 +979,44 @@ $('loadInput').addEventListener('change',e=>{
     $('endType').value=data.params.endType||'ENDCAP'; $('endW').value=data.params.endW||600; $('endD').value=data.params.endD||600; $('endH').value=data.params.endH||2200;
     $('moduleLen').value=data.params.moduleLen||3000; $('mountOn').value=data.params.mountOn||'1'; $('mountStep').value=data.params.mountStep||1000;
     $('endDims').classList.toggle('hid',$('endType').value!=='NKU');
-    state.segs=Array.isArray(data.segs)?data.segs:[]; state.calc=!!data.calc; state.dimOffsets=data.dimOffsets||{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}; state.annos=Array.isArray(data.annos)?data.annos:[]; state.movingAnno={id:null,what:null,view:null}; setProjection(data.view||'ISO'); draw(); if(state.calc) renderSpec();
+    state.segs=Array.isArray(data.segs)?data.segs:[]; state.calc=!!data.calc; state.dimOffsets=data.dimOffsets||{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}; state.annos=Array.isArray(data.annos)?data.annos:[]; state.movingAnno={id:null,what:null,view:null}; setProjection(data.view||'ISO'); draw(); if(state.calc) renderSpec(); if($('autofitToggle').checked) fit(true);
   }catch(err){ alert('Ошибка загрузки: '+err.message); } }; rd.readAsText(f,'utf-8');
 });
 
 /* фуллскрин */
-$('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
+$('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(true); },120); };
+
+/* ===== ADMIN (Alt+P) ===== */
+function renderAdminTable(arr){
+  const tb=$('adminTable').querySelector('tbody'); tb.innerHTML='';
+  arr.forEach(it=>{
+    const tr=document.createElement('tr');
+    const rng = (it.rmin!=null||it.rmax!=null)? `${it.rmin||''}-${it.rmax||''}` : '';
+    tr.innerHTML=`<td>${it.code}</td><td>${it.type}</td><td>${it.mat||''}</td><td>${it.rating||''}</td><td>${rng}</td><td>${fmtMoney(it.price)}</td><td>${it.desc||''}</td>`;
+    tb.appendChild(tr);
+  });
+  $('adminInfo').textContent=`Записей: ${arr.length}`;
+}
+function openAdmin(){ $('admin').style.display='flex'; $('priceText').focus(); renderAdminTable(PRICE_ITEMS); }
+function closeAdmin(){ $('admin').style.display='none'; }
+$('openAdmin').onclick=openAdmin;
+$('adminClose').onclick=closeAdmin;
+document.addEventListener('keydown',e=>{ if(e.altKey && (e.key==='p' || e.key==='P')) openAdmin(); });
+
+$('adminParse').onclick=()=>{ const arr=parsePriceList($('priceText').value||''); renderAdminTable(arr); window.__parsedPrices=arr; };
+$('adminSave').onclick=()=>{ const arr=window.__parsedPrices||PRICE_ITEMS; PRICE_ITEMS=arr; savePrices(arr); renderAdminTable(arr); alert('Цены сохранены в localStorage.'); if(state.calc) renderSpec(); };
+$('adminExport').onclick=()=>{ const blob=new Blob([JSON.stringify(PRICE_ITEMS,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='prices.json'; a.click(); URL.revokeObjectURL(url); };
+$('adminImportJson').onclick=()=>$('adminImportJsonInput').click();
+$('adminImportJsonInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const arr=JSON.parse(rd.result); if(!Array.isArray(arr)) throw new Error('ожидался массив'); PRICE_ITEMS=arr; savePrices(arr); renderAdminTable(arr); alert('Импортировано.'); if(state.calc) renderSpec(); }catch(err){ alert('Ошибка импорта: '+err.message); } };
+  rd.readAsText(f,'utf-8');
+});
 
 /* старт */
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
-  resize(); setProjection('ISO'); draw(); fit();
+  resize(); setProjection('ISO'); draw(); fit(true);
 }
 document.addEventListener('DOMContentLoaded',start);
 start(); /* на случай вставки в уже загруженную страницу */
