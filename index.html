@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="ru">
+<head>
 <meta charset="utf-8"/>
-<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>НКУ/ТР + шинопровод — виды, спецификация, PNG/DXF/XLS</title>
+<title>Шинопровод — чертёж, виды, спецификация, экспорт</title>
 <style>
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
@@ -11,26 +11,15 @@
   .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:16px}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:10px 0}
-  .row-3{display:grid;grid-template-columns:repeat(3,minmax(62px,1fr));gap:8px;margin:8px 0}
-  .row-3 input{min-width:62px;max-width:94px;padding:6px 8px;font-size:12px;line-height:1;height:26px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   label{white-space:nowrap}
   input[type=number],select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
-  input[readonly]{background:#f3f3f3}
+  .row-3{display:grid;grid-template-columns:repeat(3,minmax(56px,1fr));gap:8px;margin:6px 0}
+  .row-3 input{min-width:56px;max-width:90px;padding:6px 8px;font-size:12px;line-height:1;height:26px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
   .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:740px;overflow:hidden}
-  /* ПАНЕЛЬ ВИДОВ (СВЕРХУ) */
-  .viewbar-top{
-    position:absolute;left:8px;right:8px;top:8px;
-    display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;
-    user-select:none;
-  }
-  /* ПАНЕЛЬ ДЕЙСТВИЙ (СНИЗУ) */
-  .viewbar-bottom{
-    position:absolute;left:8px;right:8px;bottom:8px;
-    display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;
-    user-select:none;
-  }
-  .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px;user-select:none}
+  .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
+  .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
+  .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
   .viewbtn.active{background:#eef3ff;border-color:#bcd}
   #view{width:100%;height:100%;display:block;background:#fff}
   #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
@@ -38,21 +27,20 @@
   .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
   .warn{color:#c43;font-size:12px}
   .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:9}
-  .dim.dragging{cursor:grabbing;opacity:.95}
+  .dim.dragging{cursor:grabbing;opacity:.96}
   .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
   .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:10}
-  .toolbar{position:absolute;right:10px;bottom:10px;display:flex;gap:8px;z-index:8;flex-wrap:wrap}
-  .iconbtn{border:1px solid var(--border);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer;box-shadow:var(--shadow)}
+  .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
   .spec-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:2px 0}
   .sub{color:#555}
   table{width:100%;border-collapse:collapse;margin-top:6px}
   th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
-  .hid{display:none}
 </style>
-
-<header><b>НКУ/Трансформатор + шинопровод</b> — виды, спецификация, PNG/DXF/XLS</header>
+</head>
+<body>
+<header><b>Шинопровод</b> — виды, размеры, спецификация, экспорт (PNG/DXF/XLS/PDF)</header>
 
 <div class="wrap">
   <div class="panel">
@@ -63,26 +51,20 @@
     <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
 
     <div class="row"><label>Начало трассы</label>
-      <select id="startType">
-        <option value="NKU" selected>ГРЩ</option>
-        <option value="TR">Трансформатор</option>
-      </select>
+      <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option></select>
     </div>
     <div class="row-3">
-      <input id="startW" type="number" value="600" title="Начало W" placeholder="W">
-      <input id="startD" type="number" value="600" title="Начало D" placeholder="D">
+      <input id="startW" type="number" value="600"  title="Начало W" placeholder="W">
+      <input id="startD" type="number" value="600"  title="Начало D" placeholder="D">
       <input id="startH" type="number" value="2200" title="Начало H" placeholder="H">
     </div>
 
     <div class="row"><label>Конец трассы</label>
-      <select id="endType">
-        <option value="ENDCAP" selected>Заглушка</option>
-        <option value="NKU">ГРЩ</option>
-      </select>
+      <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option></select>
     </div>
     <div id="endDims" class="row-3 hid">
-      <input id="endW" type="number" value="600" title="Конец W" placeholder="W">
-      <input id="endD" type="number" value="600" title="Конец D" placeholder="D">
+      <input id="endW" type="number" value="600"  title="Конец W" placeholder="W">
+      <input id="endD" type="number" value="600"  title="Конец D" placeholder="D">
       <input id="endH" type="number" value="2200" title="Конец H" placeholder="H">
     </div>
 
@@ -119,6 +101,9 @@
       <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
       <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
       <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
+      <div class="spec-row"><div>Горизонтальные участки</div><div id="spLenHoriz"></div></div>
+      <div class="spec-row"><div>Вертикально вверх</div><div id="spLenUp"></div></div>
+      <div class="spec-row"><div>Вертикально вниз</div><div id="spLenDown"></div></div>
       <div class="spec-row"><div>Блок подключения к НКУ</div><div id="spNkuBlocks"></div></div>
       <div class="spec-row"><div>Блок подключения к ТР</div><div id="spTrBlocks"></div></div>
       <div class="spec-row"><div>Заглушка на конце</div><div id="spEndCap"></div></div>
@@ -137,8 +122,7 @@
   </div>
 
   <div class="viewer" id="wrap">
-    <!-- ВИДЫ (СВЕРХУ) -->
-    <div class="viewbar-top" id="viewbarTop">
+    <div class="viewbar-top">
       <button class="viewbtn active" data-view="ISO">Изометрия</button>
       <button class="viewbtn" data-view="TOP">Сверху</button>
       <button class="viewbtn" data-view="FRONT">Спереди</button>
@@ -146,13 +130,14 @@
       <button class="viewbtn" data-view="LEFT">Слева</button>
       <button class="viewbtn" data-view="RIGHT">Справа</button>
     </div>
-    <!-- ДЕЙСТВИЯ (СНИЗУ) -->
-    <div class="viewbar-bottom" id="viewbarBottom">
+
+    <div class="viewbar-bottom">
       <button class="viewbtn" id="btnFS" title="Во весь экран">⛶</button>
       <button class="viewbtn" id="savePNG">PNG</button>
       <button class="viewbtn" id="savePNGAll">PNG все</button>
       <button class="viewbtn" id="saveDXF">DXF</button>
       <button class="viewbtn" id="saveXLS">XLS</button>
+      <button class="viewbtn" id="savePDF">Проект (PDF)</button>
     </div>
 
     <canvas id="view"></canvas>
@@ -176,7 +161,7 @@
       </div>
     </div>
 
-    <!-- окно ввода текста выноски -->
+    <!-- ввод текста выноски -->
     <div id="annoPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr auto">
         <input id="annoInput" type="text" placeholder="текст выноски">
@@ -190,431 +175,603 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', ()=>{(function(){
-/* ===== справочники/константы ===== */
+/* ====== данные ====== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
 const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
 const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
 const WIDTH_CU={400:82,500:82,630:82,800:82,1000:120,1200:120,1250:120,1600:160,2000:220,2500:290,3200:360,4000:570,5000:570,6300:570};
 const VERT_ELBOW={a:320,b:320};
 const H_ELBOW_BY_R={400:[260,260],500:[260,260],630:[260,260],800:[260,260],1000:[270,270],1200:[290,290],1250:[290,290],1600:[310,310],2000:[220,220],2500:[370,370],3200:[410,410],4000:[460,450],5000:[500,500],6300:[500,500]};
-const MIN_LEN=400, BUS_H=118, JOINT_LEN=100, MOUNT_ALONG=10, MOUNT_THICK=10;
+const MIN_LEN=400, BUS_H=118;
+const JOINT_LEN=100, JOINT_COLOR='rgb(52,168,83)', JOINT_A=0.55;
+const MOUNT_ALONG=10, MOUNT_THICK=10, MOUNT_COLOR='rgba(255,140,0,.55)';
 const SP_MIN=800, SP_MAX=1100;
 
-/* ===== DOM/канвас ===== */
+/* ====== DOM ====== */
 const $=id=>document.getElementById(id);
 const wrap=$('wrap'), cvs=$('view'), ctx=cvs.getContext('2d');
-const giz=$('gizmo'), gz=giz.getContext('2d'), tag=$('tag'), msg=$('msg');
-const pop=$('lenPopup'), lenInput=$('lenInput'), okBtn=$('ok'), cancelBtn=$('cancel'), hint=$('hint');
-const epop=$('editPopup'), editInput=$('editInput');
-const apop=$('annoPopup'), ainput=$('annoInput'), aok=$('annoOk'), acancel=$('annoCancel');
+const giz=$('gizmo'), gz=giz.getContext('2d'), tag=$('tag');
 const dimLayer=$('dimLayer'), annoLayer=$('annoLayer');
-const btnFS=$('btnFS');
+const pop=$('lenPopup'), lenInput=$('lenInput'), hint=$('hint');
+const epop=$('editPopup'), editInput=$('editInput');
+const apop=$('annoPopup'), ainput=$('annoInput');
+const msg=$('msg');
 
-/* ===== проекция/камера ===== */
+/* ====== проекция/камера ====== */
 let viewMode='ISO';
 const DPR=Math.max(1,window.devicePixelRatio||1);
 const ISO=Math.PI/6, C=Math.cos(ISO), S=Math.sin(ISO);
 let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
+
 function setProjection(mode){
   viewMode=mode;
-  if(mode==='ISO'){ proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z]; }
-  else if(mode==='TOP'){   proj=(x,y,z)=>[ x, -y ]; }
-  else if(mode==='FRONT'){ proj=(x,y,z)=>[ x, -z ]; }
-  else if(mode==='BACK'){  proj=(x,y,z)=>[ -x, -z ]; }
-  else if(mode==='LEFT'){  proj=(x,y,z)=>[ y, -z ]; }
-  else if(mode==='RIGHT'){ proj=(x,y,z)=>[ -y, -z ]; }
-  document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===mode));
+  if(mode==='ISO') proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
+  if(mode==='TOP') proj=(x,y,z)=>[ x, -y ];
+  if(mode==='FRONT') proj=(x,y,z)=>[ x, -z ];
+  if(mode==='BACK') proj=(x,y,z)=>[ -x, -z ];
+  if(mode==='LEFT') proj=(x,y,z)=>[ y, -z ];
+  if(mode==='RIGHT') proj=(x,y,z)=>[ -y, -z ];
+  document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===mode));
   fit();
 }
-document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click', ()=>setProjection(b.dataset.view)));
 
-/* ===== пан/зум ===== */
+document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
+
 let panX=0, panY=0, scale=1;
-const apply=()=>ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR);
+function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
 function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
-addEventListener('resize', resize);
-let drag=false, sx=0, sy=0;
-wrap.addEventListener('pointerdown', e=>{
-  if(e.target.closest('#gizmo, .viewbar-top, .viewbar-bottom, .prompt, .anno, .dim, .toolbar, .anchor-dot')) return;
-  drag=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
-});
-wrap.addEventListener('pointermove', e=>{ if(!drag) return; panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updateEditPopupPosition(); });
-wrap.addEventListener('pointerup', ()=>drag=false);
-wrap.addEventListener('wheel', e=>{ e.preventDefault(); const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top; const zx=(mx-panX)/scale, zy=(my-panY)/scale; scale*=k; panX=mx-zx*scale; panY=my-zy*scale; draw(); updateEditPopupPosition(); },{passive:false});
 
-/* ===== утилиты ===== */
+addEventListener('resize', resize);
+let dragging=false, sx=0, sy=0;
+wrap.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#gizmo,.viewbar-top,.viewbar-bottom,.prompt,.anno,.dim,.anchor-dot')) return;
+  dragging=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
+});
+wrap.addEventListener('pointerup',()=>dragging=false);
+wrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const zx=(mx-panX)/scale, zy=(my-panY)/scale;
+  scale*=k; panX=mx-zx*scale; panY=my-zy*scale;
+  draw(); updatePopups();
+},{passive:false});
 function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
 function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
 
-/* ===== модель/параметры ===== */
-const state={ segs:[], lastDir:'+Z', calc:false, module:3000, mountsOn:true, editingIdx:null, dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}, annos:[], addAnnoMode:false, movingAnno:{id:null,what:null,view:null} };
-const P=()=>({ startType:$('startType').value, endType:$('endType').value, startW:+$('startW').value, startD:+$('startD').value, startH:+$('startH').value, endW:+$('endW').value, endD:+$('endD').value, endH:+$('endH').value, busW:( $('mat').value==='CU' ? WIDTH_CU : WIDTH_AL )[+$('rating').value] || 78, busH:BUS_H });
-const originTop=()=>{const p=P();return [p.startW/2,p.startD/2,p.startH];};
-const axis=d=>d[1]; const sgn=d=>d[0]==='+'?1:-1;
-const adv=(p,dir,dist)=>{const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist];};
-const endPoint=()=>{let [x,y,z]=originTop(); for(const s of state.segs){const L=s.len|0; if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L;} return [x,y,z];};
+/* ====== модель ====== */
+const state={
+  segs:[], lastDir:'+Z', calc:false, module:3000,
+  dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
+  annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null
+};
 
-/* ===== рисование 3D-проводов в 2D-проекции ===== */
+const P=()=>({
+  startType:$('startType').value, endType:$('endType').value,
+  startW:+$('startW').value, startD:+$('startD').value, startH:+$('startH').value,
+  endW:+$('endW').value, endD:+$('endD').value, endH:+$('endH').value,
+  busW:( $('mat').value==='CU'?WIDTH_CU:WIDTH_AL )[+$('rating').value]||78,
+  busH:BUS_H
+});
+
+function originTop(){ const p=P(); return [p.startW/2,p.startD/2,p.startH]; }
+const axis=d=>d[1]; const sgn=d=>d[0]==='+'?1:-1;
+const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
+function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L; } return [x,y,z]; }
+
+/* ====== геометрия/рисование ====== */
 function line3(a,b,col='#111',lw=1/scale){ const p=proj(...a), q=proj(...b); ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); }
 function fillPoly3(pts, fill, alpha){ const p=pts.map(v=>proj(...v)); ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore(); }
 function box(x,y,z,w,d,h){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]; line3(v[0],v[4]); line3(v[1],v[5]); line3(v[2],v[6]); line3(v[3],v[7]); line3(v[4],v[5]); line3(v[5],v[6]); line3(v[6],v[7]); line3(v[7],v[4]); line3(v[0],v[1]); line3(v[1],v[2]); line3(v[2],v[3]); line3(v[3],v[0]); }
-function solidBox(x,y,z,w,d,h,color='rgb(52,168,83)',alpha=0.5){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]; const faces=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]]; faces.forEach(f=>fillPoly3([v[f[0]],v[f[1]],v[f[2]],v[f[3]]],color,alpha)); line3(v[0],v[1]); line3(v[1],v[2]); line3(v[2],v[3]); line3(v[3],v[0]); line3(v[4],v[5]); line3(v[5],v[6]); line3(v[6],v[7]); line3(v[7],v[4]); line3(v[0],v[4]); line3(v[1],v[5]); line3(v[2],v[6]); line3(v[3],v[7]); }
-const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]}; function dirVec(d){const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s, v[1]*s, v[2]*s];}
-function cross(a,b){return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
-function madd(o,u,su,v,sv,n,sn){return [o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn, o[2]+u[2]*su+v[2]*sv+n[2]*sn];}
+function solidBox(x,y,z,w,d,h,color='rgb(52,168,83)',alpha=.5){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]; const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]]; f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha)); [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b]));
+}
+const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
+function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function madd(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn, o[2]+u[2]*su+v[2]*sv+n[2]*sn ]; }
 function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
-function extrudeSolid(poly, thick, O, U, V, N){ const t2=thick/2; const up=poly.map(p=>madd(O,U,p[0],V,p[1],N,+t2)); const dn=poly.map(p=>madd(O,U,p[0],V,p[1],N,-t2)); const fill='rgb(60,110,220)', a=0.6; fillPoly3(dn,fill,a); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],fill,a);} fillPoly3(up,fill,a); for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length]); line3(up[i], dn[i]); } }
-function elbowCuts(dirA, dirB){ const a1=axis(dirA), a2=axis(dirB); if(a1===a2) return {a:0,b:0}; if(a1==='Z' || a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
+function extrudeSolid(poly, thick, O, U, V, N){ const t2=thick/2; const up=poly.map(p=>madd(O,U,p[0],V,p[1],N,+t2)); const dn=poly.map(p=>madd(O,U,p[0],V,p[1],N,-t2)); const color='rgb(60,110,220)', a=0.6; fillPoly3(dn,color,a); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,a);} fillPoly3(up,color,a); for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length]); line3(up[i], dn[i]); } }
+function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z' || a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){ const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V); const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z'); const thick = vertical ? bw : bh; const half  = vertical ? (bh/2) : (bw/2); const poly  = LpolyCornerSolid(aLen,bLen,half); extrudeSolid(poly, thick, vertex, U, V, N); }
-function segBox(start,dir,L,bw,bh){ const s=sgn(dir), a=axis(dir); if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L); } if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh); } if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh); } }
+function segBox(start,dir,L,bw,bh){
+  const s=sgn(dir), a=axis(dir);
+  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L); }
+  if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh); }
+  if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh); }
+}
 
-/* соединители/крепления */
-const JOINT_COLOR='rgb(52,168,83)', JOINT_A=.5;
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw, bh){ const m=state.module|0; if(!(m>0)) return; const depth=JOINT_LEN; const full=Math.floor((cur.len|0)/m); for(let k=1;k<=full;k++){ const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue; const p=adv(startPos,cur.dir,d); const a=axis(cur.dir); if(a==='Z'){ solidBox(p[0]-bw/2, p[1]-bw/2, p[2]-depth/2, bw, bw, depth, JOINT_COLOR, JOINT_A); } if(a==='X'){ solidBox(p[0]-depth/2, p[1]-bw/2, p[2]-BUS_H/2, depth, bw, BUS_H, JOINT_COLOR, JOINT_A); } if(a==='Y'){ solidBox(p[0]-bw/2, p[1]-depth/2, p[2]-BUS_H/2, bw, depth, BUS_H, JOINT_COLOR, JOINT_A); } } }
-function intervalFill(a,b, haveA, haveB, target){ const L=b-a; const pts=[]; if(L<=0) return pts; if(haveA && haveB){ if(L<=SP_MAX) return pts; let gaps=Math.ceil(L/SP_MAX), s=L/gaps; while(s<SP_MIN && gaps>1){ gaps--; s=L/gaps; } for(let i=1;i<gaps;i++) pts.push(a+i*s); return pts; } if(!haveA && !haveB){ if(L<SP_MIN) return pts; let m=Math.max(0, Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target))) ); let s=L/(m+1); while(s>SP_MAX){ m++; s=L/(m+1); } while(s<SP_MIN && m>0){ m--; s=L/(m+1); } for(let i=1;i<=m;i++) pts.push(a+i*s); return pts; } let m=Math.max(0, Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target))) - 1); let s=L/(m+1); while(s>SP_MAX){ m++; s=L/(m+1); } while(s<SP_MIN && m>0){ m--; s=L/(m+1); } for(let i=1;i<=m;i++) pts.push(a+i*s); return pts; }
-function mountPositionsForSegment(startPos, cur, Ldraw, startCut, endCut, prev, next, target){ const out=[]; if(axis(cur.dir)==='Z') return out; const hasStartCorner = !!(prev && axis(prev.dir)!==axis(cur.dir)); const hasEndCorner   = !!(next && axis(next.dir)!==axis(cur.dir)); const anchors=[]; if(hasStartCorner && Ldraw>=200) anchors.push(200); if(hasEndCorner   && Ldraw>=200) anchors.push(Ldraw-200); anchors.sort((a,b)=>a-b); if(anchors.length===0){ out.push(...intervalFill(0, Ldraw, false, false, target)); }else{ out.push(...intervalFill(0, anchors[0], false, true, target)); for(let i=0;i<anchors.length-1;i++){ out.push(anchors[i], ...intervalFill(anchors[i], anchors[i+1], true, true, target)); } const last=anchors[anchors.length-1]; out.push(last, ...intervalFill(last, Ldraw, true, false, target)); } const uniq=[], seen=new Set(); for(const d of out){ const v=Math.max(0, Math.min(Ldraw, d)); const k=v.toFixed(2); if(!seen.has(k)){ seen.add(k); uniq.push(v); } } return uniq; }
-function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw, bh){ if($('mountOn').value!=='1') return 0; const target=+$('mountStep').value||1000; const arr=mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,target); for(const d of arr){ const C=adv(startPos,cur.dir,d); if(axis(cur.dir)==='X'){ const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2 - MOUNT_THICK; solidBox(x0, y0, z0, MOUNT_ALONG, bw, MOUNT_THICK, 'rgb(255,140,0)', .55); }else if(axis(cur.dir)==='Y'){ const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2 - MOUNT_THICK; solidBox(x0, y0, z0, bw, MOUNT_ALONG, MOUNT_THICK, 'rgb(255,140,0)', .55); } } return arr.length; }
+/* соединители */
+function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw, bh){
+  const m=state.module|0; if(!(m>0)) return;
+  const full=Math.floor((cur.len|0)/m);
+  for(let k=1;k<=full;k++){
+    const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
+    const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
+    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,JOINT_COLOR,JOINT_A);
+    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,JOINT_COLOR,JOINT_A);
+    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,JOINT_COLOR,JOINT_A);
+  }
+}
 
-/* ΔH, шкафы, заглушка */
-function getDimOffset(key){ return state.dimOffsets[viewMode][key] || {dx:0,dy:0}; }
-function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; }
-function renderDeltaH(){ if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return; if($('endType').value!=='NKU') return; const p=P(); const topStart = originTop()[2]; const baseStart = topStart - p.startH; const endTop = endPoint()[2]; const baseEnd = endTop - p.endH; const delta = Math.abs(baseEnd - baseStart) | 0; const sPt = proj(p.startW/2, p.startD/2, baseStart); const ePt = proj(endPoint()[0], endPoint()[1], baseEnd); const mid = {u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base = localToScreen(mid.u, mid.v); const key='__deltaH'; const off=getDimOffset(key); const x=base.x + (off.dx||0), y=base.y + (off.dy||0); const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px'; let dragging=false, sx=0, sy=0, startDX=0, startDY=0; el.addEventListener('pointerdown', e=>{ dragging=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY; startDX=off.dx||0; startDY=off.dy||0; el.setPointerCapture(e.pointerId); }); el.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-sx, dy=e.clientY-sy; el.style.left=(base.x + startDX + dx)+'px'; el.style.top=(base.y + startDY + dy)+'px'; }); el.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key, dx, dy); }); dimLayer.appendChild(el); }
-function drawStartCab(){ const p=P(); const topZ = originTop()[2]; const baseZ = topZ - p.startH; box(0,0,baseZ,p.startW,p.startD,p.startH); box(p.startW/2-60,p.startD/2-60,topZ,120,120,8); box(p.startW/2-110,p.startD/2-110,topZ,220,220,4); }
-function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), pad1=8, pad2=4; const end=endPoint(); const topZ=end[2]; const baseZ=topZ-p.endH; const base=[end[0]-p.endW/2,end[1]-p.endD/2,baseZ]; box(base[0],base[1],base[2],p.endW,p.endD,p.endH); box(end[0]-60,end[1]-60,topZ,120,120,pad1); box(end[0]-110,end[1]-110,topZ,220,220,pad2); }
-function drawEndCap(bw,bh){ if($('endType').value!=='ENDCAP') return; const depth=JOINT_LEN, end=endPoint(); const last = state.segs[state.segs.length-1] || {dir:'+Z',len:0}; const a=axis(last.dir); if(a==='Z'){ solidBox(end[0]-bw/2,end[1]-bw/2,end[2]-depth/2,bw,bw,depth,'rgb(220,0,0)',.55); } if(a==='X'){ solidBox(end[0]-depth/2,end[1]-bw/2,end[2]-BUS_H/2,depth,bw,BUS_H,'rgb(220,0,0)',.55); } if(a==='Y'){ solidBox(end[0]-bw/2,end[1]-depth/2,end[2]-BUS_H/2,bw,depth,BUS_H,'rgb(220,0,0)',.55); } }
+/* крепления: 200мм до/после угла + равномерно 800..1100 */
+function intervalFill(a,b, haveA, haveB, target){
+  const L=b-a, out=[]; if(L<=0) return out;
+  function pushEven(n){ const step=L/(n+1); for(let i=1;i<=n;i++) out.push(a+i*step); }
+  if(haveA&&haveB){ if(L<=SP_MAX) return out; let n=Math.ceil(L/SP_MAX)-1; while(L/(n+1)<SP_MIN&&n>0)n--; pushEven(n); return out; }
+  if(!haveA&&!haveB){ if(L<SP_MIN) return out; let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; pushEven(n); return out; }
+  let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; pushEven(n); return out;
+}
+function mountPositionsForSegment(startPos, cur, Ldraw, startCut, endCut, prev, next, target){
+  const result=[]; if(axis(cur.dir)==='Z') return result;
+  const hasA = !!(prev && axis(prev.dir)!==axis(cur.dir));
+  const hasB = !!(next && axis(next.dir)!==axis(cur.dir));
+  const anchors=[];
+  if(hasA && Ldraw>=200) anchors.push(200);
+  if(hasB && Ldraw>=200) anchors.push(Ldraw-200);
+  anchors.sort((a,b)=>a-b);
+  if(anchors.length===0){ result.push(...intervalFill(0,Ldraw,false,false,target)); }
+  else{
+    result.push(...intervalFill(0,anchors[0],false,true,target));
+    for(let i=0;i<anchors.length-1;i++){
+      result.push(anchors[i], ...intervalFill(anchors[i],anchors[i+1],true,true,target));
+    }
+    const last=anchors[anchors.length-1];
+    result.push(last, ...intervalFill(last,Ldraw,true,false,target));
+  }
+  const uniq=[], seen=new Set();
+  for(const d of result){ const v=Math.max(0,Math.min(Ldraw,d)); const k=v.toFixed(2); if(!seen.has(k)){ seen.add(k); uniq.push(v); } }
+  return uniq;
+}
+function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw){
+  if($('mountOn').value!=='1') return 0;
+  const arr=mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,+$('mountStep').value||1000);
+  for(const d of arr){
+    const C=adv(startPos,cur.dir,d);
+    if(axis(cur.dir)==='X'){
+      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,MOUNT_COLOR,1);
+    }else if(axis(cur.dir)==='Y'){
+      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,MOUNT_COLOR,1);
+    }
+  }
+  return arr.length;
+}
+
+/* шкафы, заглушка, ΔH */
+function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH); box(p.startW/2-60,p.startD/2-60,top,120,120,8); box(p.startW/2-110,p.startD/2-110,top,220,220,4); }
+function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), end=endPoint(), top=end[2], base=top-p.endH; box(end[0]-p.endW/2,end[1]-p.endD/2,base,p.endW,p.endD,p.endH); box(end[0]-60,end[1]-60,top,120,120,8); box(end[0]-110,end[1]-110,top,220,220,4); }
+function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const end=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir); if(a==='Z') solidBox(end[0]-bw/2,end[1]-bw/2,end[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1); if(a==='X') solidBox(end[0]-JOINT_LEN/2,end[1]-bw/2,end[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1); if(a==='Y') solidBox(end[0]-bw/2,end[1]-JOINT_LEN/2,end[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1); }
 function drawGroundLine(){ if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return; ctx.save(); apply(); const p0=proj(0,0,0); ctx.strokeStyle='#c8c8c8'; ctx.lineWidth=1/scale; ctx.setLineDash([8/scale,6/scale]); ctx.beginPath(); ctx.moveTo(-1e5,p0[1]); ctx.lineTo(1e5,p0[1]); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
+function getDimOffset(key){ return state.dimOffsets[viewMode][key]||{dx:0,dy:0}; }
+function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; }
+function renderDeltaH(){
+  if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
+  if($('endType').value!=='NKU') return;
+  const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
+  const delta=Math.abs(eBase-sBase)|0;
+  const sPt=proj(p.startW/2,p.startD/2,sBase);
+  const ePt=proj(endPoint()[0],endPoint()[1],eBase);
+  const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
+  const base=localToScreen(mid.u,mid.v);
+  const off=getDimOffset('__deltaH'); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px';
+  let drag=false, sx=0, sy=0, dx0=off.dx||0, dy0=off.dy||0;
+  el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-sx, dy=e.clientY-sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
+  el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset('__deltaH',dx,dy); });
+  dimLayer.appendChild(el);
+}
 
-/* ===== трасса ===== */
+/* ====== трасса + бэйджи ====== */
 function drawPath(){
   const prm=P(), bw=prm.busW, bh=prm.busH;
   let pos=originTop(); dimLayer.innerHTML='';
 
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-
-    const startCut = prev ? elbowCuts(prev.dir, cur.dir).b : 0;
-    const endCut   = next ? elbowCuts(cur.dir, next.dir).a : 0;
-
-    const startPos=adv(pos,cur.dir,startCut);
-    const Ldraw=Math.max(0,L-startCut-endCut);
+    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0;
+    const ec=next?elbowCuts(cur.dir,next.dir).a:0;
+    const startPos=adv(pos,cur.dir,sc);
+    const Ldraw=Math.max(0,L-sc-ec);
 
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh);
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,startCut,bw,bh);
-        drawMountsSmart(startPos,cur,Ldraw,startCut,endCut,prev,next,bw,bh);
+        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw,bh);
+        drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
-      const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid);
-      const base = localToScreen(p2[0], p2[1]);
-      const prefix = (axis(cur.dir)==='Z') ? 'H' : 'L';
-      const label = `${prefix} = ${L} мм`;
-      const key=i;
-      const off=getDimOffset(key);
-      const scrX=base.x+(off.dx||0), scrY=base.y+(off.dy||0);
+      const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
+      const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
+      const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
       if(state.calc){
-        const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=scrX+'px'; el.style.top=scrY+'px';
-        let dragging=false, sx=0, sy=0, startDX=0, startDY=0;
-        el.addEventListener('pointerdown', e=>{ dragging=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY; startDX=off.dx||0; startDY=off.dy||0; el.setPointerCapture(e.pointerId); });
-        el.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-sx, dy=e.clientY-sy; el.style.left=(base.x + startDX + dx)+'px'; el.style.top =(base.y + startDY + dy)+'px'; });
-        el.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key, dx, dy); });
-        el.addEventListener('dblclick', (ev)=>{ ev.stopPropagation(); state.editingIdx=i; epop.style.display='block'; updateEditPopupPosition(); editInput.value=state.segs[i].len|0; setTimeout(()=>editInput.focus(),0); });
+        const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
+        /* перетаскивание бэйджа */
+        let drag=false, sx=0, sy=0, dx0=off.dx||0, dy0=off.dy||0;
+        el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); sx=e.clientX; sy=e.clientY; el.setPointerCapture(e.pointerId); });
+        el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-sx, dy=e.clientY-sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
+        el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key,dx,dy); });
+        /* двойной клик — правка длины */
+        el.addEventListener('dblclick',ev=>{ ev.stopPropagation(); openEdit(i); });
         dimLayer.appendChild(el);
       }
     }
-
-    /* угол в вершине */
-    if(endCut>0 && next){
-      const cuts = elbowCuts(cur.dir,next.dir);
-      const vertex = adv(pos, cur.dir, L);
-      elbowSolidAtVertex(vertex, cur.dir, next.dir, cuts.a, cuts.b, bw, bh);
+    /* угол как единая деталь */
+    if(ec>0 && next){
+      const cuts=elbowCuts(cur.dir,next.dir);
+      const vertex=adv(pos,cur.dir,L);
+      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);
     }
-
     pos=adv(pos,cur.dir,L);
   }
-
   renderDeltaH();
 }
 
-/* ===== джойстик-направление ===== */
+/* ====== джойстик направлений ====== */
 const AXES=[{dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},{dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},{dir:'+X',label:'+X →',color:'#e4463c',vec:[1,0,0]},{dir:'-X',label:'-X ←',color:'#e4463c',vec:[-1,0,0]},{dir:'+Y',label:'+Y ↗',color:'#2d6cdf',vec:[0,1,0]},{dir:'-Y',label:'-Y ↙',color:'#2d6cdf',vec:[0,-1,0]}];
-let hit=null,rays=[];
+let hit=null, rays=[];
 function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); giz.style.left=s.x+'px'; giz.style.top=s.y+'px'; tag.style.left=s.x+'px'; tag.style.top=s.y+'px'; pop.style.left=s.x+'px'; pop.style.top=s.y+'px'; }
-function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; if(text){ gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); } }
-function angleOf(vx,vy){ return Math.atan2(vy,vx); }
-function angDiff(a,b){ let d=Math.abs(a-b)% (Math.PI*2); return d>Math.PI ? 2*Math.PI - d : d; }
-function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active = hit&&hit.dir===r.dir; const thick=active?7:4, alpha=(hit&&hit.dir!==r.dir)?0.35:0.98; drawArrow2D(r.from,r.to,r.color,thick,alpha,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
-giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(); const x=e.clientX-rect.left, y=e.clientY-rect.top; const cx=giz.width/2, cy=giz.height/2; const dx=x-cx, dy=y-cy; const r=Math.hypot(dx,dy); const phi=Math.atan2(dy,dx); const innerR=28, outerR=108; let found=null, best=1e9; for(const rr of rays){ const ad=angDiff(phi, rr.phi); const within = (r>=innerR && r<=outerR && ad <= (18*Math.PI/180)); const tipdx=x-rr.to[0], tipdy=y-rr.to[1], tipR=Math.hypot(tipdx,tipdy); const nearTip = tipR<=18; if(within || nearTip){ const score = (nearTip?0:ad) + Math.abs(r-90)*0.001; if(score<best){ best=score; found=rr; } } } hit=found; tag.textContent='направление: '+(hit?hit.label:'—'); drawGizmo(); });
+function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
+function angleOf(vx,vy){return Math.atan2(vy,vx)}; function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?2*Math.PI-d:d;}
+function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active=hit&&hit.dir===r.dir; drawArrow2D(r.from,r.to,r.color,active?7:4,active?1:.95,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
+giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top; const cx=giz.width/2, cy=giz.height/2, dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy), phi=Math.atan2(dy,dx), innerR=28, outerR=108; let found=null,best=1e9; for(const rr of rays){ const ad=angDiff(phi,rr.phi); const within=(r>=innerR&&r<=outerR&&ad<=18*Math.PI/180); const tipR=Math.hypot(x-rr.to[0],y-rr.to[1]); const nearTip=tipR<=18; if(within||nearTip){ const score=(nearTip?0:ad)+Math.abs(r-90)*0.001; if(score<best){best=score;found=rr;} } } hit=found; tag.textContent='направление: '+(hit?hit.label:'—'); drawGizmo(); });
 giz.addEventListener('pointerleave',()=>{ hit=null; tag.textContent='направление: —'; drawGizmo(); });
-giz.addEventListener('click',()=>{ if(viewMode!=='ISO' || !hit || state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси. Используйте «Отменить участок».'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
+giz.addEventListener('click',()=>{ if(viewMode!=='ISO'||!hit||state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
 
-/* ===== ввод/правка длин ===== */
-function showLenPopup(){ hint.textContent=''; lenInput.value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>lenInput.focus(),0); }
+/* ====== окна ввода длин ====== */
+function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>$('lenInput').focus(),0); }
 function hideLenPopup(){ pop.style.display='none'; }
-function commitLength(){ let L=+lenInput.value; if(!(L>0)){ hint.textContent='Введите длину'; lenInput.focus(); return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; lenInput.focus(); return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L;
-  else state.segs.push({dir:state.lastDir,len:L});
-  hideLenPopup(); draw();
+$('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
+lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
+function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); }
+
+/* правка длины сегмента (до/после разбивки) */
+function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
+$('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
+editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')epop.style.display='none'; });
+function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); }
+function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
+
+/* выбор сегмента кликом (работает всегда) */
+cvs.addEventListener('click',e=>{
+  const pick=pickSegByPoint(e,false);
+  if(pick.idx<0) return;
+  openEdit(pick.idx);
+});
+function distPointSeg(px,py,x1,y1,x2,y2){ const vx=x2-x1,vy=y2-y1,wx=px-x1,wy=py-y1; const t=Math.max(0,Math.min(1,(vx*wx+vy*wy)/(vx*vx+vy*vy||1))); const dx=x1+t*vx-px, dy=y1+t*vy-py; return {d:Math.hypot(dx,dy),t}; }
+function pickSegByPoint(e,useCuts){
+  const r=wrap.getBoundingClientRect(); const lx=(e.clientX-r.left-panX)/scale, ly=(e.clientY-r.top-panY)/scale;
+  let pos=originTop(), idx=-1, best=1e9, bestT=0;
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=useCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=useCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
+    const p1=proj(...start), p2=proj(...adv(start,cur.dir,Ldraw));
+    const r2=distPointSeg(lx,ly,p1[0],p1[1],p2[0],p2[1]);
+    if(r2.d<18/scale && r2.d<best){ best=r2.d; idx=i; bestT=sc+r2.t*Ldraw; }
+    pos=adv(pos,cur.dir,L);
+  }
+  return {idx,along:bestT};
 }
-$('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup; lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
+function segMid(i,withCuts){
+  let pos=originTop();
+  for(let k=0;k<state.segs.length;k++){
+    const cur=state.segs[k], L=cur.len|0, prev=state.segs[k-1], next=state.segs[k+1];
+    const sc=withCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=withCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
+    if(k===i){ const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); return localToScreen(p2[0],p2[1]); }
+    pos=adv(pos,cur.dir,L);
+  }
+  return {x:panX,y:panY};
+}
 
-function hideEdit(){ epop.style.display='none'; state.editingIdx=null; }
-function updateEditPopupPosition(){ if(epop.style.display!=='block' || state.editingIdx==null) return; const mid=segMid(state.editingIdx,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; }
-function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+editInput.value; if(i<0||!(v>0)) return; if(v<MIN_LEN){ editInput.focus(); return; } state.segs[i].len=v; draw(); updateEditPopupPosition(); if(state.calc) renderSpec(); hideEdit(); }
-$('editOk').onclick=applyEdit; $('editCancel').onclick=hideEdit; editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')hideEdit(); });
-
-cvs.addEventListener('click', e=>{ if(state.calc) return; const pick=pickSegByPoint(e,false); if(pick.idx<0) return; state.editingIdx=pick.idx; const mid=segMid(pick.idx,false); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; editInput.value=state.segs[pick.idx].len|0; epop.style.display='block'; setTimeout(()=>editInput.focus(),0); });
-
-function distPointSeg(px,py,x1,y1,x2,y2){ const vx=x2-x1,vy=y2-y1,wx=px-x1,wy=py-y1; const t=Math.max(0,Math.min(1,(vx*wx+vy*wy)/(vx*vx+vy*vy||1))); const dx=x1+t*vx-px,dy=y1+t*vy-py; return {d:Math.hypot(dx,dy), t}; }
-function pickSegByPoint(e, useCuts){ const r=wrap.getBoundingClientRect(); const lx=(e.clientX-r.left-panX)/scale, ly=(e.clientY-r.top-panY)/scale; let pos=originTop(), idx=-1, best=1e9, bestT=0; for(let i=0;i<state.segs.length;i++){ const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1]; const sc=useCuts && prev ? elbowCuts(prev.dir, cur.dir).b : 0; const ec=useCuts && next ? elbowCuts(cur.dir, next.dir).a : 0; const start=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec); const p1=proj(...start), p2=proj(...adv(start,cur.dir,Ldraw)); const r2=distPointSeg(lx,ly,p1[0],p1[1],p2[0],p2[1]); if(r2.d<18/scale && r2.d<best){ best=r2.d; idx=i; bestT=sc + r2.t*Ldraw; } pos=adv(pos,cur.dir,L); } return {idx, along:bestT}; }
-function segMid(i, withCuts){ let pos=originTop(); for(let k=0;k<state.segs.length;k++){ const cur=state.segs[k], L=cur.len|0, prev=state.segs[k-1], next=state.segs[k+1]; const sc=withCuts && prev? elbowCuts(prev.dir,cur.dir).b : 0; const ec=withCuts && next? elbowCuts(cur.dir,next.dir).a : 0; const start=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec); if(k===i){ const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); return localToScreen(p2[0],p2[1]); } pos=adv(pos,cur.dir,L); } return {x:panX,y:panY}; }
-
-/* ===== выноски ===== */
+/* ====== выноски ====== */
 let annoId=1;
-function newEmptyPos(){ return {ax:0,ay:0,bx:0,by:0}; }
-function ensureAnnoViewPos(anno, view){ if(!anno.pos[view]){ const src = anno.pos[viewMode] || anno.pos.ISO || anno.pos.TOP || anno.pos.FRONT || anno.pos.LEFT || anno.pos.RIGHT || anno.pos.BACK; anno.pos[view] = src ? {...src} : newEmptyPos(); } return anno.pos[view]; }
-$('addAnno').addEventListener('click', ()=>{ state.addAnnoMode=true; msg.textContent='Кликните место якоря выноски.'; setTimeout(()=>msg.textContent='',2000); });
-wrap.addEventListener('pointerdown', e=>{ if(!state.addAnnoMode) return; const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy); apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; ainput.value=''; apop.style.display='block'; setTimeout(()=>ainput.focus(),0); apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnnoMode=false; });
-$('annoOk').onclick=()=>{ const text=ainput.value.trim()||'Примечание'; const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view; const bx=ux + 60/scale, by=uy - 20/scale; const id=annoId++; const baseViewSet={ISO:newEmptyPos(),TOP:newEmptyPos(),FRONT:newEmptyPos(),BACK:newEmptyPos(),LEFT:newEmptyPos(),RIGHT:newEmptyPos()}; baseViewSet[vw]={ax:ux,ay:uy,bx,by}; const a={id, text, pos:baseViewSet, movingBox:false, movingAnchor:false}; state.annos.push(a); apop.style.display='none'; draw(); };
+function newPos(){ return {ax:0,ay:0,bx:0,by:0}; }
+function ensurePos(anno,view){ if(!anno.pos[view]){ const src=anno.pos[viewMode]||anno.pos.ISO||newPos(); anno.pos[view]={...src}; } return anno.pos[view]; }
+$('addAnno').addEventListener('click',()=>{ state.addAnno=true; msg.textContent='Кликните место якоря выноски'; setTimeout(()=>msg.textContent='',1500); });
+wrap.addEventListener('pointerdown',e=>{
+  if(!state.addAnno) return;
+  const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy);
+  apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; apop.style.display='block';
+  ainput.value=''; apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
+});
+$('annoOk').onclick=()=>{ const text=ainput.value.trim()||'Примечание'; const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view; const bx=ux+60/scale, by=uy-20/scale; const id=annoId++; const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()}; base[vw]={ax:ux,ay:uy,bx,by}; state.annos.push({id,text,pos:base,movingBox:false,movingAnchor:false}); apop.style.display='none'; draw(); };
 $('annoCancel').onclick=()=>apop.style.display='none';
-function renderAnnos(){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML=''; state.annos.forEach(anno=>{ const pv=ensureAnnoViewPos(anno, viewMode); const aScr=localToScreen(pv.ax, pv.ay); const bScr=localToScreen(pv.bx, pv.by); const anchor=document.createElement('div'); anchor.className='anchor-dot'+(anno.movingAnchor?' moving':''); anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=anno.id; const box=document.createElement('div'); box.className='anno'+(anno.movingBox?' moving':''); box.textContent=anno.text; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=anno.id; annoLayer.appendChild(anchor); annoLayer.appendChild(box); const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect(); const cx = (rect.left - host.left) + rect.width/2; const cy = (rect.top  - host.top ) + rect.height/2; ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x, aScr.y); ctx.lineTo(cx, cy); ctx.stroke(); box.addEventListener('click', (ev)=>{ ev.stopPropagation(); const a=state.annos.find(x=>x.id===+box.dataset.id); a.movingBox = !a.movingBox; if(a.movingBox){ a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; } else { if(state.movingAnno.id===a.id && state.movingAnno.what==='box') state.movingAnno={id:null,what:null,view:null}; } draw(); }); box.addEventListener('dblclick', (ev)=>{ ev.stopPropagation(); const a=state.annos.find(x=>x.id===+box.dataset.id); ainput.value=a.text; apop.style.left=bScr.x+'px'; apop.style.top=(bScr.y-30)+'px'; apop.style.display='block'; aok.onclick=()=>{ a.text=ainput.value.trim()||'Примечание'; apop.style.display='none'; draw(); }; acancel.onclick=()=>{ apop.style.display='none'; }; }); anchor.addEventListener('click', (ev)=>{ ev.stopPropagation(); const a=state.annos.find(x=>x.id===+anchor.dataset.id); a.movingAnchor = !a.movingAnchor; if(a.movingAnchor){ a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; } else { if(state.movingAnno.id===a.id && state.movingAnno.what==='anchor') state.movingAnno={id:null,what:null,view:null}; } draw(); }); }); ctx.restore(); }
-wrap.addEventListener('pointermove', (e)=>{ const mv=state.movingAnno; if(!mv.id || !mv.what) return; const {x:ux,y:uy}=screenToLocal(e); const a=state.annos.find(z=>z.id===mv.id); if(!a) return; const pv=ensureAnnoViewPos(a, mv.view||viewMode); if(mv.what==='box'){ pv.bx=ux; pv.by=uy; } else { pv.ax=ux; pv.ay=uy; } draw(); });
-document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(z=>z.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); } } });
+function renderAnnos(){
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
+  state.annos.forEach(a=>{
+    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
+    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=a.id;
+    const box=document.createElement('div'); box.className='anno'; box.textContent=a.text; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=a.id;
+    annoLayer.appendChild(anchor); annoLayer.appendChild(box);
+    const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect(); const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
+    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(cx,cy); ctx.stroke();
+    box.addEventListener('click',ev=>{ ev.stopPropagation(); a.movingBox=!a.movingBox; if(a.movingBox){ a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; } else state.movingAnno={id:null,what:null,view:null}; draw(); });
+    box.addEventListener('dblclick',ev=>{ ev.stopPropagation(); ainput.value=a.text; const p=localToScreen(pv.bx,pv.by); apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block'; $('annoOk').onclick=()=>{ a.text=ainput.value.trim()||'Примечание'; apop.style.display='none'; draw(); }; $('annoCancel').onclick=()=>apop.style.display='none'; });
+    anchor.addEventListener('click',ev=>{ ev.stopPropagation(); a.movingAnchor=!a.movingAnchor; if(a.movingAnchor){ a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; } else state.movingAnno={id:null,what:null,view:null}; draw(); });
+  }); ctx.restore();
+}
+wrap.addEventListener('pointermove',e=>{
+  const mv=state.movingAnno; if(!mv.id||!mv.what) return;
+  const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
+  const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
+  if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
+  draw();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); } }
+});
 
-/* ===== кадр/подгон ===== */
-function draw(){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore(); apply(); drawGroundLine(); drawStartCab(); drawPath(); drawEndCab(); drawEndCap(P().busW,P().busH); if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; } renderAnnos(); updateEditPopupPosition(); }
-function fit(){ const p=P(); const pts=[]; const topStart = originTop()[2], baseStart=topStart-p.startH; pts.push([0,0,baseStart],[p.startW,p.startD,topStart]); let pos=originTop(); pts.push(pos); for(const s of state.segs){ pos=adv(pos,s.dir,s.len|0); pts.push(pos); } const end=endPoint(); pts.push(end); const pad=400, MIN_SPAN=1000; const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]); const minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad; const bwv=Math.max(maxX-minX, MIN_SPAN), bhv=Math.max(maxY-minY, MIN_SPAN), m=30; scale=Math.min((wrap.clientWidth-2*m)/bwv,(wrap.clientHeight-2*m)/bhv); panX=(wrap.clientWidth - scale*(minX+maxX))/2; panY=(wrap.clientHeight - scale*(minY+maxY))/2; draw(); }
+/* ====== кадр/подгон ====== */
+function draw(){
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
+  apply(); drawGroundLine(); drawStartCab(); drawPath(); drawEndCab(); drawEndCap(P().busW);
+  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
+  renderAnnos(); updatePopups();
+}
+function fit(){
+  const p=P(); const pts=[[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
+  for(const s of state.segs){ pos=adv(pos,s.dir,s.len|0); pts.push(pos); }
+  if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
+  const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
+  const minX=Math.min(...xs)-300, maxX=Math.max(...xs)+300, minY=Math.min(...ys)-300, maxY=Math.max(...ys)+300;
+  const m=30, bw=maxX-minX, bh=maxY-minY;
+  scale=Math.min((wrap.clientWidth-2*m)/Math.max(bw,800),(wrap.clientHeight-2*m)/Math.max(bh,600));
+  panX=(wrap.clientWidth - scale*(minX+maxX))/2; panY=(wrap.clientHeight - scale*(minY+maxY))/2;
+  draw();
+}
 
-/* ===== PNG для текущего вида + все ===== */
-function computeDimBadges(){ const out=[]; const prm=P(), bw=prm.busW, bh=prm.busH; let pos=originTop(); for(let i=0;i<state.segs.length;i++){ const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1]; const startCut = prev ? elbowCuts(prev.dir, cur.dir).b : 0; const endCut   = next ? elbowCuts(cur.dir, next.dir).a : 0; const startPos=adv(pos,cur.dir,startCut); const Ldraw=Math.max(0,L-startCut-endCut); if(Ldraw>0){ const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]); const prefix=(axis(cur.dir)==='Z')?'H':'L'; const label=`${prefix} = ${L} мм`; const off=getDimOffset(i); out.push({text:label, x:base.x+(off.dx||0), y:base.y+(off.dy||0)}); } pos=adv(pos,cur.dir,L); } if(['FRONT','BACK','LEFT','RIGHT'].includes(viewMode) && $('endType').value==='NKU'){ const p=P(); const topStart = originTop()[2]; const baseStart = topStart - p.startH; const endTop = endPoint()[2]; const baseEnd = endTop - p.endH; const delta = Math.abs(baseEnd - baseStart) | 0; const sPt = proj(p.startW/2, p.startD/2, baseStart); const ePt = proj(endPoint()[0], endPoint()[1], baseEnd); const mid = {u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base = localToScreen(mid.u, mid.v); const off=getDimOffset('__deltaH'); out.push({text:`ΔH = ${delta} мм`, x:base.x+(off.dx||0), y:base.y+(off.dy||0)}); } return out; }
-function roundedRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
-function snapshotPNG(returnCanvas=false){ const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const g=off.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,off.width,off.height); g.drawImage(cvs,0,0); const badges=computeDimBadges(); g.font='13px system-ui'; g.textBaseline='middle'; badges.forEach(b=>{ const padX=10, h=24, w=g.measureText(b.text).width+2*padX, x=b.x - w/2, y=b.y - h/2; g.fillStyle='#fff'; g.strokeStyle='#ddd'; g.lineWidth=1; roundedRect(g,x,y,w,h,12); g.fill(); g.stroke(); g.fillStyle='#111'; g.fillText(b.text, b.x - (w-2*padX)/2, b.y); }); // выноски
-  state.annos.forEach(a=>{ const pv=a.pos[viewMode]||a.pos.ISO||Object.values(a.pos)[0]; const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by); const txt=a.text||'Примечание'; const padX=10, h=24; const m=g.measureText(txt).width; const w=m+2*padX; const x=bScr.x, y=bScr.y; g.fillStyle='#fff'; g.strokeStyle='#ddd'; g.lineWidth=1; roundedRect(g,x,y,w,h,12); g.fill(); g.stroke(); g.fillStyle='#111'; g.fillText(txt, x+padX, y+h/2); const cx=x+w/2, cy=y+h/2; g.strokeStyle='#555'; g.lineWidth=1; g.beginPath(); g.moveTo(aScr.x,aScr.y); g.lineTo(cx,cy); g.stroke(); g.fillStyle='#2d6cdf'; g.beginPath(); g.arc(aScr.x,aScr.y,4,0,Math.PI*2); g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke(); });
-  return returnCanvas?off:off.toDataURL('image/png'); }
+/* ====== PNG + DXF + XLS + PDF ====== */
+function computeDimBadges(){
+  const out=[]; const prm=P(), bw=prm.busW, bh=prm.busH; let pos=originTop();
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0, ec=next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
+    if(Ldraw>0){ const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]); const off=getDimOffset(i); const prefix=(axis(cur.dir)==='Z')?'H':'L'; out.push({text:`${prefix} = ${L} мм`, x:base.x+(off.dx||0), y:base.y+(off.dy||0)}); }
+    pos=adv(pos,cur.dir,L);
+  }
+  if(['FRONT','BACK','LEFT','RIGHT'].includes(viewMode) && $('endType').value==='NKU'){
+    const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH, eTop=endPoint()[2], eBase=eTop-p.endH, delta=Math.abs(eBase-sBase)|0;
+    const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+    const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base=localToScreen(mid.u,mid.v); const off=getDimOffset('__deltaH');
+    out.push({text:`ΔH = ${delta} мм`, x:base.x+(off.dx||0), y:base.y+(off.dy||0)});
+  }
+  return out;
+}
+function roundedPath(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function snapshotPNG(returnCanvas=false){
+  const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const g=off.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,off.width,off.height); g.drawImage(cvs,0,0);
+  const badges=computeDimBadges(); g.font='13px system-ui'; g.textBaseline='middle';
+  badges.forEach(b=>{ const pad=10,h=24,w=g.measureText(b.text).width+2*pad,x=b.x-w/2,y=b.y-h/2; g.fillStyle='#fff'; g.strokeStyle='#ddd'; g.lineWidth=1; roundedPath(g,x,y,w,h,12); g.fill(); g.stroke(); g.fillStyle='#111'; g.fillText(b.text,b.x-(w-2*pad)/2,b.y); });
+  state.annos.forEach(a=>{ const pv=a.pos[viewMode]||a.pos.ISO||newPos(); const A=localToScreen(pv.ax,pv.ay), B=localToScreen(pv.bx,pv.by); const txt=a.text||'Примечание'; const pad=10,h=24,m=g.measureText(txt).width,w=m+2*pad,x=B.x,y=B.y; g.fillStyle='#fff'; g.strokeStyle='#ddd'; g.lineWidth=1; roundedPath(g,x,y,w,h,12); g.fill(); g.stroke(); g.fillStyle='#111'; g.fillText(txt,x+pad,y+h/2); const cx=x+w/2,cy=y+h/2; g.strokeStyle='#555'; g.lineWidth=1; g.beginPath(); g.moveTo(A.x,A.y); g.lineTo(cx,cy); g.stroke(); g.fillStyle='#2d6cdf'; g.beginPath(); g.arc(A.x,A.y,4,0,Math.PI*2); g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke(); });
+  return returnCanvas?off:off.toDataURL('image/png');
+}
+$('savePNG').onclick=()=>{
+  const off=snapshotPNG(true);
+  off.toBlob(b=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=`view_${viewMode}.png`; a.click(); URL.revokeObjectURL(url); },'image/png');
+};
+$('savePNGAll').onclick=async ()=>{
+  const orig=viewMode, views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
+  for(const v of views){ setProjection(v); draw(); const off=snapshotPNG(true); await new Promise(res=>off.toBlob(b=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=`view_${v}.png`; a.click(); URL.revokeObjectURL(url); res(); },'image/png')); }
+  setProjection(orig); draw();
+};
 
-/* ===== DXF ===== */
-function DXF(){ this.e=[]; this.push=(s)=>this.e.push(s+'\n'); this.lines=[]; this.texts=[]; this.addHeader=()=>{ this.push('0');this.push('SECTION');this.push('2');this.push('HEADER');this.push('9');this.push('$INSUNITS');this.push('70');this.push('4'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('TABLES'); this.push('0');this.push('TABLE');this.push('2');this.push('LAYER');this.push('70');this.push('12'); ['0','BUS','ELBOW','CAB','DIM','ANNO','JOINT','MOUNT','ENDCAP'].forEach((name,i)=>{ this.push('0');this.push('LAYER');this.push('2');this.push(name);this.push('70');this.push('0');this.push('62');this.push((i+1));this.push('6');this.push('CONTINUOUS'); }); this.push('0');this.push('ENDTAB'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('ENTITIES'); }; this.addLine=(x1,y1,x2,y2,layer='0')=>{ this.lines.push({x1,y1,x2,y2,layer}); }; this.addText=(x,y,h,txt,layer='0')=>{ this.texts.push({x,y,h,txt,layer}); }; this.flush=()=>{ let minX=+Infinity,minY=+Infinity; this.lines.forEach(L=>{ minX=Math.min(minX,L.x1,L.x2); minY=Math.min(minY,L.y1,L.y2); }); this.texts.forEach(T=>{ minX=Math.min(minX,T.x); minY=Math.min(minY,T.y); }); if(!isFinite(minX)) { minX=0; minY=0; } const pad=10; const offX=-(minX-pad), offY=-(minY-pad); const Y=(y)=>-(y+offY); const X=(x)=> x+offX; this.lines.forEach(L=>{ this.push('0');this.push('LINE'); this.push('8');this.push(L.layer); this.push('10');this.push(X(L.x1)); this.push('20');this.push(Y(L.y1)); this.push('30');this.push(0); this.push('11');this.push(X(L.x2)); this.push('21');this.push(Y(L.y2)); this.push('31');this.push(0); }); this.texts.forEach(T=>{ this.push('0');this.push('TEXT'); this.push('8');this.push(T.layer); this.push('10');this.push(X(T.x)); this.push('20');this.push(Y(T.y)); this.push('30');this.push(0); this.push('40');this.push(T.h); this.push('1');this.push(T.txt); }); }; this.end=()=>{ this.push('0');this.push('ENDSEC'); this.push('0');this.push('EOF'); return this.e.join(''); }; }
-function p2(x,y,z){ const r=proj(x,y,z); return {x:r[0], y:r[1]}; }
-function addBoxLines(out,x,y,z,w,d,h){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]].map(t=>p2(...t)); const segs=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]; segs.forEach(([a,b])=>out.push([v[a],v[b]])); }
-function exportDXFCurrent(){
-  const dxf=new DXF(); dxf.addHeader(); const add=(pairs,layer)=>pairs.forEach(([A,B])=>dxf.addLine(A.x,A.y,B.x,B.y,layer));
+/* DXF (плоские линии текущего вида + подписи) */
+function DXF(){ this.e=[]; this.push=s=>this.e.push(s+'\n'); this.addHeader=()=>{ this.push('0');this.push('SECTION');this.push('2');this.push('HEADER');this.push('9');this.push('$INSUNITS');this.push('70');this.push('4'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('TABLES'); this.push('0');this.push('TABLE');this.push('2');this.push('LAYER');this.push('70');this.push('12'); ['0','BUS','ELBOW','CAB','DIM','ANNO','JOINT','MOUNT','ENDCAP'].forEach((n,i)=>{ this.push('0');this.push('LAYER');this.push('2');this.push(n);this.push('70');this.push('0');this.push('62');this.push((i+1));this.push('6');this.push('CONTINUOUS'); }); this.push('0');this.push('ENDTAB'); this.push('0');this.push('ENDSEC'); this.push('0');this.push('SECTION');this.push('2');this.push('ENTITIES'); }; this.addLine=(x1,y1,x2,y2,layer='0')=>{ this.push('0');this.push('LINE'); this.push('8');this.push(layer); this.push('10');this.push(x1); this.push('20');this.push(-y1); this.push('30');this.push(0); this.push('11');this.push(x2); this.push('21');this.push(-y2); this.push('31');this.push(0); }; this.addText=(x,y,h,txt,layer='0')=>{ this.push('0');this.push('TEXT'); this.push('8');this.push(layer); this.push('10');this.push(x); this.push('20');this.push(-y); this.push('30');this.push(0); this.push('40');this.push(h); this.push('1');this.push(txt); }; this.end=()=>{ this.push('0');this.push('ENDSEC'); this.push('0');this.push('EOF'); return this.e.join(''); }; }
+function p2(x,y,z){ const r=proj(x,y,z); return {x:r[0],y:r[1]}; }
+function addBoxLines(out,x,y,z,w,d,h){ const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]].map(t=>p2(...t)); const s=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]; s.forEach(([a,b])=>out.push([v[a],v[b]])); }
+$('saveDXF').onclick=()=>{
+  const dxf=new DXF(); dxf.addHeader();
+  const add=(pairs,layer)=>pairs.forEach(([A,B])=>dxf.addLine(A.x,A.y,B.x,B.y,layer));
   const p=P(), bw=p.busW, bh=p.busH;
-  { const topZ=originTop()[2], baseZ=topZ-p.startH; const arr=[]; addBoxLines(arr,0,0,baseZ,p.startW,p.startD,p.startH); add(arr,'CAB'); }
+  { const top=originTop()[2], base=top-p.startH; const arr=[]; addBoxLines(arr,0,0,base,p.startW,p.startD,p.startH); add(arr,'CAB'); }
   let pos=originTop();
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const cutsPrev=prev?elbowCuts(prev.dir,cur.dir):{a:0,b:0};
-    const cutsNext=next?elbowCuts(cur.dir,next.dir):{a:0,b:0};
-    const startPos=adv(pos,cur.dir,cutsPrev.b);
-    const Ldraw=Math.max(0,L-cutsPrev.b-cutsNext.a);
+    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0, ec=next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec), a=axis(cur.dir), s=[];
     if(Ldraw>0){
-      const arr=[]; const a=axis(cur.dir), s=sgn(cur.dir);
-      if(a==='Z'){ const x=startPos[0]-bw/2, y=startPos[1]-bw/2, z=s>0?startPos[2]:startPos[2]-Ldraw; addBoxLines(arr,x,y,z,bw,bw,Ldraw); }
-      if(a==='X'){ const x=s>0?startPos[0]:startPos[0]-Ldraw, y=startPos[1]-bw/2, z=startPos[2]-bh/2; addBoxLines(arr,x,y,z,Ldraw,bw,bh); }
-      if(a==='Y'){ const x=startPos[0]-bw/2, y=s>0?startPos[1]:startPos[1]-Ldraw, z=startPos[2]-bh/2; addBoxLines(arr,x,y,z,bw,Ldraw,bh); }
-      add(arr,'BUS');
-
-      const m=state.module|0; const full=Math.floor((cur.len|0)/m);
+      if(a==='Z'){ addBoxLines(s,start[0]-bw/2,start[1]-bw/2,sgn(cur.dir)>0?start[2]:start[2]-Ldraw,bw,bw,Ldraw); }
+      if(a==='X'){ addBoxLines(s,sgn(cur.dir)>0?start[0]:start[0]-Ldraw,start[1]-bw/2,start[2]-bh/2,Ldraw,bw,bh); }
+      if(a==='Y'){ addBoxLines(s,start[0]-bw/2,sgn(cur.dir)>0?start[1]:start[1]-Ldraw,start[2]-bh/2,bw,Ldraw,bh); }
+      add(s,'BUS');
+      const m=state.module|0, full=Math.floor((cur.len|0)/m);
       for(let k=1;k<=full;k++){
-        const d=k*m - cutsPrev.b; if(d<=0||d>=Ldraw) continue;
-        const Pnt=adv(startPos,cur.dir,d); const arrJ=[];
-        if(a==='Z'){ addBoxLines(arrJ,Pnt[0]-bw/2, Pnt[1]-bw/2, Pnt[2]-JOINT_LEN/2, bw, bw, JOINT_LEN); }
-        if(a==='X'){ addBoxLines(arrJ,Pnt[0]-JOINT_LEN/2, Pnt[1]-bw/2, Pnt[2]-BUS_H/2, JOINT_LEN, bw, BUS_H); }
-        if(a==='Y'){ addBoxLines(arrJ,Pnt[0]-bw/2, Pnt[1]-JOINT_LEN/2, Pnt[2]-BUS_H/2, bw, JOINT_LEN, BUS_H); }
-        add(arrJ,'JOINT');
+        const d=k*m - sc; if(d<=0||d>=Ldraw) continue; const C=adv(start,cur.dir,d), arr=[];
+        if(a==='Z') addBoxLines(arr, C[0]-bw/2,C[1]-bw/2,C[2]-JOINT_LEN/2,bw,bw,JOINT_LEN);
+        if(a==='X') addBoxLines(arr, C[0]-JOINT_LEN/2,C[1]-bw/2,C[2]-BUS_H/2,JOINT_LEN,bw,BUS_H);
+        if(a==='Y') addBoxLines(arr, C[0]-bw/2,C[1]-JOINT_LEN/2,C[2]-BUS_H/2,bw,JOINT_LEN,BUS_H);
+        add(arr,'JOINT');
       }
-
-      const target=+$('mountStep').value||1000;
-      const mounts=mountPositionsForSegment(startPos,cur,Ldraw,cutsPrev.b,cutsNext.a,prev,next,target);
+      const mounts=mountPositionsForSegment(start,cur,Ldraw,sc,ec,prev,next,+$('mountStep').value||1000);
       for(const d of mounts){
-        const C=adv(startPos,cur.dir,d); const arrM=[];
-        if(a==='X'){ addBoxLines(arrM, C[0]-MOUNT_ALONG/2, C[1]-bw/2, C[2]-BUS_H/2-MOUNT_THICK, MOUNT_ALONG, bw, MOUNT_THICK); }
-        if(a==='Y'){ addBoxLines(arrM, C[0]-bw/2, C[1]-MOUNT_ALONG/2, C[2]-BUS_H/2-MOUNT_THICK, bw, MOUNT_ALONG, MOUNT_THICK); }
-        add(arrM,'MOUNT');
+        const C=adv(start,cur.dir,d), arr=[];
+        if(a==='X') addBoxLines(arr,C[0]-MOUNT_ALONG/2,C[1]-bw/2,C[2]-BUS_H/2-MOUNT_THICK,MOUNT_ALONG,bw,MOUNT_THICK);
+        if(a==='Y') addBoxLines(arr,C[0]-bw/2,C[1]-MOUNT_ALONG/2,C[2]-BUS_H/2-MOUNT_THICK,bw,MOUNT_ALONG,MOUNT_THICK);
+        add(arr,'MOUNT');
       }
     }
-    if(next && (cutsNext.a||cutsNext.b)){
-      const vertex=adv(pos,cur.dir,L);
-      const U=dirVec(cur.dir), V=dirVec(next.dir), N=cross(U,V);
-      const vertical=(axis(cur.dir)==='Z'||axis(next.dir)==='Z');
-      const thick = vertical ? bw : bh;
-      const half  = vertical ? (bh/2) : (bw/2);
-      const poly  = LpolyCornerSolid(cutsNext.a,cutsNext.b,half);
-      const t2=thick/2;
-      const up=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,+t2));
-      const dn=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,-t2));
-      for(let i2=0;i2<up.length;i2++){ const j=(i2+1)%up.length; const A=p2(...up[i2]), B=p2(...up[j]), C=p2(...dn[i2]); dxf.addLine(A.x,A.y,B.x,B.y,'ELBOW'); dxf.addLine(A.x,A.y,C.x,C.y,'ELBOW'); }
+    if(next && (sc||ec)){
+      const vertex=adv(pos,cur.dir,L); const U=dirVec(cur.dir), V=dirVec(next.dir), N=cross(U,V);
+      const vertical=(axis(cur.dir)==='Z'||axis(next.dir)==='Z'); const thick=vertical?bw:bh; const half=vertical?(bh/2):(bw/2);
+      const poly=LpolyCornerSolid(ec,a?ec:ec,half); const t2=thick/2;
+      const up=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,+t2)); const dn=poly.map(p=>madd(vertex,U,p[0],V,p[1],N,-t2));
+      for(let i2=0;i2<up.length;i2++){ const j=(i2+1)%up.length; const A=p2(...up[i2]), B=p2(...up[j]), Cc=p2(...dn[i2]); dxf.addLine(A.x,A.y,B.x,B.y,'ELBOW'); dxf.addLine(A.x,A.y,Cc.x,Cc.y,'ELBOW'); }
       for(let i2=0;i2<dn.length;i2++){ const j=(i2+1)%dn.length; const A=p2(...dn[i2]), B=p2(...dn[j]); dxf.addLine(A.x,A.y,B.x,B.y,'ELBOW'); }
     }
     pos=adv(pos,cur.dir,L);
   }
-  if($('endType').value==='NKU'){ const end=endPoint(); const topZ=end[2], baseZ=topZ-P().endH; const arr=[]; addBoxLines(arr,end[0]-P().endW/2, end[1]-P().endD/2, baseZ, P().endW,P().endD,P().endH); add(arr,'CAB'); }
-  if($('endType').value==='ENDCAP'){ const end=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z',len:0}; const a=axis(last.dir); const arr=[]; if(a==='Z'){ addBoxLines(arr, end[0]-bw/2, end[1]-bw/2, end[2]-JOINT_LEN/2, bw,bw,JOINT_LEN); } if(a==='X'){ addBoxLines(arr, end[0]-JOINT_LEN/2, end[1]-bw/2, end[2]-BUS_H/2, JOINT_LEN,bw,BUS_H); } if(a==='Y'){ addBoxLines(arr, end[0]-bw/2, end[1]-JOINT_LEN/2, end[2]-BUS_H/2, bw,JOINT_LEN,BUS_H); } add(arr,'ENDCAP'); }
-  if(state.calc){ const badges=computeDimBadges(); badges.forEach(b=>{ dxf.addText(b.x/DPR, b.y/DPR, 20, b.text, 'DIM'); }); }
-  state.annos.forEach(a=>{ const pv=a.pos[viewMode]||a.pos.ISO||Object.values(a.pos)[0]; const A=localToScreen(pv.ax,pv.ay), B=localToScreen(pv.bx,pv.by); dxf.addLine(A.x/DPR,A.y/DPR,(B.x+80)/DPR,(B.y+12)/DPR,'ANNO'); dxf.addText(B.x/DPR, (B.y+12)/DPR, 20, a.text, 'ANNO'); });
-  dxf.flush(); const blob=new Blob([dxf.end()],{type:'application/dxf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`busway_${viewMode}.dxf`; a.click(); URL.revokeObjectURL(url);
-}
-
-/* ===== СПЕЦИФИКАЦИЯ ===== */
-function computeSpec(){
-  const m=state.module|0;
-  const map=new Map(); // длина -> кол-во
-  let totalLen=0, jointsMod=0, mounts=0;
-  let corners=0, vert=0, horiz=0;
-
-  const prm=P(), bw=prm.busW, bh=prm.busH;
-  let pos=originTop();
-
-  for(let i=0;i<state.segs.length;i++){
-    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const startCut = prev ? elbowCuts(prev.dir, cur.dir).b : 0;
-    const endCut   = next ? elbowCuts(cur.dir, next.dir).a : 0;
-    const Ldraw=Math.max(0,L-startCut-endCut);
-
-    totalLen+=L;
-
-    // модульная разбивка (по введённой длине участка L)
-    if(m>0){
-      const full=Math.floor(L/m), rem=L % m;
-      if(full>0) map.set(m,(map.get(m)||0)+full);
-      if(rem>0)  map.set(rem,(map.get(rem)||0)+1);
-      const parts = full + (rem>0?1:0);
-      jointsMod += Math.max(0, parts - 1);
-    }
-
-    // крепления (как в отрисовке — по Ldraw и правилам)
-    const target=+$('mountStep').value||1000;
-    const arr=mountPositionsForSegment(adv(pos,cur.dir,startCut),cur,Ldraw,startCut,endCut,prev,next,target);
-    mounts+=arr.length;
-
-    // повороты
-    if(next && axis(cur.dir)!==axis(next.dir)){
-      corners++;
-      if(axis(cur.dir)==='Z' || axis(next.dir)==='Z') vert++; else horiz++;
-    }
-
-    pos=adv(pos,cur.dir,L);
+  if($('endType').value==='NKU'){ const e=endPoint(), top=e[2], base=top-P().endH; const arr=[]; addBoxLines(arr,e[0]-P().endW/2,e[1]-P().endD/2,base,P().endW,P().endD,P().endH); add(arr,'CAB'); }
+  if($('endType').value==='ENDCAP'){ const e=endPoint(), a=axis((state.segs[state.segs.length-1]||{dir:'+Z'}).dir), arr=[]; const bw=P().busW;
+    if(a==='Z') addBoxLines(arr,e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN);
+    if(a==='X') addBoxLines(arr,e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H);
+    if(a==='Y') addBoxLines(arr,e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H);
+    add(arr,'ENDCAP');
   }
+  computeDimBadges().forEach(b=>dxf.addText(b.x/DPR,b.y/DPR,20,b.text,'DIM'));
+  state.annos.forEach(a=>{ const pv=a.pos[viewMode]||a.pos.ISO||newPos(); const A=localToScreen(pv.ax,pv.ay), B=localToScreen(pv.bx,pv.by); dxf.addLine(A.x/DPR,A.y/DPR,(B.x+80)/DPR,(B.y+12)/DPR,'ANNO'); dxf.addText(B.x/DPR,(B.y+12)/DPR,20,a.text,'ANNO'); });
+  const blob=new Blob([dxf.end()],{type:'application/dxf'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`busway_${viewMode}.dxf`; a.click(); URL.revokeObjectURL(url);
+};
 
-  const nkuBlocks = ( $('startType').value==='NKU' ? 1 : 0 ) + ( $('endType').value==='NKU' ? 1 : 0 );
-  const trBlocks  = ( $('startType').value==='TR'  ? 1 : 0 );
-  const endCap    = ( $('endType').value==='ENDCAP' ? 1 : 0 );
-  const jointsCorners = corners * 2;
-  const jointsNku = nkuBlocks;
-  const jointsTr  = trBlocks;
-  const jointsTotal = jointsMod + jointsCorners + jointsNku + jointsTr;
+/* XLS (SpreadsheetML) */
+$('saveXLS').onclick=()=>{
+  const sp=state.calc?computeSpec():null;
+  const xl=[];
+  xl.push(`<?xml version="1.0"?>`);
+  xl.push(`<?mso-application progid="Excel.Sheet"?>`);
+  xl.push(`<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`);
+  xl.push(`<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EEEEEE" ss:Pattern="Solid"/></Style></Styles>`);
+  xl.push(`<Worksheet ss:Name="Спецификация"><Table>`);
+  function row(a,b,head=false){ xl.push(`<Row><Cell${head?' ss:StyleID="h"':''}><Data ss:Type="String">${a}</Data></Cell><Cell><Data ss:Type="String">${b}</Data></Cell></Row>`); }
+  row('Чертёж шинопровода','');
+  if(sp){
+    row('Материал/номинал/IP', `${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`);
+    row('Модуль (мм)', sp.module); row('Итого длина (мм)', sp.totalLen);
+    row('Горизонтальные (мм)', sp.lenHoriz); row('Вертикально вверх (мм)', sp.lenUp); row('Вертикально вниз (мм)', sp.lenDown);
+    row('Блок к НКУ, шт', sp.nkuBlocks); row('Блок к ТР, шт', sp.trBlocks); row('Заглушка', sp.endCap?'есть':'—');
+    row('Соединители всего, шт', sp.joints.total); row('— модульные', sp.joints.mod); row('— на углах (×2)', sp.joints.corners); row('— у НКУ (×1)', sp.joints.nku); row('— у ТР (×1)', sp.joints.tr);
+    row('Повороты вертикальные', sp.vert); row('Повороты горизонтальные', sp.horiz); row('Крепления, шт', computeSpec().mounts);
+    xl.push(`<Row/>`); xl.push(`<Row><Cell ss:StyleID="h"><Data ss:Type="String">Длина, мм</Data></Cell><Cell ss:StyleID="h"><Data ss:Type="String">Кол-во, шт</Data></Cell></Row>`);
+    [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>row(String(len),String(cnt)));
+  } else row('Подсказка','Нажмите «Рассчитать разбиение», затем выгрузите XLS повторно.');
+  xl.push(`</Table></Worksheet></Workbook>`);
+  const blob=new Blob([xl.join('')],{type:'application/vnd.ms-excel'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
+};
 
-  return {module:m,totalLen,parts:map,joints:{total:jointsTotal,mod:jointsMod,corners:jointsCorners,nku:jointsNku,tr:jointsTr},vert,horiz,nkuBlocks,trBlocks,endCap,mounts,mountStep:+$('mountStep').value||1000,mountsOn:($('mountOn').value==='1')};
+/* PDF «Проект» (HTML-вкладка) */
+$('savePDF').onclick=async ()=>{
+  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'], orig=viewMode, shots=[];
+  for(const v of views){ setProjection(v); draw(); const off=snapshotPNG(true); shots.push({v, data:off.toDataURL('image/png')}); }
+  setProjection(orig); draw();
+  const sp=state.calc?computeSpec():null, p=P(); const startTitle=(p.startType==='NKU'?'ГРЩ':'Трансформатор'), endTitle=($('endType').value==='NKU'?'ГРЩ':'Заглушка');
+  const names={ISO:'Изометрия',TOP:'Вид сверху',FRONT:'Вид спереди',BACK:'Вид сзади',LEFT:'Вид слева',RIGHT:'Вид справа'};
+  const H=`<!doctype html><html><head><meta charset="utf-8"><title>Проект шинопровода</title>
+    <style>@page{size:A4;margin:12mm}body{margin:0;background:#fff;color:#000;font:12px/1.35 Segoe UI,Arial}
+    .page{width:210mm;min-height:297mm;padding:10mm 12mm;box-sizing:border-box;page-break-after:always;position:relative}
+    .frame{position:absolute;left:6mm;right:6mm;top:6mm;bottom:6mm;border:1px solid #000}
+    h1{font-size:18px;margin:0 0 6mm}h2{font-size:15px;margin:0 0 4mm}.img{width:100%;border:1px solid #ccc}
+    table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left}
+    .pair{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.small{color:#333}</style></head><body>`;
+  let B=`<div class="page"><div class="frame"></div><h1>Чертёж шинопровода</h1>
+    <div>Материал: <b>${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'}</b>, Номинал: <b>${$('rating').value} А</b>, IP: <b>${$('ip').value}</b></div>
+    <div>Начало: <b>${startTitle}</b> (W=${p.startW} D=${p.startD} H=${p.startH}); Конец: <b>${endTitle}</b>${$('endType').value==='NKU'?` (W=${p.endW} D=${p.endD} H=${p.endH})`:''}</div>
+    ${sp?`<div class="pair"><div><h2>Сводка</h2><table>
+      <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
+      <tr><td>Горизонтальные</td><td>${sp.lenHoriz} мм</td></tr>
+      <tr><td>Вертикально вверх</td><td>${sp.lenUp} мм</td></tr>
+      <tr><td>Вертикально вниз</td><td>${sp.lenDown} мм</td></tr>
+      <tr><td>Повороты: вертик.</td><td>${sp.vert}</td></tr>
+      <tr><td>Повороты: гориз.</td><td>${sp.horiz}</td></tr>
+      <tr><td>Крепления</td><td>${computeSpec().mounts}</td></tr>
+      <tr><td>Соединители всего</td><td>${sp.joints.total}</td></tr></table></div>
+      <div><h2>Изометрия</h2><img class="img" src="${shots.find(s=>s.v==='ISO').data}"></div></div>`:`<div class="small"><i>Нажмите «Рассчитать разбиение» для спецификации.</i></div>`}
+    </div>`;
+  if(sp){
+    let rows=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows+=`<tr><td>${len}</td><td>${cnt}</td></tr>`);
+    B+=`<div class="page"><div class="frame"></div><h2>Спецификация</h2><table>
+      <tr><td>Материал/номинал/IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+      <tr><td>Модуль (мм)</td><td>${sp.module}</td></tr>
+      <tr><td>Итого длина (мм)</td><td>${sp.totalLen}</td></tr>
+      <tr><td>Горизонтальные (мм)</td><td>${sp.lenHoriz}</td></tr>
+      <tr><td>Вертикально вверх (мм)</td><td>${sp.lenUp}</td></tr>
+      <tr><td>Вертикально вниз (мм)</td><td>${sp.lenDown}</td></tr>
+      <tr><td>Блок к НКУ</td><td>${sp.nkuBlocks}</td></tr>
+      <tr><td>Блок к ТР</td><td>${sp.trBlocks}</td></tr>
+      <tr><td>Заглушка</td><td>${sp.endCap?'есть':'—'}</td></tr>
+      <tr><td>Соединители (итого / модульные / углы / НКУ / ТР)</td><td>${sp.joints.total} / ${sp.joints.mod} / ${sp.joints.corners} / ${sp.joints.nku} / ${sp.joints.tr}</td></tr>
+      <tr><td>Крепления (шт, целевой шаг)</td><td>${computeSpec().mounts} / ${computeSpec().mountStep} мм</td></tr></table>
+      <h2>Сегменты по длинам</h2><table><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr>${rows||''}</table></div>`;
+  }
+  shots.forEach(s=>{ B+=`<div class="page"><div class="frame"></div><h2>${names[s.v]||s.v}</h2><img class="img" src="${s.data}"></div>`; });
+  const blob=new Blob([H+B+'</body></html>'],{type:'text/html'}), url=URL.createObjectURL(blob); window.open(url,'_blank');
+};
+
+/* ====== спецификация ====== */
+function computeSpec(){
+  const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
+  let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
+  for(let i=0;i<state.segs.length;i++){
+    const s=state.segs[i], L=s.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=prev?elbowCuts(prev.dir,s.dir).b:0, ec=next?elbowCuts(s.dir,next.dir).a:0; const Ldraw=Math.max(0,L-sc-ec);
+    total+=L; if(axis(s.dir)==='Z'){ if(sgn(s.dir)>0) lenUp+=L; else lenDown+=L; } else lenH+=L;
+    if(m>0){ const full=Math.floor(L/m), rem=L%m; if(full>0) map.set(m,(map.get(m)||0)+full); if(rem>0) map.set(rem,(map.get(rem)||0)+1); const parts=full+(rem>0?1:0); jointsMod+=Math.max(0,parts-1); }
+    if(axis(s.dir)!=='Z') mounts+=mountPositionsForSegment(adv(pos,s.dir,sc),s,Ldraw,sc,ec,prev,next,target).length;
+    if(next && axis(s.dir)!==axis(next.dir)){ corners++; if(axis(s.dir)==='Z'||axis(next.dir)==='Z') vert++; else horiz++; }
+    pos=adv(pos,s.dir,L);
+  }
+  const nku=( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 );
+  const tr =( $('startType').value==='TR'?1:0 );
+  const endcap=($('endType').value==='ENDCAP'?1:0);
+  return {module:m,totalLen:total,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
   if(!state.calc){ $('spec').style.display='none'; return; }
   const sp=computeSpec(); $('spec').style.display='block';
-  $('spHeader').textContent = `${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`;
-  $('spModule').textContent = sp.module+' мм';
-  $('spTotalLen').textContent = sp.totalLen+' мм';
-  $('spNkuBlocks').textContent = sp.nkuBlocks+' шт';
-  $('spTrBlocks').textContent  = sp.trBlocks+' шт';
-  $('spEndCap').textContent    = sp.endCap?'есть (1)':'—';
-  $('spJointsTotal').textContent=sp.joints.total+' шт';
-  $('spJointsMod').textContent  =sp.joints.mod+' шт';
-  $('spJointsCorners').textContent=sp.joints.corners+' шт';
-  $('spJointsNku').textContent = sp.joints.nku+' шт';
-  $('spJointsTr').textContent  = sp.joints.tr+' шт';
-  $('spVert').textContent = sp.vert+' шт';
-  $('spHoriz').textContent= sp.horiz+' шт';
-  $('spMounts').textContent = ($('mountOn').value==='1') ? `${sp.mounts} шт (шаг ~${sp.mountStep} мм)` : '—';
-
-  const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML='';
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{
-    const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr);
-  });
+  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`;
+  $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
+  $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
+  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
+  $('spJointsTotal').textContent=sp.joints.total; $('spJointsMod').textContent=sp.joints.mod; $('spJointsCorners').textContent=sp.joints.corners; $('spJointsNku').textContent=sp.joints.nku; $('spJointsTr').textContent=sp.joints.tr;
+  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—';
+  const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
 }
-$('saveCSV').onclick=()=>{ if(!state.calc) return; const sp=computeSpec();
-  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Блок к НКУ, шт',sp.nkuBlocks],['Блок к ТР, шт',sp.trBlocks],['Заглушка',sp.endCap?'1':'0'],['Соединители всего, шт',sp.joints.total],['— модульные, шт',sp.joints.mod],['— на углах (×2), шт',sp.joints.corners],['— у НКУ (×1), шт',sp.joints.nku],['— у ТР (×1), шт',sp.joints.tr],['Повороты вертикальные, шт',sp.vert],['Повороты горизонтальные, шт',sp.horiz],['Крепления, шт',sp.mounts],['Целевой шаг, мм',sp.mountStep],[],['Длина сегмента (мм)','Кол-во, шт']];
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt]));
-  const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
-};
+$('saveCSV').onclick=()=>{ if(!state.calc) return; const sp=computeSpec(); const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Горизонтальные (мм)',sp.lenHoriz],['Вертикально вверх (мм)',sp.lenUp],['Вертикально вниз (мм)',sp.lenDown],['Блок к НКУ, шт',sp.nkuBlocks],['Блок к ТР, шт',sp.trBlocks],['Заглушка',sp.endCap?'1':'0'],['Соединители всего, шт',sp.joints.total],['— модульные, шт',sp.joints.mod],['— на углах (×2), шт',sp.joints.corners],['— у НКУ (×1), шт',sp.joints.nku],['— у ТР (×1), шт',sp.joints.tr],['Повороты вертикальные, шт',sp.vert],['Повороты горизонтальные, шт',sp.horiz],['Крепления, шт',sp.mounts],['Шаг крепления, мм',sp.mountStep],[],['Длина сегмента (мм)','Кол-во, шт']]; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt])); const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url); };
 
-/* ===== PNG / PNG все / DXF / XLS ===== */
-$('savePNG').onclick=()=>{ const off=snapshotPNG(true); off.toBlob(b=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=`view_${viewMode}.png`; a.click(); URL.revokeObjectURL(url); },'image/png'); };
-$('savePNGAll').onclick=async ()=>{ const orig=viewMode; const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT']; for(const v of views){ setProjection(v); draw(); const off=snapshotPNG(true); await new Promise(res=>off.toBlob(b=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=`view_${v}.png`; a.click(); URL.revokeObjectURL(url); res(); },'image/png')); } setProjection(orig); draw(); };
-$('saveDXF').onclick=exportDXFCurrent;
-$('saveXLS').onclick=async ()=>{
-  // собираем PNG всех видов + спецификацию в HTML-книгу (Excel понимает)
-  const orig=viewMode; const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT']; const imgs=[];
-  for(const v of views){
-    setProjection(v); draw();
-    const off=snapshotPNG(true);
-    const dataUrl=off.toDataURL('image/png');
-    imgs.push({view:v, data:dataUrl});
-  }
-  setProjection(orig); draw();
-  const sp=state.calc?computeSpec():null;
-
-  const viewNames={ISO:'Изометрия',TOP:'Сверху',FRONT:'Спереди',BACK:'Сзади',LEFT:'Слева',RIGHT:'Справа'};
-  let html='<!doctype html><html><meta charset="utf-8"><head><title>Busway export</title></head><body style="font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#000;background:#fff">';
-  html+='<h2>Чертёж шинопровода</h2>';
-  if(sp){
-    html+='<h3>Спецификация</h3><table border="1" cellspacing="0" cellpadding="4">';
-    html+=`<tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>`;
-    html+=`<tr><td>Модуль (мм)</td><td>${sp.module}</td></tr>`;
-    html+=`<tr><td>Итого длина (мм)</td><td>${sp.totalLen}</td></tr>`;
-    html+=`<tr><td>Блок к НКУ (шт)</td><td>${sp.nkuBlocks}</td></tr>`;
-    html+=`<tr><td>Блок к ТР (шт)</td><td>${sp.trBlocks}</td></tr>`;
-    html+=`<tr><td>Заглушка</td><td>${sp.endCap?'есть (1)':'—'}</td></tr>`;
-    html+=`<tr><td>Соединители всего (шт)</td><td>${sp.joints.total}</td></tr>`;
-    html+=`<tr><td>— модульные</td><td>${sp.joints.mod}</td></tr>`;
-    html+=`<tr><td>— на углах (×2)</td><td>${sp.joints.corners}</td></tr>`;
-    html+=`<tr><td>— у НКУ (×1)</td><td>${sp.joints.nku}</td></tr>`;
-    html+=`<tr><td>— у ТР (×1)</td><td>${sp.joints.tr}</td></tr>`;
-    html+=`<tr><td>Повороты вертикальные</td><td>${sp.vert}</td></tr>`;
-    html+=`<tr><td>Повороты горизонтальные</td><td>${sp.horiz}</td></tr>`;
-    html+=`<tr><td>Крепления (шт, шаг ~мм)</td><td>${($('mountOn').value==='1')? (sp.mounts+' / '+sp.mountStep):'—'}</td></tr>`;
-    html+='</table>';
-    if(sp.parts && sp.parts.size){
-      html+='<h4>Сегменты по длинам</h4><table border="1" cellspacing="0" cellpadding="4"><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr>';
-      [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td>${cnt}</td></tr>`; });
-      html+='</table>';
-    }
-  } else {
-    html+='<p><i>Спецификация появится после нажатия «Рассчитать разбиение».</i></p>';
-  }
-  html+='<h3>Виды</h3>';
-  imgs.forEach(im=>{ html+=`<div style="margin:10px 0 14px"><div><b>${viewNames[im.view]||im.view}</b></div><img src="${im.data}" style="max-width:100%;height:auto;border:1px solid #ccc"></div>`; });
-  html+='</body></html>';
-
-  const blob=new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_export.xls'; a.click(); URL.revokeObjectURL(url);
-};
-
-/* ===== Фуллскрин ===== */
-btnFS.onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
-
-/* ===== параметры/события ===== */
+/* ====== управление ====== */
 function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list[0]; draw(); if(state.calc) renderSpec(); }
 $('mat').addEventListener('change', fillRatings);
-$('rating').addEventListener('change', ()=>{ draw(); if(state.calc) renderSpec(); });
+$('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); });
 
-$('startType').addEventListener('change', ()=>{ const v=$('startType').value; if(v==='NKU'){ $('startW').value=600; $('startD').value=600; $('startH').value=2200; } else { $('startW').value=2000; $('startD').value=1400; $('startH').value=1700; } draw(); if(state.calc) renderSpec(); });
-$('endType').addEventListener('change', ()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid', v!=='NKU'); draw(); if(state.calc) renderSpec(); });
-
+$('startType').addEventListener('change',()=>{
+  const v=$('startType').value;
+  if(v==='NKU'){ $('startW').value=600; $('startD').value=600; $('startH').value=2200; }
+  else { $('startW').value=2000; $('startD').value=1400; $('startH').value=1700; }
+  draw(); if(state.calc) renderSpec();
+});
+$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); if(state.calc) renderSpec(); });
 ['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep','moduleLen'].forEach(id=>{
-  $(id).addEventListener('input', ()=>{ draw(); if(state.calc) renderSpec(); });
+  $(id).addEventListener('input',()=>{ draw(); if(state.calc) renderSpec(); });
 });
 
-/* ===== разбиение/сброс ===== */
+/* разбиение/сброс/undo */
 $('calc').onclick=()=>{ const m=+$('moduleLen').value||0; if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; } state.module=m; state.calc=true; giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; draw(); renderSpec(); };
 $('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); };
 $('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); };
 $('clear').onclick=()=>{ state.segs.length=0; state.calc=false; draw(); renderSpec(); };
 
-/* ===== сохранение/загрузка ===== */
-$('saveProj').onclick=()=>{ const data={version:3,view:viewMode,params:{mat:$('mat').value,rating:+$('rating').value,ip:$('ip').value,startType:$('startType').value,startW:+$('startW').value,startD:+$('startD').value,startH:+$('startH').value,endType:$('endType').value,endW:+$('endW').value,endD:+$('endD').value,endH:+$('endH').value,moduleLen:+$('moduleLen').value,mountOn:$('mountOn').value,mountStep:+$('mountStep').value},segs:state.segs,calc:state.calc,dimOffsets:state.dimOffsets,annos:state.annos}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_project.json'; a.click(); URL.revokeObjectURL(url); };
+/* проект: сохранить/загрузить */
+$('saveProj').onclick=()=>{ const data={version:6,view:viewMode,params:{mat:$('mat').value,rating:+$('rating').value,ip:$('ip').value,startType:$('startType').value,startW:+$('startW').value,startD:+$('startD').value,startH:+$('startH').value,endType:$('endType').value,endW:+$('endW').value,endD:+$('endD').value,endH:+$('endH').value,moduleLen:+$('moduleLen').value,mountOn:$('mountOn').value,mountStep:+$('mountStep').value},segs:state.segs,calc:state.calc,dimOffsets:state.dimOffsets,annos:state.annos}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_project.json'; a.click(); URL.revokeObjectURL(url); };
 $('loadProj').onclick=()=>$('loadInput').click();
-$('loadInput').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const data=JSON.parse(rd.result); $('mat').value=data.params.mat||'AL'; fillRatings(); $('rating').value=data.params.rating||R_AL[0]; $('ip').value=data.params.ip||'IP55'; $('startType').value=data.params.startType||'NKU'; $('startW').value=data.params.startW||600; $('startD').value=data.params.startD||600; $('startH').value=data.params.startH||2200; $('endType').value=data.params.endType||'ENDCAP'; $('endW').value=data.params.endW||600; $('endD').value=data.params.endD||600; $('endH').value=data.params.endH||2200; $('moduleLen').value=data.params.moduleLen||3000; $('mountOn').value=data.params.mountOn||'1'; $('mountStep').value=data.params.mountStep||1000; $('endDims').classList.toggle('hid', $('endType').value!=='NKU'); state.segs=Array.isArray(data.segs)?data.segs:[]; state.calc=!!data.calc; state.dimOffsets=data.dimOffsets||{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}; state.annos=Array.isArray(data.annos)?data.annos:[]; state.movingAnno={id:null,what:null,view:null}; setProjection(data.view||'ISO'); draw(); if(state.calc) renderSpec(); }catch(err){ alert('Ошибка загрузки проекта: '+err.message); } }; rd.readAsText(f,'utf-8'); });
+$('loadInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const data=JSON.parse(rd.result);
+    $('mat').value=data.params.mat||'AL'; fillRatings(); $('rating').value=data.params.rating||R_AL[0]; $('ip').value=data.params.ip||'IP55';
+    $('startType').value=data.params.startType||'NKU'; $('startW').value=data.params.startW||600; $('startD').value=data.params.startD||600; $('startH').value=data.params.startH||2200;
+    $('endType').value=data.params.endType||'ENDCAP'; $('endW').value=data.params.endW||600; $('endD').value=data.params.endD||600; $('endH').value=data.params.endH||2200;
+    $('moduleLen').value=data.params.moduleLen||3000; $('mountOn').value=data.params.mountOn||'1'; $('mountStep').value=data.params.mountStep||1000;
+    $('endDims').classList.toggle('hid',$('endType').value!=='NKU');
+    state.segs=Array.isArray(data.segs)?data.segs:[]; state.calc=!!data.calc; state.dimOffsets=data.dimOffsets||{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}}; state.annos=Array.isArray(data.annos)?data.annos:[]; state.movingAnno={id:null,what:null,view:null}; setProjection(data.view||'ISO'); draw(); if(state.calc) renderSpec();
+  }catch(err){ alert('Ошибка загрузки: '+err.message); } }; rd.readAsText(f,'utf-8');
+});
 
-/* ===== старт ===== */
-function start(){ fillRatings(); $('endDims').classList.add('hid'); resize(); setProjection('ISO'); }
-start();
-})();});
+/* фуллскрин */
+$('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
+
+/* старт */
+function start(){
+  const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  resize(); setProjection('ISO'); draw(); fit();
+}
+document.addEventListener('DOMContentLoaded',start);
+start(); /* на случай вставки в уже загруженную страницу */
 </script>
+</body>
 </html>
