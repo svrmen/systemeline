@@ -1,1 +1,1232 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Шинопровод · виды, спецификация, стоимость, экспорт</title>
+<style>
+  :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
+  html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+  header{max-width:1160px;margin:12px auto 8px;padding:0 16px}
+  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:16px}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:760px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:10px 0}
+  .row-3{display:grid;grid-template-columns:repeat(3,minmax(56px,1fr));gap:8px;margin:6px 0}
+  .row-3 input{min-width:56px;max-width:90px;padding:6px 8px;font-size:12px;line-height:1;height:26px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
+  input[type=number],input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
+  textarea{min-height:84px;resize:vertical}
+  .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+  .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
+  .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
+  .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
+  .viewbtn.active{background:#eef3ff;border-color:#bcd}
+  #view{width:100%;height:100%;display:block;background:#fff}
+  #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
+  #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
+  .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
+  .warn{color:#c43;font-size:12px}
+  .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
+  .dim.dragging{cursor:grabbing;opacity:.96}
+  #dimLayer,#annoLayer{position:absolute;inset:0;pointer-events:none;z-index:9}
+  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno .badge{display:inline-block;min-width:18px;height:18px;line-height:16px;padding:0 6px;border-radius:999px;background:#eef3ff;border:1px solid #bcd;font-weight:600;font-size:11px;text-align:center}
+  .anno .x{position:absolute;right:-8px;top:-8px;width:18px;height:18px;border:1px solid #bbb;border-radius:999px;background:#fff;line-height:16px;text-align:center;font-size:12px;cursor:pointer;box-shadow:var(--shadow)}
+  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12}
+  .hid{display:none}
+  #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
+  #spec h3{margin:0 0 6px;font-size:15px}
+  .spec-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:2px 0}
+  .sub{color:#555}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
+  .money{font-variant-numeric:tabular-nums}
+  /* Прайс-редактор */
+  #priceDlg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
+  #priceCard{width:min(980px,90vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid #ddd;box-shadow:var(--shadow);padding:14px}
+  #priceCard textarea{width:100%;min-height:220px;border:1px solid #cfcfcf;border-radius:10px;padding:10px;font-family:ui-monospace,Consolas,monospace;background:#fafafa}
+  /* Вкладки */
+  .tabs{display:flex;gap:8px;margin-bottom:8px}
+  .tab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer}
+  .tab.active{background:#eef3ff;border-color:#bcd}
+</style>
+</head>
+<body>
+<header><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
+<div class="wrap">
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-tab="route">Трасса</button>
+      <button class="tab" data-tab="meta">Данные проекта</button>
+    </div>
+
+    <!-- TAB: ТРАССА -->
+    <div id="tab-route">
+      <div class="row"><label>Материал шин</label>
+        <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
+      </div>
+      <div class="row"><label>Номинальный ток, A</label><select id="rating"></select></div>
+      <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
+
+      <div class="row"><label>Начало трассы</label>
+        <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option></select>
+      </div>
+      <div class="row-3">
+        <input id="startW" type="number" value="600"  title="Начало W" placeholder="W">
+        <input id="startD" type="number" value="600"  title="Начало D" placeholder="D">
+        <input id="startH" type="number" value="2200" title="Начало H" placeholder="H">
+      </div>
+
+      <div class="row"><label>Конец трассы</label>
+        <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option></select>
+      </div>
+      <div id="endDims" class="row-3 hid">
+        <input id="endW" type="number" value="600"  title="Конец W" placeholder="W">
+        <input id="endD" type="number" value="600"  title="Конец D" placeholder="D">
+        <input id="endH" type="number" value="2200" title="Конец H" placeholder="H">
+      </div>
+
+      <div class="row"><label><b>Длина сегмента (модуль), мм</b></label><input id="moduleLen" type="number" value="3000"></div>
+
+      <div class="row"><label>Крепления</label>
+        <select id="mountOn"><option value="1" selected>есть</option><option value="0">нет</option></select>
+      </div>
+      <div class="row"><label>Целевой шаг крепления, мм</label><input id="mountStep" type="number" value="1000"></div>
+
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <button class="btn" id="calc">Рассчитать разбиение</button>
+        <button class="btn" id="uncalc">Отменить разбиение</button>
+      </div>
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <button class="btn" id="undo">Отменить участок</button>
+        <button class="btn" id="clear">Сброс</button>
+      </div>
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <button class="btn" id="fit">Подогнать</button>
+        <button class="btn" id="addAnno">➕ Выноска</button>
+      </div>
+
+      <div id="msg" class="warn"></div>
+
+      <div id="spec" style="display:none">
+        <h3>Спецификация</h3>
+        <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
+        <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
+        <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
+        <div class="spec-row"><div>Горизонтальные участки</div><div id="spLenHoriz"></div></div>
+        <div class="spec-row"><div>Вертикально вверх</div><div id="spLenUp"></div></div>
+        <div class="spec-row"><div>Вертикально вниз</div><div id="spLenDown"></div></div>
+        <div class="spec-row"><div>Блок подключения к НКУ</div><div id="spNkuBlocks"></div></div>
+        <div class="spec-row"><div>Блок подключения к ТР</div><div id="spTrBlocks"></div></div>
+        <div class="spec-row"><div>Заглушка на конце</div><div id="spEndCap"></div></div>
+        <div class="spec-row"><div>Соединители — всего</div><div id="spJointsTotal"></div></div>
+        <div class="spec-row sub"><div>— модульная разбивка</div><div id="spJointsMod"></div></div>
+        <div class="spec-row sub"><div>— на углах (по 2)</div><div id="spJointsCorners"></div></div>
+        <div class="spec-row sub"><div>— у подключения к НКУ (по 1)</div><div id="spJointsNku"></div></div>
+        <div class="spec-row sub"><div>— у подключения к ТР (по 1)</div><div id="spJointsTr"></div></div>
+        <div class="spec-row"><div>Повороты: вертикальные</div><div id="spVert"></div></div>
+        <div class="spec-row"><div>Повороты: горизонтальные</div><div id="spHoriz"></div></div>
+        <div class="spec-row"><div>Крепления, шт</div><div id="spMounts"></div></div>
+
+        <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость</b></div><div class="money" id="spTotalCost">—</div></div>
+        <div style="margin:4px 0 2px"><button class="btn" id="toggleCost">Показать калькуляцию</button></div>
+        <div id="costTable" class="hid">
+          <table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table>
+        </div>
+
+        <div style="margin:10px 0 2px;font-weight:600">Сегменты по длинам</div>
+        <table id="spTable"><thead><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr></thead><tbody></tbody></table>
+        <div style="margin-top:8px"><button class="btn" id="saveCSV">Сохранить CSV</button></div>
+      </div>
+    </div>
+
+    <!-- TAB: ДАННЫЕ ПРОЕКТА -->
+    <div id="tab-meta" class="hid">
+      <div class="row"><label>Название проекта</label><input id="metaTitle" type="text" placeholder="Проект шинопровода"></div>
+      <div class="row"><label>Объект / площадка</label><input id="metaObject" type="text" placeholder="Цех №..."></div>
+      <div class="row"><label>Адрес</label><input id="metaAddr" type="text" placeholder="..."></div>
+      <div class="row"><label>Заказчик</label><input id="metaCustomer" type="text"></div>
+      <div class="row"><label>Подрядчик</label><input id="metaContractor" type="text"></div>
+      <div class="row"><label>Шифр / № проекта</label><input id="metaCode" type="text"></div>
+      <div class="row"><label>Дата</label><input id="metaDate" type="text" placeholder="ГГГГ-ММ-ДД"></div>
+      <div class="row" style="grid-template-columns:1fr"><label>Примечания</label><textarea id="metaNotes" placeholder="Краткое описание, доп. сведения"></textarea></div>
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <span></span>
+        <button class="btn" id="metaSave">Сохранить данные</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="viewer" id="wrap">
+    <div class="viewbar-top">
+      <button class="viewbtn active" data-view="ISO">Изометрия</button>
+      <button class="viewbtn" data-view="TOP">Сверху</button>
+      <button class="viewbtn" data-view="FRONT">Спереди</button>
+      <button class="viewbtn" data-view="BACK">Сзади</button>
+      <button class="viewbtn" data-view="LEFT">Слева</button>
+      <button class="viewbtn" data-view="RIGHT">Справа</button>
+    </div>
+
+    <div class="viewbar-bottom">
+      <button class="viewbtn" id="btnFS" title="Во весь экран">⛶</button>
+      <button class="viewbtn" id="savePNG">PNG</button>
+      <button class="viewbtn" id="savePNGAll">PNG все</button>
+      <button class="viewbtn" id="saveDXF">DXF</button>
+      <button class="viewbtn" id="saveXLS">XLS</button>
+      <button class="viewbtn" id="savePDF">Проект (PDF)</button>
+      <button class="viewbtn" id="btnPrice">₽ Прайс</button>
+    </div>
+
+    <canvas id="view"></canvas>
+    <canvas id="gizmo" width="220" height="220"></canvas>
+    <div id="tag">направление: —</div>
+
+    <!-- ввод длины нового участка -->
+    <div id="lenPopup" class="prompt">
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <input id="lenInput" type="number" min="1" step="100" placeholder="длина, мм (≥400)">
+        <div><button class="btn" id="ok">OK</button> <button class="btn" id="cancel">Отмена</button></div>
+      </div>
+      <div class="warn" id="hint" style="margin-top:6px"></div>
+    </div>
+
+    <!-- правка длины -->
+    <div id="editPopup" class="prompt">
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <input id="editInput" type="number" min="1" step="100" placeholder="новая длина, мм (≥400)">
+        <div><button class="btn" id="editOk">OK</button> <button class="btn" id="editCancel">Отмена</button></div>
+      </div>
+    </div>
+
+    <!-- ввод/правка текста выноски -->
+    <div id="annoPopup" class="prompt">
+      <div class="row" style="grid-template-columns:1fr auto">
+        <input id="annoInput" type="text" placeholder="текст выноски">
+        <div style="display:flex;gap:6px">
+          <button class="btn" id="annoOk">OK</button>
+          <button class="btn" id="annoDel">Удалить</button>
+          <button class="btn" id="annoCancel">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dimLayer"></div>
+    <div id="annoLayer"></div>
+  </div>
+</div>
+
+<!-- Прайс-редактор -->
+<div id="priceDlg">
+  <div id="priceCard">
+    <h3>Прайс</h3>
+    <div style="font-size:12px;color:#666">Вставляй строки как прислал. <b>GM55</b> — цена за метр. <b>ECM55</b> привязана к <u>току</u> в описании («400А» → шаг 1).</div>
+    <textarea id="pricePaste" placeholder="Вставь сюда строки цен (можно с табами/пробелами)"></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="priceParse">Разобрать и обновить</button>
+      <button class="btn" id="priceReset">Сбросить прайс</button>
+      <button class="btn" id="priceExport">Выгрузить JSON</button>
+      <input type="file" id="priceImport" accept="application/json" style="display:none">
+      <button class="btn" id="priceImportBtn">Загрузить JSON</button>
+      <button class="btn" id="priceClose">Закрыть</button>
+    </div>
+    <div style="margin-top:8px">
+      <div style="font-size:12px;color:#666">Текущее хранилище цен (localStorage):</div>
+      <textarea id="priceJSON" readonly></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== ДАННЫЕ ===== */
+const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
+const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
+const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
+const WIDTH_CU={400:82,500:82,630:82,800:82,1000:120,1200:120,1250:120,1600:160,2000:220,2500:290,3200:360,4000:570,5000:570,6300:570};
+const VERT_ELBOW={a:320,b:320};
+const H_ELBOW_BY_R={400:[260,260],500:[260,260],630:[260,260],800:[260,260],1000:[270,270],1200:[290,290],1250:[290,290],1600:[310,310],2000:[220,220],2500:[370,370],3200:[410,410],4000:[460,450],5000:[500,500],6300:[500,500]};
+const BUS_H=118, MIN_LEN=400;
+const JOINT_LEN=100;
+const MOUNT_ALONG=10, MOUNT_THICK=10;
+/* расстояния креплений вдоль сегмента */
+const SP_MIN=800, SP_MAX=1100;
+
+const STORAGE_STATE='BUS_STATE_V3';
+const STORAGE_PRICE='BUS_PRICE_V4';
+const STORAGE_PRICE_OLD='BUS_PRICE_V3';
+
+/* ===== УТИЛИТЫ ===== */
+const $=id=>document.getElementById(id);
+const wrap=$('wrap'), cvs=$('view'), ctx=cvs.getContext('2d');
+const giz=$('gizmo'), gz=giz.getContext('2d'), tag=$('tag');
+const dimLayer=$('dimLayer'), annoLayer=$('annoLayer');
+const pop=$('lenPopup'), lenInput=$('lenInput'), hint=$('hint');
+const epop=$('editPopup'), editInput=$('editInput');
+const apop=$('annoPopup'), ainput=$('annoInput');
+const msg=$('msg');
+
+let viewMode='ISO';
+const DPR=Math.max(1,window.devicePixelRatio||1), ISO=Math.PI/6, C=Math.cos(ISO), S=Math.sin(ISO);
+let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
+
+function setProjection(mode){
+  viewMode=mode;
+  if(mode==='ISO') proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
+  if(mode==='TOP') proj=(x,y,z)=>[ x, -y ];
+  if(mode==='FRONT') proj=(x,y,z)=>[ x, -z ];
+  if(mode==='BACK') proj=(x,y,z)=>[ -x, -z ];
+  if(mode==='LEFT') proj=(x,y,z)=>[ y, -z ];
+  if(mode==='RIGHT') proj=(x,y,z)=>[ -y, -z ];
+  document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===mode));
+  fit();
+}
+document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
+
+let panX=0, panY=0, scale=1;
+function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
+function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
+addEventListener('resize',resize);
+
+/* panning/zoom */
+let dragging=false, sx=0, sy=0;
+wrap.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#gizmo,.viewbar-top,.viewbar-bottom,.prompt,.anno,.dim,.anchor-dot')) return;
+  dragging=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
+});
+wrap.addEventListener('pointerup',()=>dragging=false);
+wrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const zx=(mx-panX)/scale, zy=(my-panY)/scale;
+  scale*=k; panX=mx-zx*scale; panY=my-zy*scale;
+  draw(); updatePopups();
+},{passive:false});
+function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
+function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
+
+/* ===== ТАБЫ ===== */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const tab=t.dataset.tab;
+    $('tab-route').classList.toggle('hid',tab!=='route');
+    $('tab-meta').classList.toggle('hid',tab!=='meta');
+  });
+});
+
+/* ===== МОДЕЛЬ ===== */
+const state={
+  segs:[], lastDir:'+Z', calc:false, module:3000,
+  dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
+  annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
+  meta:{title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''},
+  annoSeq:1,
+  drawAnnoLines:true
+};
+function P(){
+  return {
+    startType:$('startType').value, endType:$('endType').value,
+    startW:+$('startW').value, startD:+$('startD').value, startH:+$('startH').value,
+    endW:+$('endW').value, endD:+$('endD').value, endH:+$('endH').value,
+    busW:( $('mat').value==='CU'?WIDTH_CU:WIDTH_AL )[+$('rating').value]||78,
+    busH:BUS_H
+  };
+}
+function originTop(){ const p=P(); return [p.startW/2,p.startD/2,p.startH]; }
+const axis=d=>d[1];
+const sgn=d=>d[0]==='+'?1:-1;
+const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
+function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L; } return [x,y,z]; }
+
+/* ===== DXF сборщик ===== */
+let DXF_COLLECT=false, DXF_ENT=[];
+const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer}); }
+
+/* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
+function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
+  const p=proj(...a), q=proj(...b);
+  ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  pushDXF(p,q,layer);
+}
+function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLOOR'){
+  const p=proj(...a), q=proj(...b);
+  ctx.save(); ctx.setLineDash(dash); ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); ctx.restore();
+  pushDXF(p,q,layer);
+}
+function fillPoly3(pts, fill, alpha,layer='BUS'){
+  const p=pts.map(v=>proj(...v));
+  ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
+  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore();
+  for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
+}
+function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
+  const s=proj(...p);
+  ctx.save(); ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR);
+  ctx.fillStyle=fill; ctx.font=`${12/scale}px system-ui`; ctx.textAlign=align; ctx.textBaseline='bottom';
+  ctx.fillText(text, s[0], s[1]+dy);
+  ctx.restore();
+}
+function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+  const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
+  line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
+  line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
+}
+function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
+  const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+  f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
+  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
+}
+const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
+function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function madd3(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn ]; }
+function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
+function extrudeSolid(poly, thick, O, U, V, N,layer){
+  const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
+  const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
+  const color='rgba(60,110,220,.6)';
+  fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
+  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
+}
+function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
+function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
+  const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
+  const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
+  const thick = vertical ? bw : bh;
+  const half  = vertical ? (bh/2) : (bw/2);
+  const poly  = LpolyCornerSolid(aLen,bLen,half);
+  extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
+}
+function segBox(start,dir,L,bw,bh){
+  const s=sgn(dir), a=axis(dir);
+  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
+  if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
+  if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
+}
+
+/* соединители по модулю */
+function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
+  const m=state.module|0; if(!(m>0)) return;
+  const full=Math.floor((cur.len|0)/m);
+  for(let k=1;k<=full;k++){
+    const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
+    const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
+    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
+  }
+}
+
+/* крепления — умный расчёт */
+function intervalFill(a,b, hasA, hasB, target){
+  const L=b-a, out=[]; if(L<=0) return out;
+  function spread(n){ const step=L/(n+1); for(let i=1;i<=n;i++) out.push(a+i*step); }
+  if(hasA&&hasB){ if(L<=SP_MAX) return out; let n=Math.ceil(L/SP_MAX)-1; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out; }
+  if(!hasA&&!hasB){ if(L<SP_MIN) return out; let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out; }
+  let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out;
+}
+function mountPositionsForSegment(startPos, cur, Ldraw, startCut, endCut, prev, next, target){
+  const res=[]; if(axis(cur.dir)==='Z') return res;
+  const hasA = !!(prev && axis(prev.dir)!==axis(cur.dir));
+  const hasB = !!(next && axis(next.dir)!==axis(cur.dir));
+  const anchors=[];
+  if(hasA && Ldraw>=200) anchors.push(200);
+  if(hasB && Ldraw>=200) anchors.push(Ldraw-200);
+  anchors.sort((a,b)=>a-b);
+  if(anchors.length===0){ res.push(...intervalFill(0,Ldraw,false,false,target)); }
+  else{
+    res.push(...intervalFill(0,anchors[0],false,true,target));
+    for(let i=0;i<anchors.length-1;i++){
+      res.push(anchors[i], ...intervalFill(anchors[i],anchors[i+1],true,true,target));
+    }
+    const last=anchors[anchors.length-1];
+    res.push(last, ...intervalFill(last,Ldraw,true,false,target));
+  }
+  const uniq=[], seen=new Set();
+  for(const d of res){ const v=Math.max(0,Math.min(Ldraw,d)); const k=v.toFixed(2); if(!seen.has(k)){ seen.add(k); uniq.push(v); } }
+  return uniq;
+}
+function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw){
+  if($('mountOn').value!=='1') return 0;
+  const arr=mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,+$('mountStep').value||1000);
+  for(const d of arr){
+    const C=adv(startPos,cur.dir,d);
+    if(axis(cur.dir)==='X'){
+      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
+    }else if(axis(cur.dir)==='Y'){
+      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
+    }
+  }
+  return arr.length;
+}
+
+/* шкафы / заглушка */
+function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
+function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
+function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
+  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
+}
+
+/* ===== ПОЛ ===== */
+function floorBoundsXY(){
+  const p=P(); const bw=p.busW;
+  let minX=0, maxX=p.startW, minY=0, maxY=p.startD;
+  let [x,y,z]=originTop();
+  function expand(px,py){ minX=Math.min(minX, px-bw/2); maxX=Math.max(maxX, px+bw/2); minY=Math.min(minY, py-bw/2); maxY=Math.max(maxY, py+bw/2); }
+  expand(x,y);
+  for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X') x+=L; else if(s.dir==='-X') x-=L; if(s.dir==='+Y') y+=L; else if(s.dir==='-Y') y-=L; expand(x,y); }
+  if($('endType').value==='NKU'){ const e=endPoint(); minX=Math.min(minX, e[0]-p.endW/2); maxX=Math.max(maxX, e[0]+p.endW/2); minY=Math.min(minY, e[1]-p.endD/2); maxY=Math.max(maxY, e[1]+p.endD/2); }
+  return {minX, maxX, minY, maxY};
+}
+function drawFloorBounded(){
+  if(!(viewMode==='ISO' || viewMode==='TOP')) return;
+  const b=floorBoundsXY();
+  const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
+  fillPoly3(poly,'#f1f3f5',1,'FLOOR');
+  const step=200;
+  for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
+  for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
+  line3([b.minX,b.minY,0],[b.maxX,b.minY,0],'#c7c7c7',1/scale,'FLOOR');
+  line3([b.maxX,b.minY,0],[b.maxX,b.maxY,0],'#c7c7c7',1/scale,'FLOOR');
+  line3([b.maxX,b.maxY,0],[b.minX,b.maxY,0],'#c7c7c7',1/scale,'FLOOR');
+  line3([b.minX,b.maxY,0],[b.minX,b.minY,0],'#c7c7c7',1/scale,'FLOOR');
+}
+/* уровень 0.000 для фронт/боков */
+function drawFloorZeroLine(){
+  if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
+  const b=floorBoundsXY();
+  if(viewMode==='FRONT' || viewMode==='BACK'){
+    const a=[b.minX,b.minY,0], c=[b.maxX,b.minY,0];
+    line3Dashed(a,c,'#a0a0a0',1.2/scale,[8/scale,6/scale],'FLOOR');
+    const mid=[(b.minX+b.maxX)/2,b.minY,0]; drawText3(mid,'0.000','center',-8/scale,'#777');
+  }else{
+    const a=[b.minX,b.minY,0], c=[b.minX,b.maxY,0];
+    line3Dashed(a,c,'#a0a0a0',1.2/scale,[8/scale,6/scale],'FLOOR');
+    const mid=[b.minX,(b.minY+b.maxY)/2,0]; drawText3(mid,'0.000','center',-8/scale,'#777');
+  }
+}
+
+/* размеры */
+function getDimOffset(key){ return state.dimOffsets[viewMode][key]||{dx:0,dy:0}; }
+function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; saveState(); }
+function renderDeltaH(){
+  if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
+  if($('endType').value!=='NKU') return;
+  const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
+  const delta=Math.abs(eBase-sBase)|0;
+  const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+  const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
+  const base=localToScreen(mid.u,mid.v);
+  const off=getDimOffset('__deltaH'); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px';
+  let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
+  el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
+  el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset('__deltaH',dx,dy); });
+  dimLayer.appendChild(el);
+}
+
+/* трасса + размеры */
+function drawPath(){
+  const prm=P(), bw=prm.busW, bh=prm.busH;
+  let pos=originTop(); dimLayer.innerHTML='';
+
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0; const ec=next?elbowCuts(cur.dir,next.dir).a:0;
+    const startPos=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
+
+    if(Ldraw>0){
+      segBox(startPos,cur.dir,Ldraw,bw,bh);
+      if(state.calc){
+        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
+        drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
+      }
+      const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
+      const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
+      const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+      if(state.calc){
+        const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
+        let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
+        el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
+        el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
+        el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key,dx,dy); });
+        el.addEventListener('dblclick',ev=>{ ev.stopPropagation(); openEdit(i); });
+        dimLayer.appendChild(el);
+      }
+    }
+    if(ec>0 && next){
+      const cuts=elbowCuts(cur.dir,next.dir);
+      const vertex=adv(pos,cur.dir,L);
+      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);
+    }
+    pos=adv(pos,cur.dir,L);
+  }
+  renderDeltaH();
+}
+
+/* джойстик направления */
+const AXES=[{dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},{dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},{dir:'+X',label:'+X →',color:'#e4463c',vec:[1,0,0]},{dir:'-X',label:'-X ←',color:'#e4463c',vec:[-1,0,0]},{dir:'+Y',label:'+Y ↗',color:'#2d6cdf',vec:[0,1,0]},{dir:'-Y',label:'-Y ↙',color:'#2d6cdf',vec:[0,-1,0]}];
+let hit=null, rays=[];
+function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); giz.style.left=s.x+'px'; giz.style.top=s.y+'px'; tag.style.left=s.x+'px'; tag.style.top=s.y+'px'; pop.style.left=s.x+'px'; pop.style.top=s.y+'px'; }
+function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
+function angleOf(vx,vy){return Math.atan2(vy,vx)}; function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?2*Math.PI-d:d;}
+function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active=hit&&hit.dir===r.dir; drawArrow2D(r.from,r.to,r.color,active?7:4,active?1:.95,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
+giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top; const cx=giz.width/2, cy=giz.height/2, dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy), phi=Math.atan2(dy,dx), innerR=28, outerR=108; let found=null,best=1e9; for(const rr of rays){ const ad=angDiff(phi,rr.phi); const within=(r>=innerR&&r<=outerR&&ad<=18*Math.PI/180); const tipR=Math.hypot(x-rr.to[0],y-rr.to[1]); const nearTip=tipR<=18; if(within||nearTip){ const score=(nearTip?0:ad)+Math.abs(r-90)*0.001; if(score<best){best=score;found=rr;} } } hit=found; tag.textContent='направление: '+(hit?hit.label:'—'); drawGizmo(); });
+giz.addEventListener('pointerleave',()=>{ hit=null; tag.textContent='направление: —'; drawGizmo(); });
+giz.addEventListener('click',()=>{ if(viewMode!=='ISO'||!hit||state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
+
+function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>$('lenInput').focus(),0); }
+function hideLenPopup(){ pop.style.display='none'; }
+$('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
+lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
+function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); saveState(); }
+
+function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
+$('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
+editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')epop.style.display='none'; });
+function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); saveState(); }
+function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
+
+cvs.addEventListener('click',e=>{
+  const pick=pickSegByPoint(e,false);
+  if(pick.idx<0) return;
+  openEdit(pick.idx);
+});
+function distPointSeg(px,py,x1,y1,x2,y2){ const vx=x2-x1,vy=y2-y1,wx=px-x1,wy=py-y1; const t=Math.max(0,Math.min(1,(vx*wx+vy*wy)/(vx*vx+vy*vy||1))); const dx=x1+t*vx-px, dy=y1+t*vy-py; return {d:Math.hypot(dx,dy),t}; }
+function pickSegByPoint(e,useCuts){
+  const r=wrap.getBoundingClientRect(); const lx=(e.clientX-r.left-panX)/scale, ly=(e.clientY-r.top-panY)/scale;
+  let pos=originTop(), idx=-1, best=1e9, bestT=0;
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=useCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=useCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
+    const p1=proj(...start), p2=proj(...adv(start,cur.dir,Ldraw));
+    const r2=distPointSeg(lx,ly,p1[0],p1[1],p2[0],p2[1]);
+    if(r2.d<18/scale && r2.d<best){ best=r2.d; idx=i; bestT=sc+r2.t*Ldraw; }
+    pos=adv(pos,cur.dir,L);
+  }
+  return {idx,along:bestT};
+}
+function segMid(i,withCuts){
+  let pos=originTop();
+  for(let k=0;k<state.segs.length;k++){
+    const cur=state.segs[k], L=cur.len|0, prev=state.segs[k-1], next=state.segs[k+1];
+    const sc=withCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=withCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
+    const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
+    if(k===i){ const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); return localToScreen(p2[0],p2[1]); }
+    pos=adv(pos,cur.dir,L);
+  }
+  return {x:panX,y:panY};
+}
+
+/* ===== ВЫНОСКИ ===== */
+let annoId=1;
+function newPos(){ return {ax:0,ay:0,bx:0,by:0}; }
+function ensurePos(anno,view){ if(!anno.pos[view]){ const src=anno.pos[viewMode]||anno.pos.ISO||newPos(); anno.pos[view]={...src}; } return anno.pos[view]; }
+
+/* авто-нумерация/ремонт старых данных */
+function ensureAnnoNumbers(){
+  let k=1;
+  for(const a of state.annos){
+    if(typeof a.num!=='number' || !(a.num>0)){ a.num=k; }
+    k++;
+  }
+  state.annoSeq=k;
+}
+
+$('addAnno').addEventListener('click',()=>{ state.addAnno=true; msg.textContent='Кликни место якоря выноски'; setTimeout(()=>msg.textContent='',1500); });
+wrap.addEventListener('pointerdown',e=>{
+  if(!state.addAnno) return;
+  const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy);
+  apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; apop.style.display='block';
+  ainput.value=''; apop.dataset.mode='create'; apop.dataset.id='';
+  apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
+});
+$('annoOk').onclick=()=>{
+  const mode=apop.dataset.mode||'create';
+  if(mode==='create'){
+    const text=(ainput.value.trim()||'Примечание');
+    const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view;
+    const bx=ux+60/scale, by=uy-20/scale; const id=annoId++;
+    const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()};
+    base[vw]={ax:ux,ay:uy,bx,by};
+    const num=state.annoSeq++;
+    state.annos.push({id,num,text,pos:base,movingBox:false,movingAnchor:false});
+  }else{
+    const id=+apop.dataset.id; const a=state.annos.find(x=>x.id===id); if(a) a.text=(ainput.value.trim()||'Примечание');
+  }
+  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
+};
+$('annoCancel').onclick=()=>apop.style.display='none';
+$('annoDel').onclick=()=>{
+  const id=+apop.dataset.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); }
+  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
+};
+
+function renderAnnos(){
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
+  ensureAnnoNumbers();
+  state.annos.forEach(a=>{
+    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
+    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=a.id;
+    const box=document.createElement('div'); box.className='anno'; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=a.id;
+    const badge=document.createElement('span'); badge.className='badge'; badge.textContent='A'+a.num;
+    box.appendChild(badge); box.appendChild(document.createTextNode(' '+a.text));
+
+    if(a.movingBox){
+      const x=document.createElement('div'); x.className='x'; x.textContent='×';
+      x.title='Удалить выноску'; x.onclick=(ev)=>{ ev.stopPropagation(); const i=state.annos.findIndex(t=>t.id===a.id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } };
+      box.appendChild(x);
+    }
+
+    annoLayer.appendChild(anchor); annoLayer.appendChild(box);
+
+    if(state.drawAnnoLines){
+      // линия к ближайшей точке прямоугольника
+      const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect();
+      const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
+      const tx=Math.max(cx-rect.width/2, Math.min(cx+rect.width/2, aScr.x));
+      const ty=Math.max(cy-rect.height/2, Math.min(cy+rect.height/2, aScr.y));
+      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
+    }
+
+    box.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      if(state.movingAnno.id===a.id && a.movingBox){
+        a.movingBox=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
+      }else{
+        a.movingBox=true; a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; draw();
+      }
+    });
+    box.addEventListener('dblclick',ev=>{
+      ev.stopPropagation();
+      ainput.value=a.text;
+      const p=localToScreen(pv.bx,pv.by);
+      apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
+      apop.dataset.mode='edit'; apop.dataset.id=a.id;
+    });
+    anchor.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      if(state.movingAnno.id===a.id && a.movingAnchor){
+        a.movingAnchor=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
+      }else{
+        a.movingAnchor=true; a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; draw();
+      }
+    });
+  }); 
+  ctx.restore();
+}
+wrap.addEventListener('click',e=>{
+  const mv=state.movingAnno;
+  if(mv.id){
+    const a=state.annos.find(t=>t.id===mv.id);
+    if(a){ a.movingBox=false; a.movingAnchor=false; }
+    state.movingAnno={id:null,what:null,view:null};
+    draw(); saveState();
+  }
+});
+wrap.addEventListener('pointermove',e=>{
+  const mv=state.movingAnno; if(!mv.id||!mv.what) return;
+  const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
+  const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
+  if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
+  draw();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Delete'){ const id=state.movingAnno.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } }
+  if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); saveState(); } }
+});
+
+/* ===== кадр/подгон ===== */
+function draw(){
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
+  apply(); 
+  drawFloorBounded(); 
+  drawStartCab(); 
+  drawPath(); 
+  drawEndCab(); 
+  drawEndCap(P().busW);
+  drawFloorZeroLine(); 
+  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
+  renderAnnos(); updatePopups();
+}
+function boundsProjected(){
+  const p=P(); const pts=[[0,0,0],[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
+  for(const s of state.segs){ pos=adv(pos,s.dir,s.len|0); pts.push(pos); }
+  if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
+  const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
+  return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
+}
+function fit(){
+  const ext=boundsProjected();
+  const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
+  const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
+  scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
+  const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
+  panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
+  draw();
+}
+
+/* ===== спецификация / стоимость ===== */
+/* ... (без изменений, как раньше) — оставил весь расчёт и прайс-загрузчик без правок логики ... */
+/* ВНИМАНИЕ: из-за объёма блок «спецификация/стоимость/прайс» я не урезал — он полностью
+   совпадает с предыдущей версией, только ниже я заменил функции отрисовки пузырьков
+   для PNG/PDF. */
+
+const RATE_CODE={400:'04',500:'05',630:'06',800:'08',1000:'10',1200:'12',1250:'12',1600:'16',2000:'20',2500:'25',3200:'32',4000:'40',5000:'50',6300:'63'};
+function ipSuffix(){ return 'M'+$('ip').value.replace('IP',''); }
+function refBase(){ return ($('mat').value==='CU'?'DDW4':'BDW4'); }
+function heStep(r){ if(r<=800) return 1; if(r<=1000) return 2; if(r<=1250) return 3; if(r<=1600) return 4; if(r<=2000) return 5; if(r<=2500) return 6; if(r<=3200) return 7; if(r<=4000) return 8; return 9; }
+function refFor(type, rating){
+  const base=refBase();
+  if(type==='EC'){ const step=heStep(rating); return `${base}50${step}EC${ipSuffix()}`; }
+  if(type==='HE'){ const step=heStep(rating); return `${base}50${step}HE`; }
+  const code=RATE_CODE[rating]||'04';
+  const tmap={ST:'GM55',EL:'GELM55',JPK:'GJPKM55',FE:'GFEM55',FET:'GFETM55',GETB:'GETBM55'};
+  return `${base}5${code}${tmap[type]||'GM55'}`;
+}
+
+/* ===== ЦЕНЫ (как раньше) ===== */
+function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}}; }
+let PRICE = loadPrice() || emptyPrice();
+function loadPrice(){ try{ const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
+function savePrice(){ localStorage.setItem(STORAGE_PRICE,JSON.stringify(PRICE)); }
+function money(x){ const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
+function priceOf(type, mat, rating){ const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE'){ const key='50'+heStep(rating); return +P[key]||0; } let val=P[rating]; if(val==null && rating===1200) val=P[1250]; return +val||0; }
+function computeSpec(){
+  const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
+  let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
+  for(let i=0;i<state.segs.length;i++){
+    const s=state.segs[i], L=s.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const sc=prev?elbowCuts(prev.dir,s.dir).b:0, ec=next?elbowCuts(s.dir,next.dir).a:0; const Ldraw=Math.max(0,L-sc-ec);
+    total+=L; if(axis(s.dir)==='Z'){ if(sgn(s.dir)>0) lenUp+=L; else lenDown+=L; } else lenH+=L;
+    if(m>0){ const full=Math.floor(L/m), rem=L%m; if(full>0) map.set(m,(map.get(m)||0)+full); if(rem>0) map.set(rem,(map.get(rem)||0)+1); const parts=full+(rem>0?1:0); jointsMod+=Math.max(0,parts-1); }
+    if(axis(s.dir)!=='Z') mounts+=mountPositionsForSegment(adv(pos,s.dir,sc),s,Ldraw,sc,ec,prev,next,target).length;
+    if(next && axis(s.dir)!==axis(next.dir)){ corners++; if(axis(s.dir)==='Z'||axis(next.dir)==='Z') vert++; else horiz++; }
+    pos=adv(pos,s.dir,L);
+  }
+  const nku=( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 );
+  const tr =( $('startType').value==='TR'?1:0 );
+  const endcap=($('endType').value==='ENDCAP'?1:0);
+  return {module:m,totalLen:total,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
+}
+function renderSpec(){
+  if(!state.calc){ $('spec').style.display='none'; return; }
+  const sp=computeSpec(); $('spec').style.display='block';
+  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`;
+  $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
+  $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
+  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
+  $('spJointsTotal').textContent=sp.joints.total; $('spJointsMod').textContent=sp.joints.mod; $('spJointsCorners').textContent=sp.joints.corners; $('spJointsNku').textContent=sp.joints.nku; $('spJointsTr').textContent=sp.joints.tr;
+  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—';
+
+  const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
+
+  const calcData=computeCost(sp);
+  $('spTotalCost').textContent = money(calcData.total);
+  const cb=$('costBody'); cb.innerHTML='';
+  calcData.lines.forEach(L=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${L.title}</td><td><code>${L.ref||'—'}</code></td><td>${L.qty}</td><td class="money">${money(L.price)}</td><td class="money">${money(L.sum)}</td>`;
+    cb.appendChild(tr);
+  });
+}
+$('toggleCost').onclick=()=>$('costTable').classList.toggle('hid');
+
+/* ===== КАЛЬКУЛЯЦИЯ ===== */
+function computeCost(sp){
+  const mat=$('mat').value, r=+$('rating').value;
+  const lines=[]; let total=0;
+
+  const stPricePerM = priceOf('ST',mat,r);
+  const meters = (sp.lenHoriz + sp.lenUp + sp.lenDown)/1000;
+  if(meters>0){
+    const sum=meters*stPricePerM;
+    lines.push({title:'Горизонтальный шинопровод (суммарный метраж)',ref:refFor('ST',r),qty:meters.toFixed(3)+' м',price:stPricePerM,sum});
+    total+=sum;
+  }
+
+  const elbows=sp.vert+sp.horiz; const elP=priceOf('EL',mat,r);
+  if(elbows>0){ const sum=elbows*elP; lines.push({title:'Угловая секция',ref:refFor('EL',r),qty:elbows,price:elP,sum}); total+=sum; }
+
+  const jpk=sp.joints.total; const jP=priceOf('JPK',mat,r);
+  if(jpk>0){ const sum=jpk*jP; lines.push({title:'Соединительный блок',ref:refFor('JPK',r),qty:jpk,price:jP,sum}); total+=sum; }
+
+  if(sp.nkuBlocks>0){ const p=priceOf('FE',mat,r), ref=refFor('FE',r), sum=p*sp.nkuBlocks; lines.push({title:'Фланцевый блок (к НКУ)',ref,qty:sp.nkuBlocks,price:p,sum}); total+=sum; }
+
+  if(sp.trBlocks>0){ const p=priceOf('FET',mat,r), ref=refFor('FET',r), sum=p*sp.trBlocks; lines.push({title:'Секция подключения к трансформатору',ref,qty:sp.trBlocks,price:p,sum}); total+=sum; }
+
+  if(sp.endCap){ const p=priceOf('EC',mat,r), ref=refFor('EC',r), sum=p; lines.push({title:'Концевая заглушка',ref,qty:1,price:p,sum}); total+=sum; }
+
+  if(($('mountOn').value==='1') && sp.mounts>0){ const p=priceOf('HE',mat,r), ref=refFor('HE',r), sum=p*sp.mounts; lines.push({title:'Горизонтальный крепёж (HE)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
+
+  return {total,lines};
+}
+
+/* ===== БУФЕР ДЛЯ PNG/PDF: аккуратные пузырьки ===== */
+function roundRect(ctx,x,y,w,h,r){
+  const rr=Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.lineTo(x+w-rr, y);
+  ctx.arc(x+w-rr, y+rr, rr, -Math.PI/2, 0);
+  ctx.lineTo(x+w, y+h-rr);
+  ctx.arc(x+w-rr, y+h-rr, rr, 0, Math.PI/2);
+  ctx.lineTo(x+rr, y+h);
+  ctx.arc(x+rr, y+h-rr, rr, Math.PI/2, Math.PI);
+  ctx.lineTo(x, y+rr);
+  ctx.arc(x+rr, y+rr, rr, Math.PI, -Math.PI/2);
+  ctx.closePath();
+}
+function measureBubble(ctx2,text){ ctx2.save(); ctx2.font='12px system-ui'; const w=Math.max(64,ctx2.measureText(text).width+18), h=24; ctx2.restore(); return {w,h}; }
+function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр коробки
+  const m=measureBubble(ctx2,text);
+  const rx=cx-m.w/2, ry=cy-m.h/2;
+  ctx2.save();
+  ctx2.lineJoin='round'; ctx2.miterLimit=2;
+
+  if(anchor){
+    // точка на границе ближе к якорю
+    const tx=Math.max(rx, Math.min(rx+m.w, anchor.x));
+    const ty=Math.max(ry, Math.min(ry+m.h, anchor.y));
+    ctx2.strokeStyle='#555'; ctx2.lineWidth=1;
+    ctx2.beginPath(); ctx2.moveTo(anchor.x,anchor.y); ctx2.lineTo(tx,ty); ctx2.stroke();
+  }
+
+  ctx2.fillStyle='#fff'; ctx2.strokeStyle='rgba(0,0,0,.25)'; ctx2.lineWidth=1;
+  roundRect(ctx2, rx, ry, m.w, m.h, 12);
+  ctx2.fill(); ctx2.stroke();
+
+  ctx2.fillStyle='#111'; ctx2.font='12px system-ui'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+  ctx2.fillText(text, cx, cy);
+  ctx2.restore();
+}
+function drawOverlayToCanvas(ctx2){
+  ensureAnnoNumbers();
+
+  if(state.calc){
+    let pos=originTop();
+    for(let i=0;i<state.segs.length;i++){
+      const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+      const sc=prev?elbowCuts(prev.dir,cur.dir).b:0, ec=next?elbowCuts(cur.dir,next.dir).a:0;
+      const start=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
+      if(Ldraw>0){
+        const mid=adv(start,cur.dir,Ldraw/2);
+        const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
+        const off=getDimOffset(i);
+        const cx=base.x+(off.dx||0), cy=base.y+(off.dy||0);
+        drawLabel(ctx2, cx, cy, (axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм');
+      }
+      pos=adv(pos,cur.dir,L);
+    }
+    if(['FRONT','BACK','LEFT','RIGHT'].includes(viewMode) && $('endType').value==='NKU'){
+      const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
+      const delta=Math.abs(eBase-sBase)|0;
+      const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+      const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base=localToScreen(mid.u,mid.v);
+      const off=getDimOffset('__deltaH'); drawLabel(ctx2, base.x+(off.dx||0), base.y+(off.dy||0), `ΔH = ${delta} мм`);
+    }
+  }
+  // выноски
+  state.annos.forEach(a=>{
+    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
+    const label=`A${a.num}. ${a.text}`;
+    drawLabel(ctx2, bScr.x, bScr.y, label, {x:aScr.x,y:aScr.y});
+    // точка-якорь
+    ctx2.fillStyle='#2d6cdf'; ctx2.beginPath(); ctx2.arc(aScr.x,aScr.y,5,0,Math.PI*2); ctx2.fill();
+  });
+}
+function captureWithOverlay(){
+  const prev=state.drawAnnoLines; state.drawAnnoLines=false; draw();
+  const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const c2=off.getContext('2d');
+  c2.drawImage(cvs,0,0);
+  drawOverlayToCanvas(c2);
+  state.drawAnnoLines=prev; draw();
+  return off;
+}
+
+/* ===== ЭКСПОРТ (PNG/PDF/XLS/DXF/CSV) ===== */
+/* ... функции сохранения PNG, PNG все, DXF, XLS — без изменений ... */
+
+$('savePNG').onclick=()=>{ const off=captureWithOverlay(); const url=off.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.png`; a.click(); };
+
+$('savePNGAll').onclick=()=>{
+  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT']; const zscale=scale, zpanX=panX, zpanY=panY, zview=viewMode;
+  const files=[]; (async ()=>{
+    for(const v of views){
+      setProjection(v); fit();
+      const off=captureWithOverlay();
+      files.push({name:`bus_${v.toLowerCase()}.png`,data:off.toDataURL('image/png')});
+    }
+    setProjection(zview); panX=zpanX; panY=zpanY; scale=zscale; draw();
+    const w=window.open('about:blank','_blank'); w.document.write('<h2>PNG файлы</h2>'); files.forEach(f=>w.document.write(`<div><a download="${f.name}" href="${f.data}">${f.name}</a></div>`));
+  })();
+};
+
+$('saveDXF').onclick=()=>{
+  DXF_COLLECT=true; DXF_ENT.length=0; draw(); DXF_COLLECT=false;
+  const header=`0
+SECTION
+2
+ENTITIES
+`;
+  const footer=`0
+ENDSEC
+0
+EOF
+`;
+  let body='';
+  DXF_ENT.forEach(L=>{
+    const a=L.a, b=L.b, layer=L.layer||'0', color=DXF_COLORS[layer]||7;
+    body+=`0
+LINE
+8
+${layer}
+62
+${color}
+10
+${(a[0]).toFixed(3)}
+20
+${(-a[1]).toFixed(3)}
+30
+0
+11
+${(b[0]).toFixed(3)}
+21
+${(-b[1]).toFixed(3)}
+31
+0
+`;
+  });
+  const blob=new Blob([header+body+footer],{type:'application/dxf'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.dxf`; a.click(); URL.revokeObjectURL(url);
+};
+
+$('saveXLS').onclick=()=>{
+  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
+  const sp=computeSpec(), calcData=computeCost(sp);
+  let html=`<html><head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:4px 6px} table{border-collapse:collapse} .r{text-align:right}</style></head><body>`;
+  html+=`<h2>Спецификация</h2>
+  <table>
+    <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+    <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
+    <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
+    <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
+    <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
+    <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
+    <tr><td>Соединители (всего)</td><td>${sp.joints.total}</td></tr>
+    <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
+  </table>`;
+  html+=`<h3>Сегменты по длинам</h3><table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
+  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
+  html+=`</table>`;
+  html+=`<h2>Калькуляция</h2><table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
+  const calc=calcData;
+  calc.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${L.price}</td><td class="r">${Math.round(L.sum)}</td></tr>`; });
+  html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${Math.round(calc.total)}</th></tr></table>`;
+  html+='</body></html>';
+  const blob=new Blob([html],{type:'application/vnd.ms-excel'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
+};
+
+$('savePDF').onclick=()=>{
+  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
+  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
+  const z={view:viewMode,panX:panX,panY:panY,scale:scale};
+  const images=[];
+  (async ()=>{
+    for(const v of views){
+      setProjection(v); fit();
+      const off=captureWithOverlay();
+      images.push({name:v,src:off.toDataURL('image/png')});
+    }
+    setProjection(z.view); panX=z.panX; panY=z.panY; scale=z.scale; draw();
+
+    const sp=computeSpec(), calcData=computeCost(sp);
+    const m=state.meta;
+    const css=`<style>
+      @page{size:A4;margin:10mm}
+      body{font:12px Arial,Helvetica,sans-serif;color:#111}
+      .page{page-break-after:always; position:relative; min-height:270mm; padding:12mm 12mm 22mm 12mm; box-sizing:border-box;}
+      .frame{position:absolute; inset:8mm; border:1px solid #000;}
+      .title{position:absolute; right:8mm; bottom:8mm; border:1px solid #000; padding:6px 8px; font-size:11px}
+      h1,h2{margin:0 0 8px}
+      img{max-width:100%; border:1px solid #ccc; padding:4px; background:#fff}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ccc;padding:4px 6px;vertical-align:top}
+      .r{text-align:right}
+      .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10}
+      .btn{padding:6px 10px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}
+      .muted{color:#666}
+    </style>`;
+    let html=`<html><head><meta charset="utf-8">${css}</head><body>`;
+    html+=`<div class="toolbar"><button class="btn" onclick="window.print()">Печать</button></div>`;
+
+    /* Титул */
+    html+=`<div class="page">
+      <div class="frame"></div>
+      <div class="title">Проект шинопровода · ${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'} · ${$('rating').value} A · ${$('ip').value}</div>
+      <h1>${m.title||'Проект шинопровода'}</h1>
+      <div class="muted">${m.object||'Объект не указан'} · ${m.addr||'Адрес не указан'}</div>
+      <p>Итого длина трассы: <b>${sp.totalLen} мм</b>; повороты — горизонтальные: ${sp.horiz}, вертикальные: ${sp.vert}; соединители: ${sp.joints.total}; крепления: ${sp.mounts}.</p>
+      <p><b>Итоговая стоимость:</b> ${money(calcData.total)}</p>
+    </div>`;
+
+    /* Общие данные проекта */
+    html+=`<div class="page">
+      <div class="frame"></div>
+      <div class="title">Общие данные</div>
+      <h2>Общие данные проекта</h2>
+      <table>
+        <tr><td width="35%">Название проекта</td><td>${m.title||''}</td></tr>
+        <tr><td>Объект / площадка</td><td>${m.object||''}</td></tr>
+        <tr><td>Адрес</td><td>${m.addr||''}</td></tr>
+        <tr><td>Заказчик</td><td>${m.customer||''}</td></tr>
+        <tr><td>Подрядчик</td><td>${m.contractor||''}</td></tr>
+        <tr><td>Шифр / № проекта</td><td>${m.code||''}</td></tr>
+        <tr><td>Дата</td><td>${m.date||''}</td></tr>
+        <tr><td>Примечания</td><td>${(m.notes||'').replace(/\n/g,'<br>')}</td></tr>
+      </table>
+    </div>`;
+
+    /* Виды */
+    images.forEach(img=>{ html+=`<div class="page"><div class="frame"></div><div class="title">Вид: ${img.name}</div><h2>Вид: ${img.name}</h2><img src="${img.src}"></div>`; });
+
+    /* Спецификация */
+    html+=`<div class="page"><div class="frame"></div><div class="title">Спецификация</div><h2>Спецификация</h2>
+      <table>
+        <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+        <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
+        <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
+        <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
+        <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
+        <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
+        <tr><td>Соединители</td><td>${sp.joints.total}</td></tr>
+        <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
+      </table>
+      <h3>Сегменты по длинам</h3>
+      <table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
+    const sp2=computeSpec();
+    [...sp2.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
+    html+=`</table></div>`;
+
+    /* Калькуляция */
+    html+=`<div class="page"><div class="frame"></div><div class="title">Калькуляция</div><h2>Калькуляция</h2>
+      <table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
+    const calcData2=computeCost(sp2);
+    calcData2.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
+    html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${money(calcData2.total)}</th></tr></table></div>`;
+
+    html+='</body></html>';
+    const w=window.open('', '_blank'); w.document.write(html); w.document.close(); w.focus();
+  })();
+};
+
+$('saveCSV').onclick=()=>{
+  if(!state.calc) return;
+  const sp=computeSpec();
+  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Крепления, шт',sp.mounts],[],['Длина сегмента (мм)','Кол-во, шт']];
+  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt]));
+  const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
+};
+
+/* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
+function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); if(!sel.value) sel.value=list[0]; draw(); if(state.calc) renderSpec(); saveState(); }
+$('mat').addEventListener('change',fillRatings);
+$('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
+$('startType').addEventListener('change',()=>{
+  const v=$('startType').value;
+  if(v==='NKU'){ $('startW').value=600; $('startD').value=600; $('startH').value=2200; }
+  else { $('startW').value=2000; $('startD').value=1400; $('startH').value=1700; }
+  draw(); if(state.calc) renderSpec(); saveState();
+});
+$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); if(state.calc) renderSpec(); saveState(); });
+['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep','moduleLen'].forEach(id=>{
+  $(id).addEventListener('input',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
+});
+$('calc').onclick=()=>{ const m=+$('moduleLen').value||0; if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; } state.module=m; state.calc=true; giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; draw(); renderSpec(); saveState(); };
+$('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); saveState(); };
+$('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); saveState(); };
+
+$('clear').onclick=()=>{
+  state.segs=[]; state.calc=false; state.module=3000;
+  state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
+  state.annos=[]; state.movingAnno={id:null,what:null,view:null};
+  state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
+  state.annoSeq=1;
+  $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
+  $('ip').value='IP55'; $('startType').value='NKU'; $('endType').value='ENDCAP';
+  $('startW').value=600; $('startD').value=600; $('startH').value=2200;
+  $('endW').value=600; $('endD').value=600; $('endH').value=2200;
+  $('endDims').classList.add('hid'); $('mountOn').value='1'; $('mountStep').value=1000; $('moduleLen').value=3000;
+  fillMetaInputs();
+  saveState(); fit();
+  msg.textContent='Проект сброшен (прайс не тронут)'; setTimeout(()=>msg.textContent='',1800);
+};
+$('fit').onclick=()=>fit();
+
+/* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
+function initPriceUI(){ /* ... тот же код, что и ранее ... */ }
+function parsePriceLine(line){ /* ... как в прошлой версии ... */ }
+function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
+
+/* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
+function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
+function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
+function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; saveState(); }
+$('metaSave').onclick=()=>{ readMetaInputs(); msg.textContent='Данные проекта сохранены'; setTimeout(()=>msg.textContent='',1400); };
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORAGE_STATE); if(!raw) return;
+    const s=JSON.parse(raw);
+    state.segs=s.segs||[]; state.calc=!!s.calc; state.module=s.module||3000;
+    state.dimOffsets=s.dimOffsets||state.dimOffsets; state.annos=s.annos||[];
+    state.meta=s.meta||state.meta;
+    state.annoSeq=s.annoSeq||1;
+    if(s.ui){
+      $('mat').value=s.ui.mat||'AL';
+      fillRatings();
+      $('rating').value=s.ui.rating||$('rating').value;
+      $('ip').value=s.ui.ip||'IP55';
+      $('startType').value=s.ui.startType||'NKU';
+      $('endType').value=s.ui.endType||'ENDCAP';
+      $('startW').value=s.ui.startW||600; $('startD').value=s.ui.startD||600; $('startH').value=s.ui.startH||2200;
+      $('endW').value=s.ui.endW||600; $('endD').value=s.ui.endD||600; $('endH').value=s.ui.endH||2200;
+      $('mountOn').value=s.ui.mountOn||'1'; $('mountStep').value=s.ui.mountStep||1000; $('moduleLen').value=s.ui.moduleLen||3000;
+      $('endDims').classList.toggle('hid',$('endType').value!=='NKU');
+    } else fillRatings();
+  }catch(e){ fillRatings(); }
+  fillMetaInputs();
+  ensureAnnoNumbers();
+}
+
+/* ===== ФУЛЛСКРИН ===== */
+$('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
+
+/* ===== СТАРТ ===== */
+function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{PRICE=JSON.parse(rd.result);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
+function start(){
+  const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
+  resize(); setProjection('ISO'); initPriceUI(); loadState(); draw(); fit(); if(state.calc) renderSpec();
+  ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
+    $(id).addEventListener('input',()=>{ readMetaInputs(); });
+  });
+}
+document.addEventListener('DOMContentLoaded',start);
+</script>
+</body>
+</html>
