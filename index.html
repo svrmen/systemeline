@@ -447,6 +447,7 @@ const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
 function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
 function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
 function madd3(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn ]; }
+function pointUV(o,U,V,N,u,v,h){ return [ o[0]+U[0]*u+V[0]*v+N[0]*h, o[1]+U[1]*u+V[1]*v+N[1]*h, o[2]+U[2]*u+V[2]*v+N[2]*h ]; }
 function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
 function extrudeSolid(poly, thick, O, U, V, N,layer){
   const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
@@ -457,6 +458,26 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   const lw=outlineWidth();
   for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],col,lw,layer); line3(up[i], dn[i],col,lw,layer); }
 }
+function elbowInnerEdges(O,U,V,N,half,thick){
+  const t2=thick/2;
+  const col=outlineColor('ELBOW');
+  const lw=outlineWidth();
+  const corners=[[-half,-half],[half,-half],[half,half],[-half,half]];
+  for(let i=0;i<corners.length;i++){
+    const a=corners[i], b=corners[(i+1)%corners.length];
+    const upA=pointUV(O,U,V,N,a[0],a[1],t2);
+    const upB=pointUV(O,U,V,N,b[0],b[1],t2);
+    const dnA=pointUV(O,U,V,N,a[0],a[1],-t2);
+    const dnB=pointUV(O,U,V,N,b[0],b[1],-t2);
+    line3(upA,upB,col,lw,'ELBOW');
+    line3(dnA,dnB,col,lw,'ELBOW');
+  }
+  for(const c of corners){
+    const up=pointUV(O,U,V,N,c[0],c[1],t2);
+    const dn=pointUV(O,U,V,N,c[0],c[1],-t2);
+    line3(up,dn,col,lw,'ELBOW');
+  }
+}
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
@@ -465,6 +486,7 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const half  = vertical ? (bh/2) : (bw/2);
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
+  elbowInnerEdges(vertex,U,V,N,half,thick);
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
