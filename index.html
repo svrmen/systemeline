@@ -457,14 +457,35 @@ function elbowInnerEdges(O,U,V,N,halfU,halfV,thick){
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
-  const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-  const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
-  const thick = vertical ? bw : bh;
-  const halfU = axis(fromDir)==='Z' ? bh/2 : bw/2;
-  const halfV = axis(toDir)==='Z' ? bh/2 : bw/2;
-  const poly  = LpolyCornerSolid(aLen,bLen,halfU,halfV);
-  extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
-  elbowInnerEdges(vertex,U,V,N,halfU,halfV,thick);
+  const aFrom=axis(fromDir), aTo=axis(toDir);
+  const col='rgba(60,110,220,.6)';
+  const layer='ELBOW';
+  function drawBranch(dir,len){
+    if(!(len>0)) return;
+    const s=sgn(dir);
+    const ax=axis(dir);
+    if(ax==='X'){
+      const x0=s>0?vertex[0]-len:vertex[0];
+      solidBox(x0, vertex[1]-bw/2, vertex[2]-bh/2, len, bw, bh, col,1,layer);
+    }else if(ax==='Y'){
+      const y0=s>0?vertex[1]-len:vertex[1];
+      solidBox(vertex[0]-bw/2, y0, vertex[2]-bh/2, bw, len, bh, col,1,layer);
+    }else if(ax==='Z'){
+      const z0=s>0?vertex[2]-len:vertex[2];
+      solidBox(vertex[0]-bw/2, vertex[1]-bh/2, z0, bw, bh, len, col,1,layer);
+    }
+  }
+  if(aFrom!=='Z' && aTo!=='Z'){
+    const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
+    const halfU = bw/2;
+    const halfV = bw/2;
+    const poly  = LpolyCornerSolid(aLen,bLen,halfU,halfV);
+    extrudeSolid(poly, bh, vertex, U, V, N,'ELBOW');
+    elbowInnerEdges(vertex,U,V,N,halfU,halfV,bh);
+    return;
+  }
+  drawBranch(fromDir,aLen);
+  drawBranch(toDir,bLen);
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
