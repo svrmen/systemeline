@@ -268,6 +268,9 @@ const epop=$('editPopup'), editInput=$('editInput');
 const apop=$('annoPopup'), ainput=$('annoInput');
 const msg=$('msg');
 
+const OUTLINE_LAYERS=new Set(['BUS','ELBOW','JOINT','ENDCAP','MOUNT','CAB']);
+const outlines=[];
+
 let viewMode='ISO';
 const DPR=Math.max(1,window.devicePixelRatio||1), ISO=Math.PI/6, C=Math.cos(ISO), S=Math.sin(ISO);
 let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
@@ -376,6 +379,7 @@ function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer});
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
   const p=proj(...a), q=proj(...b);
   ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  if(OUTLINE_LAYERS.has(layer)) outlines.push({p:[...p], q:[...q], col, lw});
   pushDXF(p,q,layer);
 }
 function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLOOR'){
@@ -388,6 +392,21 @@ function fillPoly3(pts, fill, alpha,layer='BUS'){
   ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
   ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore();
   for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
+}
+function renderOutlines(){
+  if(!outlines.length) return;
+  ctx.save();
+  ctx.lineJoin='round';
+  ctx.lineCap='round';
+  for(const {p,q,col,lw} of outlines){
+    ctx.lineWidth=lw;
+    ctx.strokeStyle=col;
+    ctx.beginPath();
+    ctx.moveTo(p[0],p[1]);
+    ctx.lineTo(q[0],q[1]);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   const s=proj(...p);
@@ -864,14 +883,16 @@ document.addEventListener('keydown',e=>{
 /* ===== кадр/подгон ===== */
 function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
-  apply(); 
-  drawFloorBounded(); 
-  drawStartCab(); 
-  drawPath(); 
-  drawEndCab(); 
+  apply();
+  outlines.length=0;
+  drawFloorBounded();
+  drawStartCab();
+  drawPath();
+  drawEndCab();
   const prm=P();
   drawEndCap(prm.busW,prm.busH);
-  drawFloorZeroLine(); 
+  renderOutlines();
+  drawFloorZeroLine();
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups();
 }
