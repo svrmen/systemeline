@@ -270,14 +270,14 @@ const msg=$('msg');
 
 const OUTLINE_LAYERS=new Set(['BUS','ELBOW','JOINT','ENDCAP','MOUNT','CAB']);
 const EDGE_COLOR_MAP={
-  BUS:'#0b1f4a',
-  ELBOW:'#0b1f4a',
-  JOINT:'#0e4b26',
-  ENDCAP:'#7b1616',
-  MOUNT:'#a05a0a',
-  CAB:'#2f2f2f'
+  BUS:'#00112f',
+  ELBOW:'#00112f',
+  JOINT:'#0a401f',
+  ENDCAP:'#641010',
+  MOUNT:'#7a3d05',
+  CAB:'#1e1e1e'
 };
-const EDGE_STROKE_PX=1.4;
+const EDGE_STROKE_PX=1.6;
 const outlines=[];
 
 let viewMode='ISO';
@@ -407,6 +407,7 @@ function fillPoly3(pts, fill, alpha,layer='BUS'){
 function renderOutlines(){
   if(!outlines.length) return;
   ctx.save();
+  ctx.globalAlpha=1;
   ctx.lineJoin='miter';
   ctx.lineCap='square';
   for(const {p,q,col,lw} of outlines){
