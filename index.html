@@ -465,7 +465,12 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
   const col=outlineColor(layer);
   const lw=outlineWidth();
-  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],col,lw,layer); line3(up[i], dn[i],col,lw,layer); }
+  for(let i=0;i<up.length;i++){
+    const j=(i+1)%up.length;
+    line3(up[i], up[j],col,lw,layer);
+    line3(up[i], dn[i],col,lw,layer);
+    line3(dn[i], dn[j],col,lw,layer);
+  }
 }
 function elbowInnerEdges(O,U,V,N,halfU,halfV,thick){
   const t2=thick/2;
