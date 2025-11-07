@@ -29,10 +29,12 @@
   .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
   .dim.dragging{cursor:grabbing;opacity:.96}
   #dimLayer,#annoLayer{position:absolute;inset:0;pointer-events:none;z-index:9}
-  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:move;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
   .anno .badge{display:inline-block;min-width:18px;height:18px;line-height:16px;padding:0 6px;border-radius:999px;background:#eef3ff;border:1px solid #bcd;font-weight:600;font-size:11px;text-align:center}
   .anno .x{position:absolute;right:-8px;top:-8px;width:18px;height:18px;border:1px solid #bbb;border-radius:999px;background:#fff;line-height:16px;text-align:center;font-size:12px;cursor:pointer;box-shadow:var(--shadow)}
-  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12;pointer-events:auto}
+  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:grab;z-index:12;pointer-events:auto}
+  .anchor-dot.dragging{cursor:grabbing}
+  .anno-line{position:absolute;height:2px;background:#555;transform-origin:0 0;pointer-events:none;z-index:10}
   .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
@@ -242,6 +244,10 @@
 
 <script>
 /* ===== ДАННЫЕ ===== */
+const BUS_COLOR   = '#3C6EDC';
+const JOINT_COLOR = '#34A853';
+const END_COLOR   = '#E53935';
+const EDGE_COLOR  = '#111';
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
 const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
 const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
@@ -347,11 +353,13 @@ document.querySelectorAll('.tab').forEach(t=>{
 const state={
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
-  annos:[], movingAnno:{id:null,what:null,view:null,dragging:false}, editingIdx:null,
+  annos:[], editingIdx:null,
   meta:{title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''},
   annoSeq:1,
-  drawAnnoLines:true
+  drawAnnoLines:true,
+  addAnno:false
 };
+globalThis.__BUS_STATE__=state;
 function P(){
   return {
     startType:$('startType').value, endType:$('endType').value,
@@ -373,7 +381,7 @@ const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
 function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
-function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
+function line3(a,b,col=EDGE_COLOR,lw=1/scale,layer='BUS'){
   const p=proj(...a), q=proj(...b);
   ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
   pushDXF(p,q,layer);
@@ -383,9 +391,9 @@ function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLO
   ctx.save(); ctx.setLineDash(dash); ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); ctx.restore();
   pushDXF(p,q,layer);
 }
-function fillPoly3(pts, fill, alpha,layer='BUS'){
+function fillPoly3(pts, fill, layer='BUS'){
   const p=pts.map(v=>proj(...v));
-  ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
+  ctx.save(); ctx.fillStyle=fill; ctx.beginPath();
   ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore();
   for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
 }
@@ -396,56 +404,64 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.fillText(text, s[0], s[1]+dy);
   ctx.restore();
 }
-function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+function box(x,y,z,w,d,h,layer='BUS',edge=EDGE_COLOR){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
   line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
   line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
 }
-function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
+function solidBox(x,y,z,w,d,h,color,layer='BUS'){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
-  f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
-  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
+  f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,layer));
+  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],EDGE_COLOR,1/scale,layer));
 }
 const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
 function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
 function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
 function madd3(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn ]; }
 function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
-function extrudeSolid(poly, thick, O, U, V, N,layer){
-  const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
+function extrudeSolid(poly, thick, O, U, V, N,layer,color=BUS_COLOR){
+  const t2=thick/2;
+  const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
-  const color='rgba(60,110,220,.6)';
-  fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
-  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
+  fillPoly3(dn,color,layer);
+  for(let i=0;i<up.length;i++){
+    const j=(i+1)%up.length;
+    fillPoly3([up[i],up[j],dn[j],dn[i]],color,layer);
+  }
+  fillPoly3(up,color,layer);
+  for(let i=0;i<up.length;i++){
+    line3(up[i], up[(i+1)%up.length],EDGE_COLOR,1/scale,layer);
+    line3(up[i], dn[i],EDGE_COLOR,1/scale,layer);
+  }
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-  const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
-  const thick = vertical ? bw : bh;
-  const half  = vertical ? (bh/2) : (bw/2);
+  const normalAxis = Math.abs(N[0])>0 ? 'X' : Math.abs(N[1])>0 ? 'Y' : 'Z';
+  const thick = (normalAxis==='Z') ? bh : bw;
+  const half  = (normalAxis==='Z') ? (bw/2) : (bh/2);
   const poly  = LpolyCornerSolid(aLen,bLen,half);
-  extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
+  extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW',BUS_COLOR);
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
-  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
-  if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
-  if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
+  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bh/2, z=s>0?start[2]:start[2]-L; solidBox(x,y,z,bw,bh,L,BUS_COLOR,'BUS'); }
+  if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; solidBox(x,y,z,L,bw,bh,BUS_COLOR,'BUS'); }
+  if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; solidBox(x,y,z,bw,L,bh,BUS_COLOR,'BUS'); }
 }
 
 /* соединители по модулю */
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
+function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw, bh){
   const m=state.module|0; if(!(m>0)) return;
   const full=Math.floor((cur.len|0)/m);
   for(let k=1;k<=full;k++){
     const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bh/2,p[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,JOINT_COLOR,'JOINT');
+    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-bh/2,JOINT_LEN,bw,bh,JOINT_COLOR,'JOINT');
+    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-bh/2,bw,JOINT_LEN,bh,JOINT_COLOR,'JOINT');
   }
 }
 
@@ -485,10 +501,10 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
     const C=adv(startPos,cur.dir,d);
     if(axis(cur.dir)==='X'){
       const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
-      solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
+      solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,'#FF8C00','MOUNT');
     }else if(axis(cur.dir)==='Y'){
       const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
-      solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
+      solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,'#FF8C00','MOUNT');
     }
   }
   return arr.length;
@@ -497,10 +513,10 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 /* шкафы / заглушка */
 function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
-function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
-  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
-  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
+function drawEndCap(bw,bh){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
+  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bh/2,e[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,END_COLOR,'ENDCAP');
+  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-bh/2,JOINT_LEN,bw,bh,END_COLOR,'ENDCAP');
+  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-bh/2,bw,JOINT_LEN,bh,END_COLOR,'ENDCAP');
 }
 
 /* ===== ПОЛ ===== */
@@ -518,7 +534,7 @@ function drawFloorBounded(){
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
   const b=floorBoundsXY();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
-  fillPoly3(poly,'#f1f3f5',1,'FLOOR');
+  fillPoly3(poly,'#f1f3f5','FLOOR');
   const step=200;
   for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
@@ -577,7 +593,7 @@ function drawPath(){
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh);
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
+        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw,bh);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
@@ -700,7 +716,7 @@ $('annoOk').onclick=()=>{
     const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()};
     base[vw]={ax:ux,ay:uy,bx,by};
     const num=state.annoSeq++;
-    state.annos.push({id,num,text,pos:base,movingBox:false,movingAnchor:false});
+    state.annos.push({id,num,text,pos:base});
   }else{
     const id=+apop.dataset.id; const a=state.annos.find(x=>x.id===id); if(a) a.text=(ainput.value.trim()||'Примечание');
   }
@@ -713,129 +729,100 @@ $('annoDel').onclick=()=>{
 };
 
 function renderAnnos(){
-  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0); annoLayer.innerHTML='';
+  annoLayer.innerHTML='';
   ensureAnnoNumbers();
+  const hostRect=wrap.getBoundingClientRect();
+  const updateLinePosition=(line, anchorEl, boxEl)=>{
+    const anchorRect=anchorEl.getBoundingClientRect();
+    const boxRect=boxEl.getBoundingClientRect();
+    const ax=anchorRect.left-hostRect.left+anchorRect.width/2;
+    const ay=anchorRect.top-hostRect.top+anchorRect.height/2;
+    const tx=Math.max(boxRect.left-hostRect.left, Math.min(boxRect.right-hostRect.left, ax));
+    const ty=Math.max(boxRect.top-hostRect.top, Math.min(boxRect.bottom-hostRect.top, ay));
+    const dx=tx-ax;
+    const dy=ty-ay;
+    const len=Math.hypot(dx,dy);
+    line.style.left=ax+'px';
+    line.style.top=ay+'px';
+    line.style.width=len+'px';
+    const angle=Math.atan2(dy,dx)*180/Math.PI;
+    line.style.transform=`rotate(${angle}deg)`;
+  };
   state.annos.forEach(a=>{
-    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
-    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=a.id;
-    const box=document.createElement('div'); box.className='anno'; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=a.id;
+    const pv=ensurePos(a,viewMode);
+    const anchorPos=localToScreen(pv.ax,pv.ay);
+    const boxPos=localToScreen(pv.bx,pv.by);
+    const line=document.createElement('div'); line.className='anno-line'; line.dataset.id=a.id;
+    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(anchorPos.x-6)+'px'; anchor.style.top=(anchorPos.y-6)+'px'; anchor.dataset.id=a.id;
+    const box=document.createElement('div'); box.className='anno'; box.style.left=boxPos.x+'px'; box.style.top=boxPos.y+'px'; box.dataset.id=a.id;
     const badge=document.createElement('span'); badge.className='badge'; badge.textContent='A'+a.num;
     box.appendChild(badge); box.appendChild(document.createTextNode(' '+a.text));
-
-    if(a.movingBox){
-      const x=document.createElement('div'); x.className='x'; x.textContent='×';
-      x.title='Удалить выноску';
-      x.onclick=(ev)=>{
-        ev.stopPropagation();
-        const i=state.annos.findIndex(t=>t.id===a.id);
-        if(i>=0){
-          state.annos.splice(i,1);
-          state.movingAnno={id:null,what:null,view:null,dragging:false};
-          ensureAnnoNumbers();
-          draw();
-          saveState();
-        }
-      };
-      box.appendChild(x);
-    }
-
-    annoLayer.appendChild(anchor); annoLayer.appendChild(box);
-
-    if(state.drawAnnoLines){
-      // линия к ближайшей точке прямоугольника
-      const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect();
-      const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
-      const tx=Math.max(cx-rect.width/2, Math.min(cx+rect.width/2, aScr.x));
-      const ty=Math.max(cy-rect.height/2, Math.min(cy+rect.height/2, aScr.y));
-      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
-    }
+    annoLayer.appendChild(line); annoLayer.appendChild(anchor); annoLayer.appendChild(box);
+    updateLinePosition(line, anchor, box);
 
     box.addEventListener('pointerdown',ev=>{
-      ev.stopPropagation();
-      ev.preventDefault();
+      ev.stopPropagation(); ev.preventDefault();
       box.setPointerCapture(ev.pointerId);
-      a.movingBox=true;
-      a.movingAnchor=false;
-      state.movingAnno={id:a.id,what:'box',view:viewMode,dragging:true};
-      draw();
+      const start=screenToLocal(ev);
+      const offsetX=pv.bx-start.x;
+      const offsetY=pv.by-start.y;
+      const move=ev=>{
+        const loc=screenToLocal(ev);
+        pv.bx=loc.x+offsetX;
+        pv.by=loc.y+offsetY;
+        const scr=localToScreen(pv.bx,pv.by);
+        box.style.left=scr.x+'px';
+        box.style.top=scr.y+'px';
+        updateLinePosition(line, anchor, box);
+      };
+      const end=ev=>{
+        try{ box.releasePointerCapture(ev.pointerId); }catch(_){ }
+        box.removeEventListener('pointermove',move);
+        box.removeEventListener('pointerup',end);
+        box.removeEventListener('pointercancel',end);
+        saveState();
+      };
+      box.addEventListener('pointermove',move);
+      box.addEventListener('pointerup',end);
+      box.addEventListener('pointercancel',end);
     });
-    box.addEventListener('pointermove',ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='box') return;
-      const pv=ensurePos(a,mv.view||viewMode);
-      const {x,y}=screenToLocal(ev);
-      pv.bx=x; pv.by=y;
-      draw();
-    });
-    const endBoxDrag=ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='box') return;
-      try{ box.releasePointerCapture(ev.pointerId); }catch(_){ }
-      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
-      saveState();
-      draw();
-    };
-    box.addEventListener('pointerup',endBoxDrag);
-    box.addEventListener('pointercancel',endBoxDrag);
     box.addEventListener('dblclick',ev=>{
       ev.stopPropagation();
       ainput.value=a.text;
-      const p=localToScreen(pv.bx,pv.by);
-      apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
+      const scr=localToScreen(pv.bx,pv.by);
+      apop.style.left=scr.x+'px'; apop.style.top=(scr.y-26)+'px'; apop.style.display='block';
       apop.dataset.mode='edit'; apop.dataset.id=a.id;
     });
     anchor.addEventListener('pointerdown',ev=>{
-      ev.stopPropagation();
-      ev.preventDefault();
+      ev.stopPropagation(); ev.preventDefault();
+      anchor.classList.add('dragging');
       anchor.setPointerCapture(ev.pointerId);
-      a.movingAnchor=true;
-      a.movingBox=false;
-      state.movingAnno={id:a.id,what:'anchor',view:viewMode,dragging:true};
-      draw();
+      const start=screenToLocal(ev);
+      const offsetX=pv.ax-start.x;
+      const offsetY=pv.ay-start.y;
+      const move=ev=>{
+        const loc=screenToLocal(ev);
+        pv.ax=loc.x+offsetX;
+        pv.ay=loc.y+offsetY;
+        const scr=localToScreen(pv.ax,pv.ay);
+        anchor.style.left=(scr.x-6)+'px';
+        anchor.style.top=(scr.y-6)+'px';
+        updateLinePosition(line, anchor, box);
+      };
+      const end=ev=>{
+        anchor.classList.remove('dragging');
+        try{ anchor.releasePointerCapture(ev.pointerId); }catch(_){ }
+        anchor.removeEventListener('pointermove',move);
+        anchor.removeEventListener('pointerup',end);
+        anchor.removeEventListener('pointercancel',end);
+        saveState();
+      };
+      anchor.addEventListener('pointermove',move);
+      anchor.addEventListener('pointerup',end);
+      anchor.addEventListener('pointercancel',end);
     });
-    anchor.addEventListener('pointermove',ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='anchor') return;
-      const pv=ensurePos(a,mv.view||viewMode);
-      const {x,y}=screenToLocal(ev);
-      pv.ax=x; pv.ay=y;
-      draw();
-    });
-    const endAnchorDrag=ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='anchor') return;
-      try{ anchor.releasePointerCapture(ev.pointerId); }catch(_){ }
-      a.movingAnchor=false;
-      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
-      saveState();
-      draw();
-    };
-    anchor.addEventListener('pointerup',endAnchorDrag);
-    anchor.addEventListener('pointercancel',endAnchorDrag);
   });
-  ctx.restore();
 }
-wrap.addEventListener('click',e=>{
-  if(e.target.closest('.anno,.anchor-dot,.viewbar-top,.viewbar-bottom,.prompt')) return;
-  let changed=false;
-  if(state.movingAnno.id){
-    const current=state.annos.find(t=>t.id===state.movingAnno.id);
-    if(current){ current.movingBox=false; current.movingAnchor=false; }
-    state.movingAnno={id:null,what:null,view:null,dragging:false};
-    changed=true;
-  }
-  state.annos.forEach(an=>{
-    if(an.movingBox||an.movingAnchor){ an.movingBox=false; an.movingAnchor=false; changed=true; }
-  });
-  if(changed){ draw(); saveState(); }
-});
-wrap.addEventListener('pointermove',e=>{
-  const mv=state.movingAnno; if(!mv.id||!mv.what||!mv.dragging) return;
-  const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
-  const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
-  if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
-  draw();
-});
 document.addEventListener('keydown',e=>{
   const targetTag=(e.target&&e.target.tagName)||'';
   const inForm=['INPUT','TEXTAREA','SELECT'].includes(targetTag);
@@ -852,18 +839,13 @@ document.addEventListener('keydown',e=>{
   }
 
   if(e.key==='Delete' && !inForm){
-    const id=state.movingAnno.id; if(!id) return;
-    const i=state.annos.findIndex(a=>a.id===id);
-    if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null,dragging:false}; ensureAnnoNumbers(); draw(); saveState(); }
-  }
-  if(e.key==='Escape' && !inForm){
-    const mv=state.movingAnno;
-    if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; }
-      state.movingAnno={id:null,what:null,view:null,dragging:false}; draw(); saveState();
-    }
+    if(state.annos.length===0) return;
+    state.annos.pop();
+    ensureAnnoNumbers();
+    draw();
+    saveState();
   }
 });
-
 /* ===== кадр/подгон ===== */
 function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
@@ -873,7 +855,7 @@ function draw(){
   drawPath();
   drawEndCab();
   const prm=P();
-  drawEndCap(prm.busW);
+  drawEndCap(prm.busW,prm.busH);
   drawFloorZeroLine();
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups();
@@ -1284,7 +1266,8 @@ $('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); s
 $('clear').onclick=()=>{
   state.segs=[]; state.calc=false; state.module=3000;
   state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
-  state.annos=[]; state.movingAnno={id:null,what:null,view:null,dragging:false};
+  state.annos=[];
+  state.addAnno=false;
   state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
   state.annoSeq=1;
   $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
