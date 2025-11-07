@@ -423,6 +423,25 @@ function LpolyCornerSolid(lenA,lenB,halfU,halfV){
     [-lenA,+halfV]
   ];
 }
+function axisFromVec(v){
+  if(Math.abs(v[0])>0.5) return 'X';
+  if(Math.abs(v[1])>0.5) return 'Y';
+  return 'Z';
+}
+function crossHalfFor(dir, axisLetter, bw, bh){
+  const a=axis(dir);
+  if(a==='X'){
+    if(axisLetter==='Y') return bw/2;
+    if(axisLetter==='Z') return bh/2;
+  }else if(a==='Y'){
+    if(axisLetter==='X') return bw/2;
+    if(axisLetter==='Z') return bh/2;
+  }else if(a==='Z'){
+    if(axisLetter==='X') return bw/2;
+    if(axisLetter==='Y') return bh/2;
+  }
+  return bw/2;
+}
 function extrudeSolid(poly, thick, O, U, V, N,layer){
   const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
@@ -457,35 +476,18 @@ function elbowInnerEdges(O,U,V,N,halfU,halfV,thick){
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
-  const aFrom=axis(fromDir), aTo=axis(toDir);
-  const col='rgba(60,110,220,.6)';
-  const layer='ELBOW';
-  function drawBranch(dir,len){
-    if(!(len>0)) return;
-    const s=sgn(dir);
-    const ax=axis(dir);
-    if(ax==='X'){
-      const x0=s>0?vertex[0]-len:vertex[0];
-      solidBox(x0, vertex[1]-bw/2, vertex[2]-bh/2, len, bw, bh, col,1,layer);
-    }else if(ax==='Y'){
-      const y0=s>0?vertex[1]-len:vertex[1];
-      solidBox(vertex[0]-bw/2, y0, vertex[2]-bh/2, bw, len, bh, col,1,layer);
-    }else if(ax==='Z'){
-      const z0=s>0?vertex[2]-len:vertex[2];
-      solidBox(vertex[0]-bw/2, vertex[1]-bh/2, z0, bw, bh, len, col,1,layer);
-    }
-  }
-  if(aFrom!=='Z' && aTo!=='Z'){
-    const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-    const halfU = bw/2;
-    const halfV = bw/2;
-    const poly  = LpolyCornerSolid(aLen,bLen,halfU,halfV);
-    extrudeSolid(poly, bh, vertex, U, V, N,'ELBOW');
-    elbowInnerEdges(vertex,U,V,N,halfU,halfV,bh);
-    return;
-  }
-  drawBranch(fromDir,aLen);
-  drawBranch(toDir,bLen);
+  const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
+  const axisU=axis(fromDir), axisV=axis(toDir), axisN=axisFromVec(N);
+  const halfU=crossHalfFor(toDir, axisU, bw, bh);
+  const halfV=crossHalfFor(fromDir, axisV, bw, bh);
+  const negHalf=crossHalfFor(fromDir, axisN, bw, bh);
+  const posHalf=crossHalfFor(toDir, axisN, bw, bh);
+  const thick=Math.max(0.001, negHalf+posHalf);
+  const shift=(posHalf-negHalf)/2;
+  const origin=[vertex[0]+N[0]*shift, vertex[1]+N[1]*shift, vertex[2]+N[2]*shift];
+  const poly=LpolyCornerSolid(aLen,bLen,halfU,halfV);
+  extrudeSolid(poly, thick, origin, U, V, N,'ELBOW');
+  elbowInnerEdges(origin,U,V,N,halfU,halfV,thick);
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
