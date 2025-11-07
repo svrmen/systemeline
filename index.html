@@ -373,9 +373,7 @@ const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
 function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
-const EDGE_COLOR = '#1e2a38';
-
-function line3(a,b,col=EDGE_COLOR,lw=1/scale,layer='BUS'){
+function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
   const p=proj(...a), q=proj(...b);
   ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
   pushDXF(p,q,layer);
@@ -398,7 +396,7 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.fillText(text, s[0], s[1]+dy);
   ctx.restore();
 }
-function box(x,y,z,w,d,h,layer='BUS',edge=EDGE_COLOR){
+function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
   line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
@@ -408,7 +406,7 @@ function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
   f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
-  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],EDGE_COLOR,1/scale,layer));
+  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
 }
 const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
 function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
@@ -420,14 +418,14 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
   const color='rgba(60,110,220,.6)';
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
-  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],EDGE_COLOR,1/scale,layer); line3(up[i], dn[i],EDGE_COLOR,1/scale,layer); }
+  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
   const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
   const thick = vertical ? bw : bh;
-  const half  = bw/2;
+  const half  = vertical ? (bh/2) : (bw/2);
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
 }
@@ -715,7 +713,7 @@ $('annoDel').onclick=()=>{
 };
 
 function renderAnnos(){
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0); annoLayer.innerHTML='';
   ensureAnnoNumbers();
   state.annos.forEach(a=>{
     const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
@@ -1036,6 +1034,8 @@ function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр кор�
 }
 function drawOverlayToCanvas(ctx2){
   ensureAnnoNumbers();
+  ctx2.save();
+  ctx2.setTransform(DPR,0,0,DPR,0,0);
 
   if(state.calc){
     let pos=originTop();
@@ -1068,6 +1068,7 @@ function drawOverlayToCanvas(ctx2){
     // точка-якорь
     ctx2.fillStyle='#2d6cdf'; ctx2.beginPath(); ctx2.arc(aScr.x,aScr.y,5,0,Math.PI*2); ctx2.fill();
   });
+  ctx2.restore();
 }
 function captureWithOverlay(){
   const prev=state.drawAnnoLines; state.drawAnnoLines=false; draw();
