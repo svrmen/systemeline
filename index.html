@@ -1178,9 +1178,61 @@ $('clear').onclick=()=>{
 };
 $('fit').onclick=()=>fit();
 
-/* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
-function initPriceUI(){ /* ... тот же код, что и ранее ... */ }
-function parsePriceLine(line){ /* ... как в прошлой версии ... */ }
+/* ===== ПРАЙС-UI/ПАРСЕР ===== */
+function parsePriceLine(line){
+  if(!line) return null;
+  const clean=line.replace(/\u00a0/g,' ').trim();
+  if(!clean) return null;
+
+  const priceMatch=clean.match(/(\d[\d\s]*)(?:[,.](\d{2}))?\s*(?:₽|RUB|РУБ\.?|РУБЛЕЙ)?$/i);
+  if(!priceMatch) return null;
+  let priceStr=(priceMatch[1]||'').replace(/\s+/g,'');
+  if(priceMatch[2]) priceStr+=','+priceMatch[2];
+  const price=Math.round(parseFloat(priceStr.replace(',', '.')));
+  if(!(price>0)) return null;
+
+  const rest=clean.slice(0,clean.length-priceMatch[0].length).trim();
+  const upper=rest.toUpperCase();
+
+  let type=null;
+  const typeHints=[
+    ['GJPKM55','JPK'],
+    ['GFETM55','FET'],
+    ['GFEM55','FE'],
+    ['GETBM55','GETB'],
+    ['GELM55','EL'],
+    ['GM55','ST'],
+    ['ECM55','EC'],
+    ['HEM55','HE']
+  ];
+  for(const [needle,t] of typeHints){
+    if(upper.includes(needle)){ type=t; break; }
+  }
+  if(!type) return null;
+
+  let mat='AL';
+  if(/DDW4|CU|МЕД/iu.test(upper)) mat='CU';
+  else if(/BDW4|AL|АЛЮ/iu.test(upper)) mat='AL';
+
+  let rating=decodeRating(upper);
+  if(!rating){
+    const rateMatch=upper.match(/(\d{3,4})\s*[AА]/);
+    if(rateMatch) rating=+rateMatch[1];
+  }
+  if(!rating){
+    const rateMap={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300};
+    const codeMatch=upper.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/);
+    if(codeMatch) rating=rateMap[codeMatch[1]]||null;
+  }
+
+  if(type==='EC' || type==='HE'){
+    if(!rating) return null;
+    const stepKey='50'+heStep(rating);
+    return {mat,type,price,rating,stepKey};
+  }
+
+  return {mat,type,price,rating};
+}
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
@@ -1217,7 +1269,7 @@ function loadState(){
 $('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
 
 /* ===== СТАРТ ===== */
-function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{PRICE=JSON.parse(rd.result);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
+function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{PRICE=JSON.parse(rd.result);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'||type==='HE'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;return;}if(!rating)return;PRICE[mat][type][rating]=price;ok++;});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
