@@ -428,19 +428,19 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
-  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
+  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bh/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bh,L,'BUS'); }
   if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
   if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
 }
 
 /* соединители по модулю */
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
+function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw, bh){
   const m=state.module|0; if(!(m>0)) return;
   const full=Math.floor((cur.len|0)/m);
   for(let k=1;k<=full;k++){
     const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bh/2,p[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
     if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
     if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
   }
@@ -494,8 +494,8 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 /* шкафы / заглушка */
 function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
-function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
+function drawEndCap(bw,bh){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
+  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bh/2,e[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
   if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
   if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
 }
@@ -572,7 +572,7 @@ function drawPath(){
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh);
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
+        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw,bh);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
@@ -621,7 +621,7 @@ editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.k
 function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); saveState(); }
 function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
 
-cvs.addEventListener('click',e=>{
+cvs.addEventListener('dblclick',e=>{
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
   openEdit(pick.idx);
@@ -857,7 +857,8 @@ function draw(){
   drawStartCab(); 
   drawPath(); 
   drawEndCab(); 
-  drawEndCap(P().busW);
+  const prm=P();
+  drawEndCap(prm.busW,prm.busH);
   drawFloorZeroLine(); 
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups();
