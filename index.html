@@ -296,16 +296,19 @@ function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.f
 addEventListener('resize',resize);
 
 /* panning/zoom */
-let dragging=false, sx=0, sy=0;
+let dragging=false, sx=0, sy=0, panMoved=false, lastPointerDragged=false;
 wrap.addEventListener('pointerdown',e=>{
   if(e.target.closest('#gizmo,.viewbar-top,.viewbar-bottom,.prompt,.anno,.dim,.anchor-dot')) return;
-  dragging=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
+  dragging=true; sx=e.clientX; sy=e.clientY; panMoved=false; wrap.setPointerCapture(e.pointerId);
 });
 wrap.addEventListener('pointermove',e=>{
   if(!dragging) return;
-  panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(!panMoved && Math.hypot(dx,dy)>2) panMoved=true;
+  panX+=dx; panY+=dy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
 });
-wrap.addEventListener('pointerup',()=>dragging=false);
+wrap.addEventListener('pointerup',()=>{ lastPointerDragged=panMoved; dragging=false; });
+wrap.addEventListener('pointercancel',()=>{ lastPointerDragged=panMoved; dragging=false; });
 wrap.addEventListener('wheel',e=>{
   e.preventDefault();
   const r=wrap.getBoundingClientRect();
@@ -622,6 +625,15 @@ function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+
 function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
 
 cvs.addEventListener('dblclick',e=>{
+  const pick=pickSegByPoint(e,false);
+  if(pick.idx<0) return;
+  openEdit(pick.idx);
+});
+cvs.addEventListener('click',e=>{
+  if(lastPointerDragged){ lastPointerDragged=false; return; }
+  lastPointerDragged=false;
+  if(state.addAnno) return;
+  if(apop.style.display==='block') return;
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
   openEdit(pick.idx);
