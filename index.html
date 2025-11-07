@@ -285,7 +285,12 @@ function setProjection(mode){
 }
 document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
 
-let panX=0, panY=0, scale=1, minScale=0.2, maxScale=8;
+const MIN_ZOOM_FACTOR=0.1;
+const MIN_ZOOM_ABS=0.02;
+const MAX_ZOOM_FACTOR=8;
+const MAX_ZOOM_ABS=12;
+
+let panX=0, panY=0, scale=1, minScale=MIN_ZOOM_ABS, maxScale=MAX_ZOOM_ABS;
 function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
 function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
 addEventListener('resize',resize);
@@ -869,7 +874,9 @@ function fit(){
   const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
   const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
   scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
-  minScale=Math.min(scale,0.2);
+  const targetMin=Math.max(scale*MIN_ZOOM_FACTOR,MIN_ZOOM_ABS);
+  minScale=Math.min(targetMin,scale);
+  maxScale=Math.max(scale*MAX_ZOOM_FACTOR,MAX_ZOOM_ABS);
   const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
   panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
   draw();
