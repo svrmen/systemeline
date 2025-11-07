@@ -7,16 +7,16 @@
 <style>
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
-  header{max-width:1160px;margin:12px auto 8px;padding:0 16px}
-  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:16px}
-  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:760px}
+  header{max-width:1720px;margin:12px auto 8px;padding:0 20px;box-sizing:border-box;width:100%}
+  .wrap{max-width:1720px;margin:0 auto 20px;padding:0 20px;display:grid;grid-template-columns:minmax(320px,360px) 1fr;gap:24px;box-sizing:border-box;width:100%}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:max(720px,calc(100vh - 180px))}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:10px 0}
   .row-3{display:grid;grid-template-columns:repeat(3,minmax(56px,1fr));gap:8px;margin:6px 0}
   .row-3 input{min-width:56px;max-width:90px;padding:6px 8px;font-size:12px;line-height:1;height:26px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   input[type=number],input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   textarea{min-height:84px;resize:vertical}
   .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
-  .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:calc(100vh - 140px);min-height:720px;overflow:hidden}
   .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
@@ -169,6 +169,9 @@
     </div>
 
     <div class="viewbar-bottom">
+      <button class="viewbtn" id="zoomIn" title="Приблизить">＋</button>
+      <button class="viewbtn" id="zoomOut" title="Отдалить">－</button>
+      <button class="viewbtn" id="resetView" title="Сбросить вид">⟲</button>
       <button class="viewbtn" id="btnFS" title="Во весь экран">⛶</button>
       <button class="viewbtn" id="savePNG">PNG</button>
       <button class="viewbtn" id="savePNGAll">PNG все</button>
@@ -300,14 +303,26 @@ wrap.addEventListener('pointermove',e=>{
 wrap.addEventListener('pointerup',()=>dragging=false);
 wrap.addEventListener('wheel',e=>{
   e.preventDefault();
-  const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect();
-  const mx=e.clientX-r.left, my=e.clientY-r.top;
-  const zx=(mx-panX)/scale, zy=(my-panY)/scale;
-  scale*=k; panX=mx-zx*scale; panY=my-zy*scale;
-  draw(); updatePopups();
+  const r=wrap.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY*0.001), e.clientX-r.left, e.clientY-r.top);
 },{passive:false});
 function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
 function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
+
+function zoomAt(factor, cx=wrap.clientWidth/2, cy=wrap.clientHeight/2){
+  const baseScale=scale;
+  const newScale=Math.min(Math.max(baseScale*factor,0.2),8);
+  const zx=(cx-panX)/baseScale;
+  const zy=(cy-panY)/baseScale;
+  scale=newScale;
+  panX=cx-zx*scale;
+  panY=cy-zy*scale;
+  draw();
+  updatePopups();
+}
+$('zoomIn').addEventListener('click',()=>zoomAt(1.2));
+$('zoomOut').addEventListener('click',()=>zoomAt(1/1.2));
+$('resetView').addEventListener('click',()=>fit());
 
 /* ===== ТАБЫ ===== */
 document.querySelectorAll('.tab').forEach(t=>{
@@ -324,7 +339,7 @@ document.querySelectorAll('.tab').forEach(t=>{
 const state={
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
-  annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
+  annos:[], movingAnno:{id:null,what:null,view:null,dragging:false}, editingIdx:null,
   meta:{title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''},
   annoSeq:1,
   drawAnnoLines:true
@@ -689,7 +704,18 @@ function renderAnnos(){
 
     if(a.movingBox){
       const x=document.createElement('div'); x.className='x'; x.textContent='×';
-      x.title='Удалить выноску'; x.onclick=(ev)=>{ ev.stopPropagation(); const i=state.annos.findIndex(t=>t.id===a.id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } };
+      x.title='Удалить выноску';
+      x.onclick=(ev)=>{
+        ev.stopPropagation();
+        const i=state.annos.findIndex(t=>t.id===a.id);
+        if(i>=0){
+          state.annos.splice(i,1);
+          state.movingAnno={id:null,what:null,view:null,dragging:false};
+          ensureAnnoNumbers();
+          draw();
+          saveState();
+        }
+      };
       box.appendChild(x);
     }
 
@@ -704,14 +730,33 @@ function renderAnnos(){
       ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
     }
 
-    box.addEventListener('click',ev=>{
+    box.addEventListener('pointerdown',ev=>{
       ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingBox){
-        a.movingBox=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingBox=true; a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; draw();
-      }
+      ev.preventDefault();
+      box.setPointerCapture(ev.pointerId);
+      a.movingBox=true;
+      a.movingAnchor=false;
+      state.movingAnno={id:a.id,what:'box',view:viewMode,dragging:true};
+      draw();
     });
+    box.addEventListener('pointermove',ev=>{
+      const mv=state.movingAnno;
+      if(mv.id!==a.id || mv.what!=='box') return;
+      const pv=ensurePos(a,mv.view||viewMode);
+      const {x,y}=screenToLocal(ev);
+      pv.bx=x; pv.by=y;
+      draw();
+    });
+    const endBoxDrag=ev=>{
+      const mv=state.movingAnno;
+      if(mv.id!==a.id || mv.what!=='box') return;
+      try{ box.releasePointerCapture(ev.pointerId); }catch(_){ }
+      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
+      saveState();
+      draw();
+    };
+    box.addEventListener('pointerup',endBoxDrag);
+    box.addEventListener('pointercancel',endBoxDrag);
     box.addEventListener('dblclick',ev=>{
       ev.stopPropagation();
       ainput.value=a.text;
@@ -719,36 +764,84 @@ function renderAnnos(){
       apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
       apop.dataset.mode='edit'; apop.dataset.id=a.id;
     });
-    anchor.addEventListener('click',ev=>{
+    anchor.addEventListener('pointerdown',ev=>{
       ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingAnchor){
-        a.movingAnchor=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingAnchor=true; a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; draw();
-      }
+      ev.preventDefault();
+      anchor.setPointerCapture(ev.pointerId);
+      a.movingAnchor=true;
+      a.movingBox=false;
+      state.movingAnno={id:a.id,what:'anchor',view:viewMode,dragging:true};
+      draw();
     });
-  }); 
+    anchor.addEventListener('pointermove',ev=>{
+      const mv=state.movingAnno;
+      if(mv.id!==a.id || mv.what!=='anchor') return;
+      const pv=ensurePos(a,mv.view||viewMode);
+      const {x,y}=screenToLocal(ev);
+      pv.ax=x; pv.ay=y;
+      draw();
+    });
+    const endAnchorDrag=ev=>{
+      const mv=state.movingAnno;
+      if(mv.id!==a.id || mv.what!=='anchor') return;
+      try{ anchor.releasePointerCapture(ev.pointerId); }catch(_){ }
+      a.movingAnchor=false;
+      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
+      saveState();
+      draw();
+    };
+    anchor.addEventListener('pointerup',endAnchorDrag);
+    anchor.addEventListener('pointercancel',endAnchorDrag);
+  });
   ctx.restore();
 }
 wrap.addEventListener('click',e=>{
-  const mv=state.movingAnno;
-  if(mv.id){
-    const a=state.annos.find(t=>t.id===mv.id);
-    if(a){ a.movingBox=false; a.movingAnchor=false; }
-    state.movingAnno={id:null,what:null,view:null};
-    draw(); saveState();
+  if(e.target.closest('.anno,.anchor-dot,.viewbar-top,.viewbar-bottom,.prompt')) return;
+  let changed=false;
+  if(state.movingAnno.id){
+    const current=state.annos.find(t=>t.id===state.movingAnno.id);
+    if(current){ current.movingBox=false; current.movingAnchor=false; }
+    state.movingAnno={id:null,what:null,view:null,dragging:false};
+    changed=true;
   }
+  state.annos.forEach(an=>{
+    if(an.movingBox||an.movingAnchor){ an.movingBox=false; an.movingAnchor=false; changed=true; }
+  });
+  if(changed){ draw(); saveState(); }
 });
 wrap.addEventListener('pointermove',e=>{
-  const mv=state.movingAnno; if(!mv.id||!mv.what) return;
+  const mv=state.movingAnno; if(!mv.id||!mv.what||!mv.dragging) return;
   const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
   const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
   if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
   draw();
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Delete'){ const id=state.movingAnno.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } }
-  if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); saveState(); } }
+  const targetTag=(e.target&&e.target.tagName)||'';
+  const inForm=['INPUT','TEXTAREA','SELECT'].includes(targetTag);
+
+  if(!inForm){
+    const panStep=60;
+    if(e.key==='ArrowUp'){ panY-=panStep; draw(); updatePopups(); e.preventDefault(); return; }
+    if(e.key==='ArrowDown'){ panY+=panStep; draw(); updatePopups(); e.preventDefault(); return; }
+    if(e.key==='ArrowLeft'){ panX-=panStep; draw(); updatePopups(); e.preventDefault(); return; }
+    if(e.key==='ArrowRight'){ panX+=panStep; draw(); updatePopups(); e.preventDefault(); return; }
+    if(e.key==='+' || e.key==='=' || e.key==='PageUp'){ zoomAt(1.2); e.preventDefault(); return; }
+    if(e.key==='-' || e.key==='_' || e.key==='PageDown'){ zoomAt(1/1.2); e.preventDefault(); return; }
+    if(e.key==='0'){ fit(); e.preventDefault(); return; }
+  }
+
+  if(e.key==='Delete' && !inForm){
+    const id=state.movingAnno.id; if(!id) return;
+    const i=state.annos.findIndex(a=>a.id===id);
+    if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null,dragging:false}; ensureAnnoNumbers(); draw(); saveState(); }
+  }
+  if(e.key==='Escape' && !inForm){
+    const mv=state.movingAnno;
+    if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; }
+      state.movingAnno={id:null,what:null,view:null,dragging:false}; draw(); saveState();
+    }
+  }
 });
 
 /* ===== кадр/подгон ===== */
@@ -1164,7 +1257,7 @@ $('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); s
 $('clear').onclick=()=>{
   state.segs=[]; state.calc=false; state.module=3000;
   state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
-  state.annos=[]; state.movingAnno={id:null,what:null,view:null};
+  state.annos=[]; state.movingAnno={id:null,what:null,view:null,dragging:false};
   state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
   state.annoSeq=1;
   $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
