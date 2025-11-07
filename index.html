@@ -285,7 +285,7 @@ function setProjection(mode){
 }
 document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
 
-let panX=0, panY=0, scale=1;
+let panX=0, panY=0, scale=1, minScale=0.2, maxScale=8;
 function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
 function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
 addEventListener('resize',resize);
@@ -311,7 +311,7 @@ function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.cl
 
 function zoomAt(factor, cx=wrap.clientWidth/2, cy=wrap.clientHeight/2){
   const baseScale=scale;
-  const newScale=Math.min(Math.max(baseScale*factor,0.2),8);
+  const newScale=Math.max(Math.min(baseScale*factor,maxScale),minScale);
   const zx=(cx-panX)/baseScale;
   const zy=(cy-panY)/baseScale;
   scale=newScale;
@@ -869,6 +869,7 @@ function fit(){
   const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
   const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
   scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
+  minScale=Math.min(scale,0.2);
   const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
   panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
   draw();
