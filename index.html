@@ -269,6 +269,15 @@ const apop=$('annoPopup'), ainput=$('annoInput');
 const msg=$('msg');
 
 const OUTLINE_LAYERS=new Set(['BUS','ELBOW','JOINT','ENDCAP','MOUNT','CAB']);
+const EDGE_COLOR_MAP={
+  BUS:'#0b1f4a',
+  ELBOW:'#0b1f4a',
+  JOINT:'#0e4b26',
+  ENDCAP:'#7b1616',
+  MOUNT:'#a05a0a',
+  CAB:'#2f2f2f'
+};
+const EDGE_STROKE_PX=1.4;
 const outlines=[];
 
 let viewMode='ISO';
@@ -294,6 +303,8 @@ const MAX_ZOOM_FACTOR=8;
 const MAX_ZOOM_ABS=12;
 
 let panX=0, panY=0, scale=1, minScale=MIN_ZOOM_ABS, maxScale=MAX_ZOOM_ABS;
+function outlineColor(layer){ return EDGE_COLOR_MAP[layer]||EDGE_COLOR_MAP.BUS; }
+function outlineWidth(){ return EDGE_STROKE_PX/scale; }
 function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
 function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
 addEventListener('resize',resize);
@@ -396,8 +407,8 @@ function fillPoly3(pts, fill, alpha,layer='BUS'){
 function renderOutlines(){
   if(!outlines.length) return;
   ctx.save();
-  ctx.lineJoin='round';
-  ctx.lineCap='round';
+  ctx.lineJoin='miter';
+  ctx.lineCap='square';
   for(const {p,q,col,lw} of outlines){
     ctx.lineWidth=lw;
     ctx.strokeStyle=col;
@@ -415,17 +426,21 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.fillText(text, s[0], s[1]+dy);
   ctx.restore();
 }
-function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+function box(x,y,z,w,d,h,layer='BUS',edge){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
-  line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
-  line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
-  line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
+  const col=edge||outlineColor(layer);
+  const lw=outlineWidth();
+  line3(v[0],v[4],col,lw,layer); line3(v[1],v[5],col,lw,layer); line3(v[2],v[6],col,lw,layer); line3(v[3],v[7],col,lw,layer);
+  line3(v[4],v[5],col,lw,layer); line3(v[5],v[6],col,lw,layer); line3(v[6],v[7],col,lw,layer); line3(v[7],v[4],col,lw,layer);
+  line3(v[0],v[1],col,lw,layer); line3(v[1],v[2],col,lw,layer); line3(v[2],v[3],col,lw,layer); line3(v[3],v[0],col,lw,layer);
 }
 function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
   f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
-  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
+  const col=outlineColor(layer);
+  const lw=outlineWidth();
+  [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],col,lw,layer));
 }
 const VEC={X:[1,0,0],Y:[0,1,0],Z:[0,0,1]};
 function dirVec(d){ const a=axis(d), s=sgn(d); const v=VEC[a]; return [v[0]*s,v[1]*s,v[2]*s]; }
@@ -437,7 +452,9 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
   const color='rgba(60,110,220,.6)';
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
-  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
+  const col=outlineColor(layer);
+  const lw=outlineWidth();
+  for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],col,lw,layer); line3(up[i], dn[i],col,lw,layer); }
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
