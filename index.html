@@ -582,6 +582,7 @@ function drawFloorZeroLine(){
 /* размеры */
 function getDimOffset(key){ return state.dimOffsets[viewMode][key]||{dx:0,dy:0}; }
 function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; saveState(); }
+function dimUiScale(){ return Math.max(0.35, Math.min(scale, 1)); }
 function renderDeltaH(){
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
   if($('endType').value!=='NKU') return;
@@ -592,6 +593,7 @@ function renderDeltaH(){
   const base=localToScreen(mid.u,mid.v);
   const off=getDimOffset('__deltaH'); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
   const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px';
+  const uiScale=dimUiScale(); el.style.transformOrigin='top left'; el.style.transform=`scale(${uiScale})`;
   let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
   el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
@@ -620,6 +622,7 @@ function drawPath(){
       const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
       if(state.calc){
         const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
+        const uiScale=dimUiScale(); el.style.transformOrigin='top left'; el.style.transform=`scale(${uiScale})`;
         let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
         el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
         el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
