@@ -970,7 +970,7 @@ $('autofitToggle').addEventListener('change',e=>{ autoFit=e.target.checked; if(a
 
 /* проект: сохранить/загрузить */
 $('saveProj').onclick=()=>{ const data={version:7,view:viewMode,params:{mat:$('mat').value,rating:+$('rating').value,ip:$('ip').value,startType:$('startType').value,startW:+$('startW').value,startD:+$('startD').value,startH:+$('startH').value,endType:$('endType').value,endW:+$('endW').value,endD:+$('endD').value,endH:+$('endH').value,moduleLen:+$('moduleLen').value,mountOn:$('mountOn').value,mountStep:+$('mountStep').value},segs:state.segs,calc:state.calc,dimOffsets:state.dimOffsets,annos:state.annos}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_project.json'; a.click(); URL.revokeObjectURL(url); };
-$('loadProj').onclick()=>$('loadInput').click();
+$('loadProj').onclick=()=>$('loadInput').click();
 $('loadInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=()=>{ try{ const data=JSON.parse(rd.result);
