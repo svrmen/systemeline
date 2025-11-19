@@ -1,0 +1,14 @@
+{
+  "name": "systemeline",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "vitest": "^0.34.0"
+  }
+}
