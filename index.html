@@ -99,9 +99,15 @@
       <label style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><input type="checkbox" id="autofitToggle" checked>Автоподгон</label>
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr">
+      <button class="btn" id="saveProj">Сохранить проект</button>
+      <button class="btn" id="loadProj">Загрузить проект</button>
+    </div>
+    <div class="row" style="grid-template-columns:1fr 1fr">
       <button class="btn" id="addAnno">➕ Выноска</button>
       <button class="btn" id="openAdmin">Цены (Alt+P)</button>
     </div>
+
+    <input id="loadInput" type="file" accept="application/json" style="display:none">
 
     <div id="msg" class="warn"></div>
 
