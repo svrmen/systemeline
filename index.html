@@ -435,8 +435,9 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-  const thick = bh;
-  const half  = bw/2;
+  const vertical = axis(fromDir)==='Z' || axis(toDir)==='Z';
+  const thick = vertical ? bw : bh;
+  const half  = vertical ? (bh/2) : (bw/2);
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
 }
