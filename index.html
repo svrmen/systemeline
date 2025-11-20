@@ -470,12 +470,10 @@ function verticalWidthAxis(prev, next){
   const prevH = prev && axis(prev.dir)!=='Z' ? axis(prev.dir) : null;
   const nextH = next && axis(next.dir)!=='Z' ? axis(next.dir) : null;
 
-  if(prevH && nextH && prevH!==nextH){
-    return 'EDGE';
-  }
-
-  const neighborAxis = nextH || prevH || 'X';
-  return neighborAxis==='X' ? 'Y' : 'X';
+  // Ориентируем стойку под ось следующего горизонтального участка;
+  // если его нет — под предыдущий, иначе оставляем по умолчанию.
+  const base = nextH || prevH || 'X';
+  return base==='X' ? 'Y' : 'X';
 }
 
 function verticalAxisForIndex(idx){
