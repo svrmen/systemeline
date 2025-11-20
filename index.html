@@ -191,6 +191,14 @@
         <input id="lenInput" type="number" min="1" step="100" placeholder="длина, мм (≥400)">
         <div><button class="btn" id="ok">OK</button> <button class="btn" id="cancel">Отмена</button></div>
       </div>
+      <div class="row" id="vertModeRow" style="grid-template-columns:1fr 1fr;align-items:flex-start;display:none">
+        <label style="font-size:12px;color:#444">Ориентация стойки</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="vertMode" value="auto" checked> авто</label>
+          <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="vertMode" value="flat"> плашмя</label>
+          <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="vertMode" value="edge"> на ребро</label>
+        </div>
+      </div>
       <div class="warn" id="hint" style="margin-top:6px"></div>
     </div>
 
@@ -264,6 +272,7 @@ const wrap=$('wrap'), cvs=$('view'), ctx=cvs.getContext('2d');
 const giz=$('gizmo'), gz=giz.getContext('2d'), tag=$('tag');
 const dimLayer=$('dimLayer'), annoLayer=$('annoLayer');
 const pop=$('lenPopup'), lenInput=$('lenInput'), hint=$('hint');
+const vertModeRow=$('vertModeRow');
 const epop=$('editPopup'), editInput=$('editInput');
 const apop=$('annoPopup'), ainput=$('annoInput');
 const msg=$('msg');
@@ -360,6 +369,7 @@ const state={
   annos:[], movingAnno:{id:null,what:null,view:null,dragging:false}, editingIdx:null,
   meta:{title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''},
   annoSeq:1,
+  lastVertMode:'auto',
   drawAnnoLines:true
 };
 function P(){
@@ -456,7 +466,21 @@ function verticalWidthAxis(prev, next){
 function verticalAxisForIndex(idx){
   const cur=state.segs[idx];
   if(!cur || axis(cur.dir)!=='Z') return 'X';
-  return verticalWidthAxis(state.segs[idx-1], state.segs[idx+1]);
+  const mode=cur.vertMode||'auto';
+  const prev=state.segs[idx-1], next=state.segs[idx+1];
+  const base=verticalWidthAxis(prev,next);
+
+  if(mode==='edge') return 'EDGE';
+  if(mode==='flat'){
+    if(base==='EDGE'){
+      const prevH = prev && axis(prev.dir)!=='Z' ? axis(prev.dir) : null;
+      const nextH = next && axis(next.dir)!=='Z' ? axis(next.dir) : null;
+      return nextH || prevH || 'X';
+    }
+    return base;
+  }
+
+  return base;
 }
 
 function verticalDims(vAxis, bw, bh){
@@ -621,7 +645,7 @@ function drawPath(){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
     const sc=prev?elbowCuts(prev.dir,cur.dir).b:0; const ec=next?elbowCuts(cur.dir,next.dir).a:0;
     const startPos=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
-    const vAxis = axis(cur.dir)==='Z' ? verticalWidthAxis(prev,next) : 'X';
+    const vAxis = axis(cur.dir)==='Z' ? verticalAxisForIndex(i) : 'X';
 
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh,vAxis);
@@ -664,11 +688,50 @@ giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), 
 giz.addEventListener('pointerleave',()=>{ hit=null; tag.textContent='направление: —'; drawGizmo(); });
 giz.addEventListener('click',()=>{ if(viewMode!=='ISO'||!hit||state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
 
-function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>$('lenInput').focus(),0); }
+function showLenPopup(){
+  $('hint').textContent='';
+  $('lenInput').value=window.__lastLen||'';
+
+  const vertical=axis(state.lastDir)==='Z';
+  vertModeRow.style.display=vertical?'grid':'none';
+  if(vertical){
+    const v=state.lastVertMode||'auto';
+    const el=document.querySelector(`input[name=vertMode][value=${v}]`) || document.querySelector('input[name=vertMode][value=auto]');
+    if(el) el.checked=true;
+  }
+
+  pop.style.display='block';
+  setTimeout(()=>$('lenInput').focus(),0);
+}
 function hideLenPopup(){ pop.style.display='none'; }
 $('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
 lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
-function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); saveState(); }
+function commitLength(){
+  let L=+$('lenInput').value;
+  if(!(L>0)){ hint.textContent='Введите длину'; return; }
+  if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; }
+
+  let vertMode='auto';
+  if(axis(state.lastDir)==='Z'){
+    const checked=document.querySelector('input[name=vertMode]:checked');
+    vertMode=checked?checked.value:'auto';
+    state.lastVertMode=vertMode;
+  }
+
+  window.__lastLen=L;
+  const last=state.segs[state.segs.length-1];
+  if(last && last.dir===state.lastDir && (axis(state.lastDir)!=='Z' || (last.vertMode||'auto')===vertMode)){
+    last.len+=L;
+  }else{
+    const seg={dir:state.lastDir,len:L};
+    if(axis(state.lastDir)==='Z') seg.vertMode=vertMode;
+    state.segs.push(seg);
+  }
+
+  hideLenPopup();
+  draw();
+  saveState();
+}
 
 function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
 $('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
@@ -1317,7 +1380,7 @@ $('clear').onclick=()=>{
   state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
   state.annos=[]; state.movingAnno={id:null,what:null,view:null,dragging:false};
   state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
-  state.annoSeq=1;
+  state.annoSeq=1; state.lastVertMode='auto';
   $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
   $('ip').value='IP55'; $('startType').value='NKU'; $('endType').value='ENDCAP';
   $('startW').value=600; $('startD').value=600; $('startH').value=2200;
@@ -1387,7 +1450,7 @@ function parsePriceLine(line){
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
-function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
+function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, lastVertMode:state.lastVertMode||'auto', ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
 function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
 function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; saveState(); }
 $('metaSave').onclick=()=>{ readMetaInputs(); msg.textContent='Данные проекта сохранены'; setTimeout(()=>msg.textContent='',1400); };
@@ -1399,6 +1462,7 @@ function loadState(){
     state.dimOffsets=s.dimOffsets||state.dimOffsets; state.annos=s.annos||[];
     state.meta=s.meta||state.meta;
     state.annoSeq=s.annoSeq||1;
+    state.lastVertMode=s.lastVertMode||'auto';
     if(s.ui){
       $('mat').value=s.ui.mat||'AL';
       fillRatings();
