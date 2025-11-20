@@ -457,10 +457,15 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh, opts={})
 
   let half=bw/2, thick=bh;
   if(vertical){
-    const nAxis=axisOfVec(N);
-    const vAxisName = axis(fromDir)==='Z' ? axis(toDir) : axis(fromDir);
-    half = dimForAxis(vAxisName)/2;
-    thick = dimForAxis(nAxis);
+    if(vAxis==='EDGE'){
+      half = bh/2;
+      thick = bh;
+    }else{
+      const nAxis=axisOfVec(N);
+      const vAxisName = axis(fromDir)==='Z' ? axis(toDir) : axis(fromDir);
+      half = dimForAxis(vAxisName)/2;
+      thick = dimForAxis(nAxis);
+    }
   }
 
   const poly  = LpolyCornerSolid(aLen,bLen,half);
@@ -470,10 +475,12 @@ function verticalWidthAxis(prev, next){
   const prevH = prev && axis(prev.dir)!=='Z' ? axis(prev.dir) : null;
   const nextH = next && axis(next.dir)!=='Z' ? axis(next.dir) : null;
 
-  // Ориентируем стойку под ось следующего горизонтального участка;
-  // если его нет — под предыдущий, иначе оставляем по умолчанию.
+  // Если стойка стыкует два разных горизонтальных направления, кладём её «на ребро».
+  if(prevH && nextH && prevH!==nextH) return 'EDGE';
+
+  // Иначе ориентируем по выходящей оси (если есть) либо по входящей.
   const base = nextH || prevH || 'X';
-  return base==='X' ? 'Y' : 'X';
+  return base;
 }
 
 function verticalAxisForIndex(idx){
