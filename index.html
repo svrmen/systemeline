@@ -433,8 +433,7 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-  const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
-  const thick = vertical ? bw : bh;
+  const thick = bh;
   const half  = bw/2;
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
@@ -532,7 +531,7 @@ function drawFloorBounded(){
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
   const b=floorBoundsXY();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
-  fillPoly3(poly,'#e8edf5',1,'FLOOR');
+  fillPoly3(poly,'#e6ebf3',1,'FLOOR');
   const step=200;
   for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
