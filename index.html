@@ -433,41 +433,11 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],EDGE_COLOR,1/scale,layer); line3(up[i], dn[i],EDGE_COLOR,1/scale,layer); }
 }
 function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
-function axisOfVec(vec){
-  const abs=[Math.abs(vec[0]),Math.abs(vec[1]),Math.abs(vec[2])];
-  const m=Math.max(...abs);
-  if(m===abs[0]) return 'X';
-  if(m===abs[1]) return 'Y';
-  return 'Z';
-}
-
-function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh, opts={}){
+function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
-  const fromVA = axis(fromDir)==='Z' ? (opts.fromVAxis||'X') : null;
-  const toVA   = axis(toDir)==='Z'   ? (opts.toVAxis||'X')   : null;
-  const vAxis  = fromVA || toVA || 'X';
-  const {wx,wy}=verticalDims(vAxis,bw,bh);
-  const vertical = axis(fromDir)==='Z' || axis(toDir)==='Z';
-
-  function dimForAxis(ax){
-    if(ax==='X') return wx;
-    if(ax==='Y') return wy;
-    return bh;
-  }
-
-  let half=bw/2, thick=bh;
-  if(vertical){
-    if(vAxis==='EDGE'){
-      half = bh/2;
-      thick = bh;
-    }else{
-      const nAxis=axisOfVec(N);
-      const vAxisName = axis(fromDir)==='Z' ? axis(toDir) : axis(fromDir);
-      half = dimForAxis(vAxisName)/2;
-      thick = dimForAxis(nAxis);
-    }
-  }
-
+  const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
+  const thick = vertical ? bw : bh;
+  const half  = vertical ? (bh/2) : (bw/2);
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
 }
@@ -490,7 +460,8 @@ function verticalAxisForIndex(idx){
 }
 
 function verticalDims(vAxis, bw, bh){
-  if(vAxis==='EDGE') return {wx:bh, wy:bh};
+  // vAxis определяет, вдоль какой горизонтальной оси располагается «широкая» сторона.
+  if(vAxis==='EDGE') return {wx:bh, wy:bw};
   if(vAxis==='Y') return {wx:bh, wy:bw};
   return {wx:bw, wy:bh};
 }
@@ -675,7 +646,7 @@ function drawPath(){
     if(ec>0 && next){
       const cuts=elbowCuts(cur.dir,next.dir);
       const vertex=adv(pos,cur.dir,L);
-      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh,{fromVAxis:vAxis,toVAxis:verticalAxisForIndex(i+1)});
+      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);
     }
     pos=adv(pos,cur.dir,L);
   }
