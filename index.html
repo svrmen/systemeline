@@ -285,12 +285,10 @@ function setProjection(mode){
 }
 document.querySelectorAll('.viewbtn[data-view]').forEach(b=>b.addEventListener('click',()=>setProjection(b.dataset.view)));
 
-const MIN_ZOOM_FACTOR=0.1;
-const MIN_ZOOM_ABS=0.02;
-const MAX_ZOOM_FACTOR=8;
-const MAX_ZOOM_ABS=12;
+const MIN_SCALE=0.02;
+const MAX_SCALE=12;
 
-let panX=0, panY=0, scale=1, minScale=MIN_ZOOM_ABS, maxScale=MAX_ZOOM_ABS;
+let panX=0, panY=0, scale=1;
 function apply(){ ctx.setTransform(DPR*scale,0,0,DPR*scale,panX*DPR,panY*DPR); }
 function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.floor(wrap.clientHeight*DPR); draw(); }
 addEventListener('resize',resize);
@@ -315,11 +313,21 @@ wrap.addEventListener('wheel',e=>{
   zoomAt(Math.exp(-e.deltaY*0.001), e.clientX-r.left, e.clientY-r.top);
 },{passive:false});
 function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
-function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
+function screenToLocal(arg1,arg2){
+  const r=wrap.getBoundingClientRect();
+  let cx, cy;
+  if(typeof arg1==='number'){
+    cx=arg1; cy=arg2;
+  }else{
+    cx=arg1.clientX; cy=arg1.clientY;
+  }
+  return {x:(cx-r.left-panX)/scale, y:(cy-r.top-panY)/scale};
+}
 
 function zoomAt(factor, cx=wrap.clientWidth/2, cy=wrap.clientHeight/2){
   const baseScale=scale;
-  const newScale=Math.max(Math.min(baseScale*factor,maxScale),minScale);
+  const newScale=Math.max(Math.min(baseScale*factor,MAX_SCALE),MIN_SCALE);
+  if(Math.abs(newScale-baseScale)<1e-6) return;
   const zx=(cx-panX)/baseScale;
   const zy=(cy-panY)/baseScale;
   scale=newScale;
@@ -433,19 +441,22 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
 }
 function segBox(start,dir,L,bw,bh){
   const s=sgn(dir), a=axis(dir);
-  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
+  if(a==='Z'){
+    const x=start[0]-bw/2, y=start[1]-bh/2, z=s>0?start[2]:start[2]-L;
+    box(x,y,z,bw,bh,L,'BUS');
+  }
   if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
   if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
 }
 
 /* соединители по модулю */
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
+function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw, bh){
   const m=state.module|0; if(!(m>0)) return;
   const full=Math.floor((cur.len|0)/m);
   for(let k=1;k<=full;k++){
     const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bh/2,p[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
     if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
     if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
   }
@@ -499,8 +510,8 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 /* шкафы / заглушка */
 function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
-function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
+function drawEndCap(bw,bh){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
+  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bh/2,e[2]-JOINT_LEN/2,bw,bh,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
   if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
   if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
 }
@@ -514,13 +525,14 @@ function floorBoundsXY(){
   expand(x,y);
   for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X') x+=L; else if(s.dir==='-X') x-=L; if(s.dir==='+Y') y+=L; else if(s.dir==='-Y') y-=L; expand(x,y); }
   if($('endType').value==='NKU'){ const e=endPoint(); minX=Math.min(minX, e[0]-p.endW/2); maxX=Math.max(maxX, e[0]+p.endW/2); minY=Math.min(minY, e[1]-p.endD/2); maxY=Math.max(maxY, e[1]+p.endD/2); }
-  return {minX, maxX, minY, maxY};
+  const margin=Math.max(400, bw*0.8);
+  return {minX:minX-margin, maxX:maxX+margin, minY:minY-margin, maxY:maxY+margin};
 }
 function drawFloorBounded(){
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
   const b=floorBoundsXY();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
-  fillPoly3(poly,'#f1f3f5',1,'FLOOR');
+  fillPoly3(poly,'#e8edf5',1,'FLOOR');
   const step=200;
   for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
@@ -579,7 +591,7 @@ function drawPath(){
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh);
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
+        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw,bh);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
@@ -752,68 +764,54 @@ function renderAnnos(){
       ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
     }
 
-    box.addEventListener('pointerdown',ev=>{
-      ev.stopPropagation();
-      ev.preventDefault();
-      box.setPointerCapture(ev.pointerId);
-      a.movingBox=true;
-      a.movingAnchor=false;
-      state.movingAnno={id:a.id,what:'box',view:viewMode,dragging:true};
-      draw();
-    });
-    box.addEventListener('pointermove',ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='box') return;
-      const pv=ensurePos(a,mv.view||viewMode);
-      const {x,y}=screenToLocal(ev);
-      pv.bx=x; pv.by=y;
-      draw();
-    });
-    const endBoxDrag=ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='box') return;
-      try{ box.releasePointerCapture(ev.pointerId); }catch(_){ }
-      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
-      saveState();
-      draw();
+    const toggleBoxMove=()=>{
+      const active=state.movingAnno.id===a.id && state.movingAnno.what==='box' && state.movingAnno.dragging;
+      if(active){
+        a.movingBox=false;
+        state.movingAnno={id:null,what:null,view:null,dragging:false};
+        draw();
+        saveState();
+      }else{
+        state.annos.forEach(an=>{ if(an.id!==a.id){ an.movingBox=false; an.movingAnchor=false; }});
+        a.movingBox=true; a.movingAnchor=false;
+        state.movingAnno={id:a.id,what:'box',view:viewMode,dragging:true};
+        draw();
+      }
     };
-    box.addEventListener('pointerup',endBoxDrag);
-    box.addEventListener('pointercancel',endBoxDrag);
+    box.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      if(ev.detail>1) return;
+      toggleBoxMove();
+    });
     box.addEventListener('dblclick',ev=>{
       ev.stopPropagation();
+      if(state.movingAnno.id===a.id && state.movingAnno.what==='box'){
+        a.movingBox=false;
+        state.movingAnno={id:null,what:null,view:null,dragging:false};
+      }
       ainput.value=a.text;
       const p=localToScreen(pv.bx,pv.by);
       apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
       apop.dataset.mode='edit'; apop.dataset.id=a.id;
     });
-    anchor.addEventListener('pointerdown',ev=>{
-      ev.stopPropagation();
-      ev.preventDefault();
-      anchor.setPointerCapture(ev.pointerId);
-      a.movingAnchor=true;
-      a.movingBox=false;
-      state.movingAnno={id:a.id,what:'anchor',view:viewMode,dragging:true};
-      draw();
-    });
-    anchor.addEventListener('pointermove',ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='anchor') return;
-      const pv=ensurePos(a,mv.view||viewMode);
-      const {x,y}=screenToLocal(ev);
-      pv.ax=x; pv.ay=y;
-      draw();
-    });
-    const endAnchorDrag=ev=>{
-      const mv=state.movingAnno;
-      if(mv.id!==a.id || mv.what!=='anchor') return;
-      try{ anchor.releasePointerCapture(ev.pointerId); }catch(_){ }
-      a.movingAnchor=false;
-      state.movingAnno={id:a.id,what:null,view:viewMode,dragging:false};
-      saveState();
-      draw();
+    const toggleAnchorMove=()=>{
+      const active=state.movingAnno.id===a.id && state.movingAnno.what==='anchor' && state.movingAnno.dragging;
+      if(active){
+        a.movingAnchor=false;
+        state.movingAnno={id:null,what:null,view:null,dragging:false};
+        draw();
+        saveState();
+      }else{
+        state.annos.forEach(an=>{ if(an.id!==a.id){ an.movingBox=false; an.movingAnchor=false; }});
+        a.movingAnchor=true; a.movingBox=false;
+        state.movingAnno={id:a.id,what:'anchor',view:viewMode,dragging:true};
+        draw();
+      }
     };
-    anchor.addEventListener('pointerup',endAnchorDrag);
-    anchor.addEventListener('pointercancel',endAnchorDrag);
+    anchor.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      toggleAnchorMove();
+    });
   });
   ctx.restore();
 }
@@ -831,13 +829,14 @@ wrap.addEventListener('click',e=>{
   });
   if(changed){ draw(); saveState(); }
 });
-wrap.addEventListener('pointermove',e=>{
+const handleAnnoPointerMove=e=>{
   const mv=state.movingAnno; if(!mv.id||!mv.what||!mv.dragging) return;
   const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
   const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
   if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
   draw();
-});
+};
+window.addEventListener('pointermove',handleAnnoPointerMove);
 document.addEventListener('keydown',e=>{
   const targetTag=(e.target&&e.target.tagName)||'';
   const inForm=['INPUT','TEXTAREA','SELECT'].includes(targetTag);
@@ -875,7 +874,7 @@ function draw(){
   drawPath();
   drawEndCab();
   const prm=P();
-  drawEndCap(prm.busW);
+  drawEndCap(prm.busW,prm.busH);
   drawFloorZeroLine();
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups();
@@ -892,9 +891,6 @@ function fit(){
   const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
   const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
   scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
-  const targetMin=Math.max(scale*MIN_ZOOM_FACTOR,MIN_ZOOM_ABS);
-  minScale=Math.min(targetMin,scale);
-  maxScale=Math.max(scale*MAX_ZOOM_FACTOR,MAX_ZOOM_ABS);
   const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
   panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
   draw();
