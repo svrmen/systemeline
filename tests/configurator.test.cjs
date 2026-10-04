@@ -2,7 +2,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
-const code = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const exporter = fs.readFileSync('cad-export.js', 'utf8')+'\n'+fs.readFileSync('tariff-import.js','utf8');
+const code = exporter + '\n' + html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const calls = [];
 const context2d = new Proxy({measureText: text => ({width:text.length*7}), setTransform:(...a)=>calls.push(a),moveTo:(...a)=>calls.push(['move',...a]),lineTo:(...a)=>calls.push(['line',...a]),fillRect:(...a)=>calls.push(['fill',context2d.fillStyle,...a])}, {get:(o,k)=>o[k]||(()=>{})});
 const values = {mat:'CU',rating:'2000',ip:'IP65',startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200,startType:'NKU',endType:'ENDCAP',mountOn:'1',mountStep:1000,moduleLen:3000};
@@ -11,6 +12,7 @@ const elements = new Map();
 const sandbox = {document:{getElementById:id=>{if(!elements.has(id))elements.set(id,element(id));return elements.get(id);},querySelectorAll:()=>[],addEventListener(){},createElement:()=>element()},window:{devicePixelRatio:2,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){},removeItem(){}},console,addEventListener(){},setTimeout:()=>{},URL,Blob,alert(){}};
 vm.createContext(sandbox); new vm.Script(code).runInContext(sandbox);
 const run = s=>vm.runInContext(s,sandbox);
+run('globalThis.originalDraw=draw;globalThis.originalBox=box');
 let count=0;
 function check(name,fn){fn();count++;console.log('PASS '+name);}
 check('catalogue Cu widths',()=>{assert.equal(run('WIDTH_CU[1000]'),100);assert.equal(run('WIDTH_CU[2000]'),200);assert.equal(run('WIDTH_CU[4000]'),470);assert.equal(run('BUS_H'),118);});
@@ -60,7 +62,6 @@ check('unknown prices cannot produce a zero quotation',()=>{
 });
 check('project text is escaped in printable HTML',()=>assert.equal(run(`escapeHtml('<img src=x>"&')`),'&lt;img src=x&gt;&quot;&amp;'));
 
-console.log(`${count} targeted checks passed`);
 check('equal spans use identical physical parts in either direction',()=>{
  run("$('mat').value='CU';$('rating').value='4000';$('orientation').value='EDGE';state.module=3000;state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1000}]");
  const a=run('straightLayout(1)'),b=run('straightLayout(2)');assert.equal(a.length,b.length);assert.deepEqual(Array.from(a.parts),Array.from(b.parts));assert.equal(a.joints.length,0);assert.equal(b.joints.length,0);
@@ -76,7 +77,6 @@ check('exact module and impossible short spans never create phantom joints',()=>
  run("state.segs=[{dir:'+X',len:3000}]");assert.equal(run('straightLayout(0).joints.length'),0);
  run("state.segs=[{dir:'+Z',len:100},{dir:'+X',len:100}]");assert.equal(run('straightLayout(0).length'),0);assert.equal(run('straightLayout(1).parts.length'),0);
 });
-console.log(`${count} targeted checks passed`);
 check('all drawn connections match BOM including corners and equipment',()=>{
  run("$('startType').value='TR';$('endType').value='NKU';state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1000}]");
  assert.equal(run('connectionLayout().length'),8);assert.equal(run('computeSpec().joints.total'),8);assert.equal(run("connectionLayout().filter(j=>j.kind==='corner').length"),6);
@@ -89,5 +89,29 @@ check('catalogue rating and orientation matrix preserves layout invariants',()=>
  assert.equal([...sp.parts].reduce((sum,[length,qty])=>sum+length*qty,0),sp.straightLen);
  for(let i=0;i<3;i++){const layout=run(`straightLayout(${i})`);assert.ok(layout.parts.every(n=>n>0&&n<=3000));assert.ok(layout.joints.every(n=>n>0&&n<layout.length));}
  }
+});
+
+check('CAD export produces component blocks, editable dimensions and view callouts',()=>{
+ run("draw=originalDraw;box=originalBox;state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1000}];state.calc=true;state.module=3000;$('mat').value='CU';$('rating').value='4000';$('orientation').value='EDGE';viewMode='ISO';state.annos=[{id:1,num:1,text:'Подключение',pos:{ISO:{ax:10,ay:20,bx:100,by:200}}}]");
+ const model=run('collectCadDrawing()');assert.ok(model.lines.length>0);assert.ok(model.lines.every(e=>e.layer!=='FLOOR'));assert.equal(model.dimensions.length,4);assert.equal(model.annotations.length,1);
+ const output=run('buildCadDXF(collectCadDrawing())');assert.match(output,/\nBLOCKS\n/);assert.match(output,/\nINSERT\n/);assert.match(output,/\nATTRIB\n/);assert.match(output,/\nDIMENSION\n/);assert.match(output,/LENGTH_MM/);assert.match(output,/\\U\+041F/);
+ fs.writeFileSync('evidence/cad-test.dxf',output);
+});
+check('CAD coordinates and attributes do not depend on zoom, pan',()=>{
+ const before=run('buildCadDXF(collectCadDrawing())');run("scale*=2;panX+=123;panY-=87");const after=run('buildCadDXF(collectCadDrawing())');assert.equal(after,before);
+});
+
+if(process.env.SYSTEMELINE_TARIFF_XLSX)check('supplied Excel imports exact references, units and dated source',()=>{
+ sandbox.XLSX=require('../vendor/xlsx.full.min.js');sandbox.tariffWorkbook=sandbox.XLSX.read(fs.readFileSync(process.env.SYSTEMELINE_TARIFF_XLSX),{type:'buffer',sheets:['Тариф SE LINE 25.01.2026']});
+ run("globalThis.newTariff=parseTariffWorkbook(tariffWorkbook,'БО_SE-LINE_xxxx2026_.xlsx',XLSX)");
+ assert.equal(run('newTariff.source.sheet'),'Тариф SE LINE 25.01.2026');assert.equal(run('newTariff.source.date'),'25.01.2026');assert.equal(run('Object.keys(newTariff.entries).length'),2608);assert.equal(run('newTariff.source.duplicates'),16);
+ assert.equal(run("newTariff.entries.DDW508ECM65.price"),11950);assert.equal(run("newTariff.entries.DDW508HF.unit"),'piece');
+ run("PRICE=validateReferenceTariff(newTariff);$('ip').value='IP65';$('rating').value='4000';$('mat').value='CU'");assert.equal(run("priceOf('EC','CU',4000)"),11950);
+ run("$('ip').value='IP55'");assert.equal(run("priceOf('EC','CU',4000)"),11400);
+});
+check('Excel conflicts and incorrect quantity bases never silently quote',()=>{
+ const x=require('../vendor/xlsx.full.min.js');sandbox.XLSX=x;const book=x.utils.book_new();x.utils.book_append_sheet(book,x.utils.aoa_to_sheet([['Референс','Тариф без НДС','Единица измерения'],['DDW4504GM55',100,'за метр'],['DDW4504GM55',200,'за метр']]),'Тариф');sandbox.badTariff=book;
+ assert.throws(()=>run("parseTariffWorkbook(badTariff,'bad.xlsx',XLSX)"),/Разные цены/);
+ run("PRICE={version:5,entries:{DDW4540GM55:{price:100,unit:'piece'}}};$('rating').value='4000';$('ip').value='IP55'");assert.equal(run("priceOf('ST','CU',4000)"),null);
 });
 console.log(`${count} targeted checks passed`);

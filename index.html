@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Шинопровод SystemeLineB · аудит 2026-10-04</title>
 <style>
+  [hidden]{display:none!important}
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
   header{max-width:1160px;margin:12px auto 8px;padding:0 16px}
@@ -139,7 +140,7 @@
         <div class="spec-row"><div>Повороты: горизонтальные</div><div id="spHoriz"></div></div>
         <div class="spec-row"><div>Крепления, шт</div><div id="spMounts"></div></div>
 
-        <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость</b></div><div class="money" id="spTotalCost">—</div></div>
+        <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость без НДС</b></div><div class="money" id="spTotalCost">—</div></div>
         <div style="margin:4px 0 2px"><button class="btn" id="toggleCost">Показать калькуляцию</button></div>
         <div id="costTable" class="hid">
           <table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table>
@@ -179,10 +180,11 @@
     </div>
 
     <div class="viewbar-bottom">
+
       <button class="viewbtn" id="btnFS" title="Во весь экран">⛶</button>
       <button class="viewbtn" id="savePNG">PNG</button>
       <button class="viewbtn" id="savePNGAll">PNG все</button>
-      <button class="viewbtn" id="saveDXF">DXF</button>
+      <button class="viewbtn" id="saveDXF" title="Редактируемые блоки текущего вида, 1:1 мм">DXF · CAD</button>
       <button class="viewbtn" id="saveXLS">XLS</button>
       <button class="viewbtn" id="savePDF">Проект (PDF)</button>
       <button class="viewbtn" id="btnPrice">₽ Прайс</button>
@@ -232,23 +234,30 @@
 <div id="priceDlg">
   <div id="priceCard">
     <h3>Прайс</h3>
-    <div style="font-size:12px;color:#666">Вставляй строки как прислал. <b>GM55</b> — цена за метр. <b>ECM55</b> привязана к <u>току</u> в описании («400А» → шаг 1).</div>
-    <textarea id="pricePaste" placeholder="Вставь сюда строки цен (можно с табами/пробелами)"></textarea>
+    <p>Выберите новый Excel. Проверьте лист и дату, затем примените тариф. Файл обрабатывается в браузере.</p>
+    <textarea id="pricePaste" hidden></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="priceParse">Разобрать и обновить</button>
+      <button class="btn" id="priceParse" hidden>Разобрать и обновить</button>
       <button class="btn" id="priceReset">Сбросить прайс</button>
       <button class="btn" id="priceExport">Выгрузить JSON</button>
       <input type="file" id="priceImport" accept="application/json" style="display:none">
       <button class="btn" id="priceImportBtn">Загрузить JSON</button>
+<input type="file" id="tariffExcel" accept=".xlsx" hidden>
+<button class="btn" id="tariffExcelBtn">Загрузить тариф Excel</button>
+<button class="btn" id="tariffApply" disabled>Применить новый тариф</button>
+<p id="tariffStatus" role="status"></p>
       <button class="btn" id="priceClose">Закрыть</button>
     </div>
     <div style="margin-top:8px">
-      <div style="font-size:12px;color:#666">Текущее хранилище цен (localStorage):</div>
-      <textarea id="priceJSON" readonly></textarea>
+      <details><summary>Резервная копия тарифа</summary>
+      <textarea id="priceJSON" readonly></textarea></details>
     </div>
   </div>
 </div>
 
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="tariff-import.js"></script>
+<script src="cad-export.js"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -378,9 +387,10 @@ const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*d
 function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L; } return [x,y,z]; }
 
 /* ===== DXF сборщик ===== */
-let DXF_COLLECT=false, DXF_ENT=[];
+let DXF_COLLECT=false, DXF_ENT=[],cadGroup=0,cadMeta={};
+function drawingStyle(){return false;}
 const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
-function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer}); }
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta}}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
@@ -395,8 +405,9 @@ function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLO
 }
 function fillPoly3(pts, fill, alpha,layer='BUS'){
   const p=pts.map(v=>proj(...v));
+  if(layer==='FLOOR'&&drawingStyle())return;
   ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
-  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); if(!drawingStyle())ctx.fill(); ctx.restore();
   for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
 }
 function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
@@ -407,12 +418,14 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.restore();
 }
 function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+  cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
   line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
   line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
 }
 function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
+  cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
   f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
@@ -424,6 +437,7 @@ function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]
 function madd3(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn ]; }
 function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
 function extrudeSolid(poly, thick, O, U, V, N,layer){
+  cadGroup++;
   const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
   const color='rgba(60,110,220,.6)';
@@ -487,6 +501,7 @@ function connectionLayout(){
   }return joints;
 }
 function drawConnection(joint,bw){
+  cadMeta={type:'JPK',segment:joint.index+1,kind:joint.kind};
   const p=joint.point,a=axis(joint.dir),bh=P().busH;
   if(a==='Z'){const pr=verticalProfile(joint.index,bw,bh);solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');}
   if(a==='X')solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-bh/2,JOINT_LEN,bw,bh,'rgba(52,168,83,.55)',1,'JOINT');
@@ -559,6 +574,7 @@ function floorBoundsXY(){
   return {minX, maxX, minY, maxY};
 }
 function drawFloorBounded(){
+  if(drawingStyle())return;
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
   const b=floorBoundsXY();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
@@ -573,6 +589,7 @@ function drawFloorBounded(){
 }
 /* уровень 0.000 для фронт/боков */
 function drawFloorZeroLine(){
+  if(drawingStyle())return;
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
   const b=floorBoundsXY();
   if(viewMode==='FRONT' || viewMode==='BACK'){
@@ -634,7 +651,8 @@ function drawPath(){
     const startPos=adv(pos,cur.dir,sc); const Ldraw=layout.length;
 
     if(Ldraw>0){
-      segBox(startPos,cur.dir,Ldraw,bw,bh,verticalProfile(i,bw,bh));
+      const parts=state.calc?layout.parts:[Ldraw];let partOffset=0;
+      for(const part of parts){cadMeta={type:'ST',length:part,segment:i+1};segBox(adv(startPos,cur.dir,partOffset),cur.dir,part,bw,bh,verticalProfile(i,bw,bh));partOffset+=part;}cadMeta={};
       if(state.calc){
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
@@ -655,11 +673,11 @@ function drawPath(){
     if(ec>0 && next){
       const cuts=elbowCuts(cur.dir,next.dir);
       const vertex=adv(pos,cur.dir,L);
-      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);
+      cadMeta={type:'EL',segment:i+1};elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);cadMeta={};
     }
     pos=adv(pos,cur.dir,L);
   }
-  if(state.calc)for(const joint of connectionLayout())drawConnection(joint,bw);
+  if(state.calc)for(const joint of connectionLayout()){drawConnection(joint,bw);cadMeta={};}
   renderDeltaH();
 }
 
@@ -833,13 +851,13 @@ document.addEventListener('keydown',e=>{
 /* ===== кадр/подгон ===== */
 function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
-  apply(); 
-  drawFloorBounded(); 
-  drawStartCab(); 
-  drawPath(); 
-  drawEndCab(); 
+  apply();
+  drawFloorBounded();
+  drawStartCab();
+  drawPath();
+  drawEndCab();
   drawEndCap(P().busW);
-  drawFloorZeroLine(); 
+  drawFloorZeroLine();
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups(); updateGeometryStatus();
 }
@@ -909,10 +927,10 @@ function refFor(type, rating){
 /* ===== ЦЕНЫ (как раньше) ===== */
 function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}}; }
 let PRICE = loadPrice() || emptyPrice();
-function loadPrice(){ try{ const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
-function savePrice(){ localStorage.setItem(STORAGE_PRICE,JSON.stringify(PRICE)); }
+function loadPrice(){ try{ const exact=localStorage.getItem('BUS_TARIFF_V5');if(exact)return validateReferenceTariff(JSON.parse(exact)); const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
+function savePrice(){ localStorage.setItem(PRICE.version===5?'BUS_TARIFF_V5':STORAGE_PRICE,JSON.stringify(PRICE));if(PRICE.version!==5)localStorage.removeItem('BUS_TARIFF_V5'); }
 function money(x){ if(x==null)return '—'; const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
-function priceOf(type, mat, rating){ if(rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
+function priceOf(type, mat, rating){ if(PRICE.version===5){const entry=PRICE.entries[refFor(type,rating)];return entry&&entry.unit===(type==='ST'?'m':'piece')?entry.price:null;} if(rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
   let lenH=0,lenUp=0,lenDown=0,straightLen=0; let pos=originTop(); const target=+$('mountStep').value||1000;
@@ -1086,43 +1104,19 @@ $('savePNGAll').onclick=()=>{
   })();
 };
 
+function collectCadDrawing(){
+  DXF_ENT.length=0;cadGroup=0;cadMeta={};DXF_COLLECT=true;
+  try{draw();}finally{DXF_COLLECT=false;}
+  const annotations=state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]}));
+  let pos=originTop();const dimensions=[];
+  for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
+  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,ref:type=>refFor(type,+$('rating').value)};
+}
 $('saveDXF').onclick=()=>{
-  DXF_COLLECT=true; DXF_ENT.length=0; draw(); DXF_COLLECT=false;
-  const header=`0
-SECTION
-2
-ENTITIES
-`;
-  const footer=`0
-ENDSEC
-0
-EOF
-`;
-  let body='';
-  DXF_ENT.forEach(L=>{
-    const a=L.a, b=L.b, layer=L.layer||'0', color=DXF_COLORS[layer]||7;
-    body+=`0
-LINE
-8
-${layer}
-62
-${color}
-10
-${(a[0]).toFixed(3)}
-20
-${(-a[1]).toFixed(3)}
-30
-0
-11
-${(b[0]).toFixed(3)}
-21
-${(-b[1]).toFixed(3)}
-31
-0
-`;
-  });
-  const blob=new Blob([header+body+footer],{type:'application/dxf'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.dxf`; a.click(); URL.revokeObjectURL(url);
+  if(!state.calc){msg.textContent='Сначала рассчитайте разбиение для экспорта отдельных деталей.';return;}
+  const data=buildCadDXF(collectCadDrawing());
+  const blob=new Blob([data],{type:'application/dxf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`bus_${viewMode.toLowerCase()}_mm.dxf`;a.click();URL.revokeObjectURL(url);
 };
 
 $('saveXLS').onclick=()=>{
@@ -1289,6 +1283,33 @@ $('clear').onclick=()=>{
 $('fit').onclick=()=>fit();
 
 /* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
+let pendingTariff=null;
+function showTariffStatus(){
+  const source=PRICE.version===5?PRICE.source:null;
+  $('tariffStatus').textContent=source?`Тариф: ${source.filename}; лист ${source.sheet}; дата ${source.date}; RUB, без НДС. Позиций: ${Object.keys(PRICE.entries).length}.`:'Тариф Excel не загружен. Старые цены не подтверждают текущий прайс.';
+}
+function initExcelTariffUI(){
+  $('tariffExcelBtn').onclick=()=>$('tariffExcel').click();
+  $('tariffExcel').addEventListener('change',async e=>{
+    const file=e.target.files[0];if(!file)return;pendingTariff=null;$('tariffApply').disabled=true;
+    try{
+      if(file.size>30*1024*1024)throw new Error('Файл больше30 МБ.');
+      $('tariffStatus').textContent='Читаю тариф…';
+      const binary=await file.arrayBuffer();const inventory=XLSX.read(binary,{type:'array',bookSheets:true});const sheets=inventory.SheetNames.filter(name=>/тариф.*(?:SE[ _-]*LINE|SystemeLine)/i.test(name));
+      const workbook=XLSX.read(binary,{type:'array',cellFormula:false,sheets:sheets.length?sheets:inventory.SheetNames});
+      pendingTariff=parseTariffWorkbook(workbook,file.name,XLSX);
+      const source=pendingTariff.source,count=Object.keys(pendingTariff.entries).length;
+      $('tariffStatus').textContent=`Готов к применению: ${source.sheet}; ${source.date}; ${count} уникальных артикулов; ${source.duplicates} одинаковых дублей объединено; ${source.unpriced} позиций без цены. RUB, без НДС. Текущий тариф заменится целиком.`;
+      $('tariffApply').disabled=false;
+    }catch(error){$('tariffStatus').textContent='Тариф не изменён: '+error.message;}
+    finally{e.target.value='';}
+  });
+  $('tariffApply').onclick=()=>{
+    if(!pendingTariff)return;const next=validateReferenceTariff(pendingTariff);
+    try{localStorage.setItem('BUS_TARIFF_V5',JSON.stringify(next));PRICE=next;pendingTariff=null;$('tariffApply').disabled=true;$('priceJSON').value=JSON.stringify(PRICE,null,2);renderSpec();showTariffStatus();}
+    catch(error){$('tariffStatus').textContent='Не удалось сохранить тариф: '+error.message;}
+  };
+}
 function initPriceUI(){ /* ... тот же код, что и ранее ... */ }
 function parsePriceLine(line){ throw new Error('Загрузчик тарифных строк ещё не реализован. Тариф нельзя считать загруженным.'); }
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -1330,7 +1351,7 @@ function loadState(){
 $('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
 
 /* ===== СТАРТ ===== */
-function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const incoming=JSON.parse(rd.result);if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)||!incoming.AL||!incoming.CU)throw new Error('Нужны разделы AL и CU');for(const mat of ['AL','CU']){for(const prices of Object.values(incoming[mat])){if(!prices||typeof prices!=='object'||Array.isArray(prices))throw new Error('Некорректный раздел цен');for(const value of Object.values(prices)){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw new Error('Цена должна быть неотрицательным числом');}}}PRICE=incoming;savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').disabled=true;$('priceParse').title='Разбор будет настроен после получения тарифа';$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
+function initPriceUI(){initExcelTariffUI();const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);showTariffStatus();dlg.style.display='flex';};const close=()=>{pendingTariff=null;$('tariffApply').disabled=true;dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const incoming=JSON.parse(rd.result);if(incoming?.version===5){PRICE=validateReferenceTariff(incoming);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();showTariffStatus();return;}if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)||!incoming.AL||!incoming.CU)throw new Error('Нужны разделы AL и CU');for(const mat of ['AL','CU']){for(const prices of Object.values(incoming[mat])){if(!prices||typeof prices!=='object'||Array.isArray(prices))throw new Error('Некорректный раздел цен');for(const value of Object.values(prices)){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw new Error('Цена должна быть неотрицательным числом');}}}PRICE=incoming;savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);localStorage.removeItem('BUS_TARIFF_V5');}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();pendingTariff=null;$('tariffApply').disabled=true;showTariffStatus();alert('Прайс очищен');};$('priceParse').disabled=true;$('priceParse').title='Разбор будет настроен после получения тарифа';$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
