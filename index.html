@@ -60,7 +60,7 @@
 </style>
 </head>
 <body>
-<header><small style="display:block;color:#555">Проверочная версия · 2026-10-04 · выноски и восстановление проекта</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-04 · раскрой и все стыки</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
@@ -97,7 +97,7 @@
         <input id="endH" type="number" value="2200" title="Конец H" placeholder="H">
       </div>
 
-      <div class="row"><label><b>Длина сегмента (модуль), мм</b></label><input id="moduleLen" type="number" value="3000"></div>
+      <div class="row"><label><b>Максимальная длина прямой секции, мм</b></label><input id="moduleLen" type="number" value="3000"></div>
 
       <div class="row"><label>Крепления</label>
         <select id="mountOn"><option value="1" selected>есть</option><option value="0">нет</option></select>
@@ -120,7 +120,7 @@
       <div id="msg" class="warn"></div>
 
       <div id="spec" style="display:none">
-        <h3>Предварительная спецификация</h3><p class="warn">Разбиение прямых секций и комплектность требуют проверки. Стоимость без тарифа не определена.</p>
+        <h3>Предварительная спецификация</h3><p class="warn">L/H — осевые размеры с плечами поворотов. Раскрой ниже — длины прямых деталей. Зелёные блоки — стыки; их размеры схематичны. Комплектность и стоимость требуют проверки.</p>
         <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
         <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
         <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
@@ -145,7 +145,7 @@
           <table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table>
         </div>
 
-        <div style="margin:10px 0 2px;font-weight:600">Сегменты по длинам</div>
+        <div style="margin:10px 0 2px;font-weight:600">Прямые детали по заказным длинам</div>
         <table id="spTable"><thead><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr></thead><tbody></tbody></table>
         <div style="margin-top:8px"><button class="btn" id="saveCSV">Сохранить CSV</button></div>
       </div>
@@ -473,15 +473,24 @@ function straightLayout(index){
   return {startCut,endCut,length,parts,joints};
 }
 
-/* соединители по модулю */
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
-  const layout=straightLayout(state.segs.indexOf(cur));
-  for(const d of layout.joints){
-    const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z'){ const pr=verticalProfile(state.segs.indexOf(cur),bw,P().busH); solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT'); }
-    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-P().busH/2,bw,JOINT_LEN,P().busH,'rgba(52,168,83,.55)',1,'JOINT');
-  }
+/* Все стыки одной модели: прямые, углы и подключения. Размер блока схематичный. */
+function connectionLayout(){
+  const joints=[];let pos=originTop();
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i],layout=straightLayout(i),start=adv(pos,cur.dir,layout.startCut);
+    for(const offset of layout.joints)joints.push({point:adv(start,cur.dir,offset),dir:cur.dir,index:i,kind:'module'});
+    if(layout.startCut>0)joints.push({point:start,dir:cur.dir,index:i,kind:'corner'});
+    if(layout.endCut>0)joints.push({point:adv(start,cur.dir,layout.length),dir:cur.dir,index:i,kind:'corner'});
+    if(i===0)joints.push({point:pos,dir:cur.dir,index:i,kind:$('startType').value==='TR'?'transformer':'nku'});
+    if(i===state.segs.length-1&&$('endType').value==='NKU')joints.push({point:adv(pos,cur.dir,cur.len),dir:cur.dir,index:i,kind:'nku'});
+    pos=adv(pos,cur.dir,cur.len);
+  }return joints;
+}
+function drawConnection(joint,bw){
+  const p=joint.point,a=axis(joint.dir),bh=P().busH;
+  if(a==='Z'){const pr=verticalProfile(joint.index,bw,bh);solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');}
+  if(a==='X')solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-bh/2,JOINT_LEN,bw,bh,'rgba(52,168,83,.55)',1,'JOINT');
+  if(a==='Y')solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-bh/2,bw,JOINT_LEN,bh,'rgba(52,168,83,.55)',1,'JOINT');
 }
 
 /* крепления — умный расчёт */
@@ -627,11 +636,10 @@ function drawPath(){
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh,verticalProfile(i,bw,bh));
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-      const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
+      const label=(axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм';
       const key=i; const placed=dimensionPosition(key,base,label); const x=placed.x,y=placed.y;
       const off={dx:x-base.x,dy:y-base.y};
       if(state.calc){
@@ -651,6 +659,7 @@ function drawPath(){
     }
     pos=adv(pos,cur.dir,L);
   }
+  if(state.calc)for(const joint of connectionLayout())drawConnection(joint,bw);
   renderDeltaH();
 }
 
@@ -843,6 +852,16 @@ function updateGeometryStatus(){
     if(s.len<cuts) warnings.push(`Участок ${i+1}: длины недостаточно для плеч углов (${cuts} мм).`);
     if(axis(s.dir)==='Z' && prev && next && axis(prev.dir)!=='Z' && axis(next.dir)!=='Z' && axis(prev.dir)!==axis(next.dir)) warnings.push(`Участок ${i+1}: требуется секция изменения ориентации; обычных углов недостаточно.`);
   }
+  const m=Number(state.module);
+  if(!Number.isFinite(m)||m<=0||m>3000||m%10!==0)warnings.push('Прямой модуль: положительная длина до3000 мм с шагом10 мм.');
+  for(let i=0;i<state.segs.length;i++){
+    const layout=straightLayout(i);
+    if(layout.length===0)warnings.push(`Участок ${i+1}: отсутствует прямая секция между деталями.`);
+    for(const part of layout.parts){
+      if(part<450)warnings.push(`Участок ${i+1}: прямая деталь ${part} мм требует проверки минимальной длины (каталог450; для Cu есть противоречие400/450).`);
+      if(part%10!==0)warnings.push(`Участок ${i+1}: заказная длина ${part} мм не кратна10 мм.`);
+    }
+  }
   $('geometryStatus').textContent=warnings.join(' ');
 }
 function boundsProjected(){
@@ -906,10 +925,10 @@ function computeSpec(){
     if(next && axis(s.dir)!==axis(next.dir)){ corners++; if(axis(s.dir)==='Z'||axis(next.dir)==='Z') vert++; else horiz++; }
     pos=adv(pos,s.dir,L);
   }
-  const nku=( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 );
-  const tr =( $('startType').value==='TR'?1:0 );
+  const nku=state.segs.length?(( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 )):0;
+  const tr =state.segs.length&&$('startType').value==='TR'?1:0;
   const endcap=($('endType').value==='ENDCAP'?1:0);
-  return {module:m,totalLen:total,straightLen,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
+  return {module:m,totalLen:total,straightLen,parts:map,joints:{total:connectionLayout().length,mod:jointsMod,corners:connectionLayout().filter(j=>j.kind==='corner').length,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
   if(!state.calc){ $('spec').style.display='none'; return; }
@@ -1121,7 +1140,7 @@ $('saveXLS').onclick=()=>{
     <tr><td>Соединители (всего)</td><td>${sp.joints.total}</td></tr>
     <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
   </table>`;
-  html+=`<h3>Сегменты по длинам</h3><table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
+  html+=`<h3>Прямые детали по заказным длинам</h3><table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
   [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
   html+=`</table>`;
   html+=`<h2>Калькуляция</h2><table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
@@ -1207,7 +1226,7 @@ $('savePDF').onclick=()=>{
         <tr><td>Соединители</td><td>${sp.joints.total}</td></tr>
         <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
       </table>
-      <h3>Сегменты по длинам</h3>
+      <h3>Прямые детали по заказным длинам</h3>
       <table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
     const sp2=computeSpec();
     [...sp2.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });

@@ -77,3 +77,17 @@ check('exact module and impossible short spans never create phantom joints',()=>
  run("state.segs=[{dir:'+Z',len:100},{dir:'+X',len:100}]");assert.equal(run('straightLayout(0).length'),0);assert.equal(run('straightLayout(1).parts.length'),0);
 });
 console.log(`${count} targeted checks passed`);
+check('all drawn connections match BOM including corners and equipment',()=>{
+ run("$('startType').value='TR';$('endType').value='NKU';state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1000}]");
+ assert.equal(run('connectionLayout().length'),8);assert.equal(run('computeSpec().joints.total'),8);assert.equal(run("connectionLayout().filter(j=>j.kind==='corner').length"),6);
+ run('state.segs=[]');assert.equal(run('computeSpec().joints.total'),0);
+});
+check('catalogue rating and orientation matrix preserves layout invariants',()=>{
+ for(const mat of ['AL','CU'])for(const orientation of ['FLAT','EDGE'])for(const rating of [400,500,630,800,1000,1250,1600,2000,2500,3200,4000,5000,6300])for(const sign of ['+','-']){
+ run(`$('mat').value='${mat}';$('orientation').value='${orientation}';$('rating').value='${rating}';state.module=3000;state.segs=[{dir:'${sign}Z',len:1500},{dir:'${sign}X',len:6500},{dir:'${sign}Y',len:6500}]`);
+ const sp=run('computeSpec()');assert.equal(sp.joints.total,run('connectionLayout().length'));
+ assert.equal([...sp.parts].reduce((sum,[length,qty])=>sum+length*qty,0),sp.straightLen);
+ for(let i=0;i<3;i++){const layout=run(`straightLayout(${i})`);assert.ok(layout.parts.every(n=>n>0&&n<=3000));assert.ok(layout.joints.every(n=>n>0&&n<layout.length));}
+ }
+});
+console.log(`${count} targeted checks passed`);
