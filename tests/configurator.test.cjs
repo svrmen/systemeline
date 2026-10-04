@@ -61,3 +61,19 @@ check('unknown prices cannot produce a zero quotation',()=>{
 check('project text is escaped in printable HTML',()=>assert.equal(run(`escapeHtml('<img src=x>"&')`),'&lt;img src=x&gt;&quot;&amp;'));
 
 console.log(`${count} targeted checks passed`);
+check('equal spans use identical physical parts in either direction',()=>{
+ run("$('mat').value='CU';$('rating').value='4000';$('orientation').value='EDGE';state.module=3000;state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1000}]");
+ const a=run('straightLayout(1)'),b=run('straightLayout(2)');assert.equal(a.length,b.length);assert.deepEqual(Array.from(a.parts),Array.from(b.parts));assert.equal(a.joints.length,0);assert.equal(b.joints.length,0);
+ const sp=run('computeSpec()');assert.equal([...sp.parts].reduce((n,[len,qty])=>n+len*qty,0),sp.straightLen);assert.equal(sp.joints.mod,0);
+});
+check('drawn module joints exactly match specification and ignore axis sign',()=>{
+ run("state.segs=[{dir:'+X',len:6500},{dir:'+Y',len:6500}];state.module=3000");
+ assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,6000]);
+ assert.equal(run('computeSpec().joints.mod'),4);
+ run("state.segs=[{dir:'-X',len:6500},{dir:'-Y',len:6500}]");assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,6000]);
+});
+check('exact module and impossible short spans never create phantom joints',()=>{
+ run("state.segs=[{dir:'+X',len:3000}]");assert.equal(run('straightLayout(0).joints.length'),0);
+ run("state.segs=[{dir:'+Z',len:100},{dir:'+X',len:100}]");assert.equal(run('straightLayout(0).length'),0);assert.equal(run('straightLayout(1).parts.length'),0);
+});
+console.log(`${count} targeted checks passed`);

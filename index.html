@@ -457,12 +457,26 @@ function segBox(start,dir,L,bw,bh,profile={w:bh,d:bw}){
   if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
 }
 
+/* Единый раскрой прямого корпуса: размеры трассы остаются осевыми. */
+function straightLayout(index){
+  const cur=state.segs[index],prev=state.segs[index-1],next=state.segs[index+1];
+  const startCut=prev?elbowCuts(prev.dir,cur.dir).b:0;
+  const endCut=next?elbowCuts(cur.dir,next.dir).a:0;
+  const length=Math.max(0,Number(cur.len)-startCut-endCut),module=Number(state.module);
+  const parts=[],joints=[];
+  if(Number.isFinite(module)&&module>0){
+    const full=Math.floor(length/module),remainder=length-full*module;
+    for(let i=0;i<full;i++)parts.push(module);
+    if(remainder>1e-7)parts.push(remainder);
+    let offset=0;for(let i=0;i<parts.length-1;i++){offset+=parts[i];joints.push(offset);}
+  }
+  return {startCut,endCut,length,parts,joints};
+}
+
 /* соединители по модулю */
 function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
-  const m=state.module|0; if(!(m>0)) return;
-  const full=Math.floor((cur.len|0)/m);
-  for(let k=1;k<=full;k++){
-    const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
+  const layout=straightLayout(state.segs.indexOf(cur));
+  for(const d of layout.joints){
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
     if(a==='Z'){ const pr=verticalProfile(state.segs.indexOf(cur),bw,P().busH); solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT'); }
     if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(52,168,83,.55)',1,'JOINT');
@@ -607,8 +621,8 @@ function drawPath(){
 
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0; const ec=next?elbowCuts(cur.dir,next.dir).a:0;
-    const startPos=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
+    const layout=straightLayout(i),sc=layout.startCut,ec=layout.endCut;
+    const startPos=adv(pos,cur.dir,sc); const Ldraw=layout.length;
 
     if(Ldraw>0){
       segBox(startPos,cur.dir,Ldraw,bw,bh,verticalProfile(i,bw,bh));
@@ -882,12 +896,12 @@ function money(x){ if(x==null)return '—'; const n=Math.round(+x||0); return n.
 function priceOf(type, mat, rating){ if(rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
-  let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
+  let lenH=0,lenUp=0,lenDown=0,straightLen=0; let pos=originTop(); const target=+$('mountStep').value||1000;
   for(let i=0;i<state.segs.length;i++){
     const s=state.segs[i], L=s.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const sc=prev?elbowCuts(prev.dir,s.dir).b:0, ec=next?elbowCuts(s.dir,next.dir).a:0; const Ldraw=Math.max(0,L-sc-ec);
+    const layout=straightLayout(i),sc=layout.startCut,ec=layout.endCut,Ldraw=layout.length;
     total+=L; if(axis(s.dir)==='Z'){ if(sgn(s.dir)>0) lenUp+=L; else lenDown+=L; } else lenH+=L;
-    if(m>0){ const full=Math.floor(L/m), rem=L%m; if(full>0) map.set(m,(map.get(m)||0)+full); if(rem>0) map.set(rem,(map.get(rem)||0)+1); const parts=full+(rem>0?1:0); jointsMod+=Math.max(0,parts-1); }
+    straightLen+=Ldraw; for(const part of layout.parts)map.set(part,(map.get(part)||0)+1); jointsMod+=layout.joints.length;
     if(axis(s.dir)!=='Z') mounts+=mountPositionsForSegment(adv(pos,s.dir,sc),s,Ldraw,sc,ec,prev,next,target).length;
     if(next && axis(s.dir)!==axis(next.dir)){ corners++; if(axis(s.dir)==='Z'||axis(next.dir)==='Z') vert++; else horiz++; }
     pos=adv(pos,s.dir,L);
@@ -895,7 +909,7 @@ function computeSpec(){
   const nku=( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 );
   const tr =( $('startType').value==='TR'?1:0 );
   const endcap=($('endType').value==='ENDCAP'?1:0);
-  return {module:m,totalLen:total,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
+  return {module:m,totalLen:total,straightLen,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
   if(!state.calc){ $('spec').style.display='none'; return; }
@@ -926,10 +940,10 @@ function computeCost(sp){
   const lines=[]; let total=0;
 
   const stPricePerM = priceOf('ST',mat,r);
-  const meters = (sp.lenHoriz + sp.lenUp + sp.lenDown)/1000;
+  const meters = (sp.straightLen??(sp.lenHoriz + sp.lenUp + sp.lenDown))/1000;
   if(meters>0){
     const sum=meters*stPricePerM;
-    lines.push({title:'Горизонтальный шинопровод (суммарный метраж)',ref:refFor('ST',r),qty:meters.toFixed(3)+' м',price:stPricePerM,sum});
+    lines.push({title:'Прямые секции (метраж без плеч поворотов)',ref:refFor('ST',r),qty:meters.toFixed(3)+' м',price:stPricePerM,sum});
     total+=sum;
   }
 
