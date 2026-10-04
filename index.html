@@ -41,7 +41,7 @@
   .anno-text{flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}.anno-edit{border:0;background:transparent;color:#365a83;cursor:pointer;padding:4px;font-size:16px}.anno:focus-visible,.anchor-dot:focus-visible{outline:2px solid #2d6cdf;outline-offset:2px}
   .anno .badge{display:inline-block;min-width:18px;height:18px;line-height:16px;padding:0 6px;border-radius:999px;background:#eef3ff;border:1px solid #bcd;font-weight:600;font-size:11px;text-align:center}
   .anno .x{position:absolute;right:-8px;top:-8px;width:18px;height:18px;border:1px solid #bbb;border-radius:999px;background:#fff;line-height:16px;text-align:center;font-size:12px;cursor:pointer;box-shadow:var(--shadow)}
-  .anchor-dot{position:absolute;box-sizing:border-box;padding:0;width:18px;height:18px;touch-action:none;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12}
+  .anchor-dot{pointer-events:auto;position:absolute;box-sizing:border-box;padding:0;width:18px;height:18px;touch-action:none;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:grab;z-index:12}
   .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
@@ -50,6 +50,16 @@
   table{width:100%;border-collapse:collapse;margin-top:6px}
   th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
   .money{font-variant-numeric:tabular-nums}
+  #costTable{max-width:1134px;margin:0 auto 24px;padding:16px;background:#fff;border:1px solid var(--border);border-radius:12px}
+  #costTable h3{margin:0 0 6px}#costTable p{color:#555;margin:0 0 12px}
+  .cost-scroll{overflow-x:auto}#costTable table{min-width:760px}
+  #costTable th,#costTable td{vertical-align:top;padding:12px}
+  #costTable th:first-child{width:40%}#costTable th:nth-child(2){width:21%}
+  #costTable td:not(:first-child),#costTable th:not(:first-child){white-space:nowrap}
+  #costTable td:nth-child(n+3),#costTable th:nth-child(n+3){text-align:right}
+  #costTable tbody tr:nth-child(even){background:#f8fafc}
+  @media(max-width:920px){#costTable{margin:0 10px 20px;padding:12px}}
+
   /* Прайс-редактор */
   #priceDlg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
   #priceCard{width:min(980px,90vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid #ddd;box-shadow:var(--shadow);padding:14px}
@@ -142,9 +152,7 @@
 
         <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость без НДС</b></div><div class="money" id="spTotalCost">—</div></div>
         <div style="margin:4px 0 2px"><button class="btn" id="toggleCost">Показать калькуляцию</button></div>
-        <div id="costTable" class="hid">
-          <table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table>
-        </div>
+
 
         <div style="margin:10px 0 2px;font-weight:600">Прямые детали по заказным длинам</div>
         <table id="spTable"><thead><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr></thead><tbody></tbody></table>
@@ -230,6 +238,9 @@
   </div>
 </div>
 
+        <div id="costTable" class="hid" aria-label="Калькуляция">
+          <h3>Калькуляция без НДС</h3><p>Цена и сумма приведены в рублях. Отсутствующая цена не считается нулевой. На узком экране прокрутите таблицу вправо.</p><div class="cost-scroll"><table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table></div>
+        </div>
 <!-- Прайс-редактор -->
 <div id="priceDlg">
   <div id="priceCard">
@@ -863,6 +874,7 @@ function draw(){
 }
 function updateGeometryStatus(){
   const warnings=[];
+  if(state.segs.length){warnings.push('Подключения FE/FET показаны условно: пластина на оборудовании не является монтажным чертежом.');if($('startType').value==='TR')warnings.push('FET: длина и расположение контактов по заказу — требуется чертёж выводов трансформатора.');}
   if(+$('rating').value===1200) warnings.push('1200 А отсутствует в таблицах каталога: габариты и артикулы не подтверждены.');
   for(let i=0;i<state.segs.length;i++){
     const s=state.segs[i],prev=state.segs[i-1],next=state.segs[i+1];
@@ -949,7 +961,7 @@ function computeSpec(){
   return {module:m,totalLen:total,straightLen,parts:map,joints:{total:connectionLayout().length,mod:jointsMod,corners:connectionLayout().filter(j=>j.kind==='corner').length,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
-  if(!state.calc){ $('spec').style.display='none'; return; }
+  if(!state.calc){ $('spec').style.display='none';$('costTable').classList.add('hid');$('toggleCost').textContent='Показать калькуляцию'; return; }
   const sp=computeSpec(); $('spec').style.display='block';
   $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
   $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
@@ -969,7 +981,7 @@ function renderSpec(){
     cb.appendChild(tr);
   });
 }
-$('toggleCost').onclick=()=>$('costTable').classList.toggle('hid');
+$('toggleCost').onclick=()=>{const open=$('costTable').classList.toggle('hid')===false;$('toggleCost').textContent=open?'Скрыть калькуляцию':'Показать калькуляцию';if(open)$('costTable').scrollIntoView({behavior:'smooth',block:'start'});};
 
 /* ===== КАЛЬКУЛЯЦИЯ ===== */
 function computeCost(sp){
