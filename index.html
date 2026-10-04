@@ -8,7 +8,8 @@
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
   header{max-width:1160px;margin:12px auto 8px;padding:0 16px}
-  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:16px}
+  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px}
+  input,textarea,select{box-sizing:border-box}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:760px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:10px 0}
   .row-3{display:grid;grid-template-columns:repeat(3,minmax(56px,1fr));gap:8px;margin:6px 0}
@@ -16,7 +17,8 @@
   input[type=number],input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   textarea{min-height:84px;resize:vertical}
   .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
-  .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  .viewer{position:relative;min-width:0;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  @media(max-width:920px){.wrap{grid-template-columns:minmax(0,1fr);padding:0 10px}.viewer{order:-1;height:680px}.panel{min-height:0;min-width:0}.row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.viewbtn{padding:5px 7px;font-size:12px}}
   .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
@@ -26,7 +28,7 @@
   #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
   .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
   .warn{color:#c43;font-size:12px}
-  .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
+  .dim{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;background:#fff;color:#17212b;border:1px solid #9ba8b5;border-radius:6px;padding:5px 10px;font:600 13px/18px system-ui;white-space:nowrap;box-shadow:var(--shadow);cursor:grab;user-select:none;touch-action:none;z-index:10}
   .dim.dragging{cursor:grabbing;opacity:.96}
   #dimLayer,#annoLayer{position:absolute;inset:0;pointer-events:none;z-index:9}
   .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
@@ -68,6 +70,7 @@
       </div>
       <div class="row"><label>Номинальный ток, A</label><select id="rating"></select></div>
       <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
+      <div id="geometryStatus" class="warn" role="status"></div>
 
       <div class="row"><label>Начало трассы</label>
         <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option></select>
@@ -242,9 +245,11 @@
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
 const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
 const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
-const WIDTH_CU={400:82,500:82,630:82,800:82,1000:120,1200:120,1250:120,1600:160,2000:220,2500:290,3200:360,4000:570,5000:570,6300:570};
+const WIDTH_CU={400:82,500:82,630:82,800:82,1000:100,1200:120,1250:120,1600:160,2000:200,2500:290,3200:360,4000:470,5000:570,6300:570};
 const VERT_ELBOW={a:320,b:320};
-const H_ELBOW_BY_R={400:[260,260],500:[260,260],630:[260,260],800:[260,260],1000:[270,270],1200:[290,290],1250:[290,290],1600:[310,310],2000:[220,220],2500:[370,370],3200:[410,410],4000:[460,450],5000:[500,500],6300:[500,500]};
+// Catalogue pp.27/44: LF bends in the 118-mm plane; LE in the W plane.
+const LF_MIN_AL={400:260,500:260,630:260,800:260,1000:270,1250:290,1600:310,2000:330,2500:370,3200:410,4000:460,5000:500};
+const LF_MIN_CU={400:260,500:260,630:260,800:260,1000:270,1250:280,1600:300,2000:320,2500:360,3200:400,4000:450,5000:500,6300:500};
 const BUS_H=118, MIN_LEN=400;
 const JOINT_LEN=100;
 const MOUNT_ALONG=10, MOUNT_THICK=10;
@@ -397,7 +402,17 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
   for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
 }
-function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
+function elbowCuts(d1,d2){
+  const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0};
+  if(a1!=='Z' && a2!=='Z') return {...VERT_ELBOW};
+  const table=$('mat').value==='CU'?LF_MIN_CU:LF_MIN_AL;
+  const r=+$('rating').value, length=table[r] || table[1250];
+  return {a:length,b:length};
+}
+function verticalProfile(i,bw,bh){
+  const adjacent=[state.segs[i-1],state.segs[i+1]].find(s=>s && axis(s.dir)!=='Z');
+  return adjacent && axis(adjacent.dir)==='Y' ? {w:bw,d:bh} : {w:bh,d:bw};
+}
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
   const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
@@ -406,9 +421,9 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
 }
-function segBox(start,dir,L,bw,bh){
+function segBox(start,dir,L,bw,bh,profile={w:bh,d:bw}){
   const s=sgn(dir), a=axis(dir);
-  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
+  if(a==='Z'){ const x=start[0]-profile.w/2, y=start[1]-profile.d/2, z=s>0?start[2]:start[2]-L; box(x,y,z,profile.w,profile.d,L,'BUS'); }
   if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
   if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
 }
@@ -420,7 +435,7 @@ function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
   for(let k=1;k<=full;k++){
     const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Z'){ const pr=verticalProfile(state.segs.indexOf(cur),bw,BUS_H); solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT'); }
     if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
     if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
   }
@@ -475,7 +490,7 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,BUS_H); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
   if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
   if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
 }
@@ -522,6 +537,22 @@ function drawFloorZeroLine(){
 /* размеры */
 function getDimOffset(key){ return state.dimOffsets[viewMode][key]||{dx:0,dy:0}; }
 function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; saveState(); }
+let dimensionBoxes=[];
+function dimensionPosition(key,base,text){
+  const off=getDimOffset(key), size=measureBubble(ctx,text);
+  let x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const automatic=!(key in state.dimOffsets[viewMode]);
+  if(automatic){
+    y-=24;
+    for(let attempt=0;attempt<12;attempt++){
+      if(!dimensionBoxes.some(b=>Math.abs(x-b.x)<(size.w+b.w)/2+8 && Math.abs(y-b.y)<(size.h+b.h)/2+6)) break;
+      y+=size.h+8;
+    }
+  }
+  x=Math.max(size.w/2+6,Math.min(wrap.clientWidth-size.w/2-6,x));
+  y=Math.max(size.h/2+48,Math.min(wrap.clientHeight-size.h/2-48,y));
+  dimensionBoxes.push({x,y,...size}); return {x,y};
+}
 function renderDeltaH(){
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
   if($('endType').value!=='NKU') return;
@@ -530,7 +561,8 @@ function renderDeltaH(){
   const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
   const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
   const base=localToScreen(mid.u,mid.v);
-  const off=getDimOffset('__deltaH'); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const placed=dimensionPosition('__deltaH',base,`ΔH = ${delta} мм`); const x=placed.x,y=placed.y;
+  const off={dx:x-base.x,dy:y-base.y};
   const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px';
   let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
   el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
@@ -542,7 +574,7 @@ function renderDeltaH(){
 /* трасса + размеры */
 function drawPath(){
   const prm=P(), bw=prm.busW, bh=prm.busH;
-  let pos=originTop(); dimLayer.innerHTML='';
+  let pos=originTop(); dimLayer.innerHTML=''; dimensionBoxes=[];
 
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
@@ -550,14 +582,15 @@ function drawPath(){
     const startPos=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
 
     if(Ldraw>0){
-      segBox(startPos,cur.dir,Ldraw,bw,bh);
+      segBox(startPos,cur.dir,Ldraw,bw,bh,verticalProfile(i,bw,bh));
       if(state.calc){
         drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
       const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
-      const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+      const key=i; const placed=dimensionPosition(key,base,label); const x=placed.x,y=placed.y;
+      const off={dx:x-base.x,dy:y-base.y};
       if(state.calc){
         const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
         let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
@@ -762,7 +795,18 @@ function draw(){
   drawEndCap(P().busW);
   drawFloorZeroLine(); 
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
-  renderAnnos(); updatePopups();
+  renderAnnos(); updatePopups(); updateGeometryStatus();
+}
+function updateGeometryStatus(){
+  const warnings=[];
+  if(+$('rating').value===1200) warnings.push('1200 А отсутствует в таблицах каталога: габариты и артикулы не подтверждены.');
+  for(let i=0;i<state.segs.length;i++){
+    const s=state.segs[i],prev=state.segs[i-1],next=state.segs[i+1];
+    const cuts=(prev?elbowCuts(prev.dir,s.dir).b:0)+(next?elbowCuts(s.dir,next.dir).a:0);
+    if(s.len<cuts) warnings.push(`Участок ${i+1}: длины недостаточно для плеч углов (${cuts} мм).`);
+    if(axis(s.dir)==='Z' && prev && next && axis(prev.dir)!=='Z' && axis(next.dir)!=='Z' && axis(prev.dir)!==axis(next.dir)) warnings.push(`Участок ${i+1}: требуется секция изменения ориентации; обычных углов недостаточно.`);
+  }
+  $('geometryStatus').textContent=warnings.join(' ');
 }
 function boundsProjected(){
   const p=P(); const pts=[[0,0,0],[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
@@ -792,21 +836,27 @@ function ipSuffix(){ return 'M'+$('ip').value.replace('IP',''); }
 function refBase(){ return ($('mat').value==='CU'?'DDW4':'BDW4'); }
 function heStep(r){ if(r<=800) return 1; if(r<=1000) return 2; if(r<=1250) return 3; if(r<=1600) return 4; if(r<=2000) return 5; if(r<=2500) return 6; if(r<=3200) return 7; if(r<=4000) return 8; return 9; }
 function refFor(type, rating){
+  if(rating===1200) return 'Уточнить номинал 1200 А';
   const base=refBase();
-  if(type==='EC'){ const step=heStep(rating); return `${base}50${step}EC${ipSuffix()}`; }
-  if(type==='HE'){ const step=heStep(rating); return `${base}50${step}HE`; }
+  if(type==='EC'){
+    const cuCodes={400:'501',500:'511',630:'509',800:'510',1000:'502',1250:'503',1600:'504',2000:'505',2500:'506',3200:'507',4000:'508',5000:'512',6300:'513'};
+    const code=$('mat').value==='CU'?cuCodes[rating]:'50'+heStep(rating);
+    return `${$('mat').value==='CU'?'DDW':'BDW'}${code}EC${ipSuffix()}`;
+  }
+  if(type==='HE' || type==='HF'){ const step=heStep(rating); return `${$('mat').value==='CU'?'DDW':'BDW'}50${step}${type}`; }
   const code=RATE_CODE[rating]||'04';
-  const tmap={ST:'GM55',EL:'GELM55',JPK:'GJPKM55',FE:'GFEM55',FET:'GFETM55',GETB:'GETBM55'};
-  return `${base}5${code}${tmap[type]||'GM55'}`;
+  const ip=$('ip').value.replace('IP','');
+  const tmap={ST:'GM'+ip,EL:'GELM'+ip,JPK:'GJPKM'+ip,FE:'GFEM'+ip,FET:'GFETM'+ip,GETB:'GETBM'+ip};
+  return `${base}5${code}${tmap[type]||'GM'+ip}`;
 }
 
 /* ===== ЦЕНЫ (как раньше) ===== */
-function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}}; }
+function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}}; }
 let PRICE = loadPrice() || emptyPrice();
 function loadPrice(){ try{ const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
 function savePrice(){ localStorage.setItem(STORAGE_PRICE,JSON.stringify(PRICE)); }
 function money(x){ const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
-function priceOf(type, mat, rating){ const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE'){ const key='50'+heStep(rating); return +P[key]||0; } let val=P[rating]; if(val==null && rating===1200) val=P[1250]; return +val||0; }
+function priceOf(type, mat, rating){ if(rating===1200) return 0; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return +P[key]||0; } return +P[rating]||0; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
   let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
@@ -872,7 +922,7 @@ function computeCost(sp){
 
   if(sp.endCap){ const p=priceOf('EC',mat,r), ref=refFor('EC',r), sum=p; lines.push({title:'Концевая заглушка',ref,qty:1,price:p,sum}); total+=sum; }
 
-  if(($('mountOn').value==='1') && sp.mounts>0){ const p=priceOf('HE',mat,r), ref=refFor('HE',r), sum=p*sp.mounts; lines.push({title:'Горизонтальный крепёж (HE)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
+  if(($('mountOn').value==='1') && sp.mounts>0){ const p=priceOf('HF',mat,r), ref=refFor('HF',r), sum=p*sp.mounts; lines.push({title:'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
 
   return {total,lines};
 }
@@ -892,7 +942,7 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arc(x+rr, y+rr, rr, Math.PI, -Math.PI/2);
   ctx.closePath();
 }
-function measureBubble(ctx2,text){ ctx2.save(); ctx2.font='12px system-ui'; const w=Math.max(64,ctx2.measureText(text).width+18), h=24; ctx2.restore(); return {w,h}; }
+function measureBubble(ctx2,text){ ctx2.save(); ctx2.font='600 13px system-ui'; const w=Math.max(64,ctx2.measureText(text).width+20), h=28; ctx2.restore(); return {w,h}; }
 function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр коробки
   const m=measureBubble(ctx2,text);
   const rx=cx-m.w/2, ry=cy-m.h/2;
@@ -908,15 +958,16 @@ function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр кор�
   }
 
   ctx2.fillStyle='#fff'; ctx2.strokeStyle='rgba(0,0,0,.25)'; ctx2.lineWidth=1;
-  roundRect(ctx2, rx, ry, m.w, m.h, 12);
+  roundRect(ctx2, rx, ry, m.w, m.h, 6);
   ctx2.fill(); ctx2.stroke();
 
-  ctx2.fillStyle='#111'; ctx2.font='12px system-ui'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+  ctx2.fillStyle='#17212b'; ctx2.font='600 13px system-ui'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
   ctx2.fillText(text, cx, cy);
   ctx2.restore();
 }
 function drawOverlayToCanvas(ctx2){
   ensureAnnoNumbers();
+  dimensionBoxes=[];
 
   if(state.calc){
     let pos=originTop();
@@ -927,9 +978,9 @@ function drawOverlayToCanvas(ctx2){
       if(Ldraw>0){
         const mid=adv(start,cur.dir,Ldraw/2);
         const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-        const off=getDimOffset(i);
-        const cx=base.x+(off.dx||0), cy=base.y+(off.dy||0);
-        drawLabel(ctx2, cx, cy, (axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм');
+        const text=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
+        const placed=dimensionPosition(i,base,text);
+        drawLabel(ctx2, placed.x, placed.y, text);
       }
       pos=adv(pos,cur.dir,L);
     }
@@ -938,7 +989,7 @@ function drawOverlayToCanvas(ctx2){
       const delta=Math.abs(eBase-sBase)|0;
       const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
       const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base=localToScreen(mid.u,mid.v);
-      const off=getDimOffset('__deltaH'); drawLabel(ctx2, base.x+(off.dx||0), base.y+(off.dy||0), `ΔH = ${delta} мм`);
+      const text=`ΔH = ${delta} мм`, placed=dimensionPosition('__deltaH',base,text); drawLabel(ctx2, placed.x, placed.y, text);
     }
   }
   // выноски
@@ -953,8 +1004,9 @@ function drawOverlayToCanvas(ctx2){
 function captureWithOverlay(){
   const prev=state.drawAnnoLines; state.drawAnnoLines=false; draw();
   const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const c2=off.getContext('2d');
+  c2.fillStyle='#fff'; c2.fillRect(0,0,off.width,off.height);
   c2.drawImage(cvs,0,0);
-  drawOverlayToCanvas(c2);
+  c2.save(); c2.setTransform(DPR,0,0,DPR,0,0); drawOverlayToCanvas(c2); c2.restore();
   state.drawAnnoLines=prev; draw();
   return off;
 }
