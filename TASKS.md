@@ -1,6 +1,7 @@
 # TASKS
 
 ## DONE
+- UI/EDGE: навигация, поле длины, удаление нижнего примера, global положение на ребро;12 checks PASS, browser PASS.
 Габариты и подписи: 9 проверок и визуальная проверка PASS; draft PR #4.
 
 ## QUEUED

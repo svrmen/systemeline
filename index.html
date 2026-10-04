@@ -17,7 +17,8 @@
   input[type=number],input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   textarea{min-height:84px;resize:vertical}
   .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
-  .viewer{position:relative;min-width:0;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  .viewer{position:relative;min-width:0;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden;touch-action:none;overscroll-behavior:contain}
+  @media(min-width:921px){.viewer{position:sticky;top:12px;height:min(760px,calc(100dvh - 24px))}}
   @media(max-width:920px){.wrap{grid-template-columns:minmax(0,1fr);padding:0 10px}.viewer{order:-1;height:680px}.panel{min-height:0;min-width:0}.row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.viewbtn{padding:5px 7px;font-size:12px}}
   .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
@@ -27,6 +28,10 @@
   #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
   #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
   .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
+  #lenPopup,#editPopup{box-sizing:border-box;transform:none;width:min(330px,calc(100% - 24px));padding:12px}
+  #lenPopup .row,#editPopup .row{grid-template-columns:minmax(0,1fr)!important;margin:0;gap:10px}
+  #lenPopup input,#editPopup input{min-width:0;font-size:16px;height:44px}
+  #lenPopup .row>div,#editPopup .row>div{display:flex;gap:8px}
   .warn{color:#c43;font-size:12px}
   .dim{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;background:#fff;color:#17212b;border:1px solid #9ba8b5;border-radius:6px;padding:5px 10px;font:600 13px/18px system-ui;white-space:nowrap;box-shadow:var(--shadow);cursor:grab;user-select:none;touch-action:none;z-index:10}
   .dim.dragging{cursor:grabbing;opacity:.96}
@@ -70,6 +75,7 @@
       </div>
       <div class="row"><label>Номинальный ток, A</label><select id="rating"></select></div>
       <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
+      <div class="row"><label for="orientation">Положение шинопровода</label><select id="orientation"><option value="FLAT">На плоскость</option><option value="EDGE">На ребро</option></select></div>
       <div id="geometryStatus" class="warn" role="status"></div>
 
       <div class="row"><label>Начало трассы</label>
@@ -188,7 +194,8 @@
     <!-- ввод длины нового участка -->
     <div id="lenPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr 1fr">
-        <input id="lenInput" type="number" min="1" step="100" placeholder="длина, мм (≥400)">
+        <label for="lenInput">Длина нового участка, мм</label>
+        <input id="lenInput" type="number" min="1" step="10" placeholder="длина, мм (≥400)">
         <div><button class="btn" id="ok">OK</button> <button class="btn" id="cancel">Отмена</button></div>
       </div>
       <div class="warn" id="hint" style="margin-top:6px"></div>
@@ -197,7 +204,8 @@
     <!-- правка длины -->
     <div id="editPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr 1fr">
-        <input id="editInput" type="number" min="1" step="100" placeholder="новая длина, мм (≥400)">
+        <label for="editInput">Длина участка, мм</label>
+        <input id="editInput" type="number" min="1" step="10" placeholder="новая длина, мм (≥400)">
         <div><button class="btn" id="editOk">OK</button> <button class="btn" id="editCancel">Отмена</button></div>
       </div>
     </div>
@@ -293,23 +301,40 @@ function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.f
 addEventListener('resize',resize);
 
 /* panning/zoom */
-let dragging=false, sx=0, sy=0;
+let dragging=false, sx=0, sy=0, pointerMoved=false, dragDistance=0;
+function constrainView(){
+  const ext=boundsProjected(), margin=80;
+  const cx=(ext.minX+ext.maxX)/2,cy=(ext.minY+ext.maxY)/2;
+  panX=Math.max(margin-scale*cx,Math.min(wrap.clientWidth-margin-scale*cx,panX));
+  panY=Math.max(margin-scale*cy,Math.min(wrap.clientHeight-margin-scale*cy,panY));
+}
+function zoomAt(mx,my,delta){
+  const ext=boundsProjected();
+  const fitted=Math.min((wrap.clientWidth-120)/Math.max(ext.maxX-ext.minX,900),(wrap.clientHeight-120)/Math.max(ext.maxY-ext.minY,640));
+  const next=Math.max(fitted*.25,Math.min(fitted*12,scale*Math.exp(-Math.max(-160,Math.min(160,delta))*.001)));
+  const zx=(mx-panX)/scale,zy=(my-panY)/scale;
+  scale=next;panX=mx-zx*scale;panY=my-zy*scale;constrainView();
+}
 wrap.addEventListener('pointerdown',e=>{
+  if(e.button!==0 || state.addAnno) return;
   if(e.target.closest('#gizmo,.viewbar-top,.viewbar-bottom,.prompt,.anno,.dim,.anchor-dot')) return;
+  pointerMoved=false;dragDistance=0;
   dragging=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
 });
 wrap.addEventListener('pointermove',e=>{
   if(!dragging) return;
-  panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
+  const dx=e.clientX-sx,dy=e.clientY-sy;dragDistance+=Math.hypot(dx,dy);pointerMoved=dragDistance>4;
+  panX+=dx; panY+=dy; sx=e.clientX; sy=e.clientY; constrainView();draw();
 });
 wrap.addEventListener('pointerup',()=>dragging=false);
+wrap.addEventListener('pointercancel',()=>dragging=false);
+wrap.addEventListener('lostpointercapture',()=>dragging=false);
 wrap.addEventListener('wheel',e=>{
-  e.preventDefault();
-  const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect();
+  e.preventDefault();e.stopPropagation();
+  if(e.target.closest('.prompt,input,select,textarea')) return;
+  const r=wrap.getBoundingClientRect();
   const mx=e.clientX-r.left, my=e.clientY-r.top;
-  const zx=(mx-panX)/scale, zy=(my-panY)/scale;
-  scale*=k; panX=mx-zx*scale; panY=my-zy*scale;
-  draw(); updatePopups();
+  zoomAt(mx,my,e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?wrap.clientHeight:1));draw();
 },{passive:false});
 function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
 function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
@@ -335,12 +360,14 @@ const state={
   drawAnnoLines:true
 };
 function P(){
+  const width=($('mat').value==='CU'?WIDTH_CU:WIDTH_AL)[+$('rating').value]||78;
+  const edge=$('orientation').value==='EDGE';
   return {
     startType:$('startType').value, endType:$('endType').value,
     startW:+$('startW').value, startD:+$('startD').value, startH:+$('startH').value,
     endW:+$('endW').value, endD:+$('endD').value, endH:+$('endH').value,
-    busW:( $('mat').value==='CU'?WIDTH_CU:WIDTH_AL )[+$('rating').value]||78,
-    busH:BUS_H
+    busW:edge?BUS_H:width,
+    busH:edge?width:BUS_H
   };
 }
 function originTop(){ const p=P(); return [p.startW/2,p.startD/2,p.startH]; }
@@ -404,7 +431,8 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
 }
 function elbowCuts(d1,d2){
   const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0};
-  if(a1!=='Z' && a2!=='Z') return {...VERT_ELBOW};
+  const vertical=a1==='Z'||a2==='Z',edge=$('orientation').value==='EDGE';
+  if(vertical===edge) return {...VERT_ELBOW};
   const table=$('mat').value==='CU'?LF_MIN_CU:LF_MIN_AL;
   const r=+$('rating').value, length=table[r] || table[1250];
   return {a:length,b:length};
@@ -435,9 +463,9 @@ function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
   for(let k=1;k<=full;k++){
     const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
     const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z'){ const pr=verticalProfile(state.segs.indexOf(cur),bw,BUS_H); solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT'); }
-    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Z'){ const pr=verticalProfile(state.segs.indexOf(cur),bw,P().busH); solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT'); }
+    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(52,168,83,.55)',1,'JOINT');
+    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-P().busH/2,bw,JOINT_LEN,P().busH,'rgba(52,168,83,.55)',1,'JOINT');
   }
 }
 
@@ -476,10 +504,10 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
   for(const d of arr){
     const C=adv(startPos,cur.dir,d);
     if(axis(cur.dir)==='X'){
-      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-P().busH/2-MOUNT_THICK;
       solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
     }else if(axis(cur.dir)==='Y'){
-      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-P().busH/2-MOUNT_THICK;
       solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
     }
   }
@@ -490,9 +518,9 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,BUS_H); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
-  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
-  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,P().busH); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
+  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-P().busH/2,bw,JOINT_LEN,P().busH,'rgba(220,0,0,.55)',1,'ENDCAP');
 }
 
 /* ===== ПОЛ ===== */
@@ -614,7 +642,7 @@ function drawPath(){
 /* джойстик направления */
 const AXES=[{dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},{dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},{dir:'+X',label:'+X →',color:'#e4463c',vec:[1,0,0]},{dir:'-X',label:'-X ←',color:'#e4463c',vec:[-1,0,0]},{dir:'+Y',label:'+Y ↗',color:'#2d6cdf',vec:[0,1,0]},{dir:'-Y',label:'-Y ↙',color:'#2d6cdf',vec:[0,-1,0]}];
 let hit=null, rays=[];
-function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); giz.style.left=s.x+'px'; giz.style.top=s.y+'px'; tag.style.left=s.x+'px'; tag.style.top=s.y+'px'; pop.style.left=s.x+'px'; pop.style.top=s.y+'px'; }
+function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); const cx=Math.max(112,Math.min(wrap.clientWidth-112,s.x)),cy=Math.max(184,Math.min(wrap.clientHeight-164,s.y)); giz.style.left=cx+'px'; giz.style.top=cy+'px'; tag.style.left=cx+'px'; tag.style.top=cy+'px'; }
 function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
 function angleOf(vx,vy){return Math.atan2(vy,vx)}; function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?2*Math.PI-d:d;}
 function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active=hit&&hit.dir===r.dir; drawArrow2D(r.from,r.to,r.color,active?7:4,active?1:.95,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
@@ -622,19 +650,29 @@ giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), 
 giz.addEventListener('pointerleave',()=>{ hit=null; tag.textContent='направление: —'; drawGizmo(); });
 giz.addEventListener('click',()=>{ if(viewMode!=='ISO'||!hit||state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
 
-function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>$('lenInput').focus(),0); }
+function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block';updatePopups(); setTimeout(()=>$('lenInput').focus({preventScroll:true}),0); }
 function hideLenPopup(){ pop.style.display='none'; }
 $('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
 lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
-function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); saveState(); }
+function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); fit(); saveState(); }
 
-function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
+function openEdit(i){ state.editingIdx=i; $('editInput').value=state.segs[i].len|0; epop.style.display='block';updatePopups();setTimeout(()=>$('editInput').focus({preventScroll:true}),0); }
 $('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
 editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')epop.style.display='none'; });
 function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); saveState(); }
-function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
+function placeLengthPopup(el,p){
+  const w=el.offsetWidth||Math.min(330,wrap.clientWidth-24),h=el.offsetHeight||150;
+  const x=Math.max(12,Math.min(wrap.clientWidth-w-12,p.x-w/2));
+  const y=Math.max(84,Math.min(wrap.clientHeight-h-100,p.y+20));
+  el.style.left=x+'px';el.style.top=y+'px';
+}
+function updatePopups(){
+  if(epop.style.display==='block' && state.editingIdx!=null) placeLengthPopup(epop,segMid(state.editingIdx,true));
+  if(pop.style.display==='block'){const p=proj(...endPoint());placeLengthPopup(pop,localToScreen(...p));}
+}
 
 cvs.addEventListener('click',e=>{
+  if(pointerMoved){pointerMoved=false;return;}
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
   openEdit(pick.idx);
@@ -794,7 +832,7 @@ function draw(){
   drawEndCab(); 
   drawEndCap(P().busW);
   drawFloorZeroLine(); 
-  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
+  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups(); updateGeometryStatus();
 }
 function updateGeometryStatus(){
@@ -877,7 +915,7 @@ function computeSpec(){
 function renderSpec(){
   if(!state.calc){ $('spec').style.display='none'; return; }
   const sp=computeSpec(); $('spec').style.display='block';
-  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`;
+  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
   $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
   $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
   $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
@@ -922,7 +960,7 @@ function computeCost(sp){
 
   if(sp.endCap){ const p=priceOf('EC',mat,r), ref=refFor('EC',r), sum=p; lines.push({title:'Концевая заглушка',ref,qty:1,price:p,sum}); total+=sum; }
 
-  if(($('mountOn').value==='1') && sp.mounts>0){ const p=priceOf('HF',mat,r), ref=refFor('HF',r), sum=p*sp.mounts; lines.push({title:'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
+  if(($('mountOn').value==='1') && sp.mounts>0){ const kind=$('orientation').value==='EDGE'?'HE':'HF'; const p=priceOf(kind,mat,r), ref=refFor(kind,r), sum=p*sp.mounts; lines.push({title:kind==='HE'?'Горизонтальный крепёж на ребро (HE)':'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
 
   return {total,lines};
 }
@@ -1198,6 +1236,7 @@ $('saveCSV').onclick=()=>{
 /* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
 function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); if(!sel.value) sel.value=list[0]; draw(); if(state.calc) renderSpec(); saveState(); }
 $('mat').addEventListener('change',fillRatings);
+$('orientation').addEventListener('change',()=>{fit();if(state.calc)renderSpec();saveState();});
 $('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
 $('startType').addEventListener('change',()=>{
   const v=$('startType').value;
@@ -1220,7 +1259,7 @@ $('clear').onclick=()=>{
   state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
   state.annoSeq=1;
   $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
-  $('ip').value='IP55'; $('startType').value='NKU'; $('endType').value='ENDCAP';
+  $('ip').value='IP55'; $('orientation').value='FLAT'; $('startType').value='NKU'; $('endType').value='ENDCAP';
   $('startW').value=600; $('startD').value=600; $('startH').value=2200;
   $('endW').value=600; $('endD').value=600; $('endH').value=2200;
   $('endDims').classList.add('hid'); $('mountOn').value='1'; $('mountStep').value=1000; $('moduleLen').value=3000;
@@ -1236,7 +1275,7 @@ function parsePriceLine(line){ /* ... как в прошлой версии ... 
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
-function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
+function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, orientation:$('orientation').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
 function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
 function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; saveState(); }
 $('metaSave').onclick=()=>{ readMetaInputs(); msg.textContent='Данные проекта сохранены'; setTimeout(()=>msg.textContent='',1400); };
@@ -1252,7 +1291,7 @@ function loadState(){
       $('mat').value=s.ui.mat||'AL';
       fillRatings();
       $('rating').value=s.ui.rating||$('rating').value;
-      $('ip').value=s.ui.ip||'IP55';
+      $('ip').value=s.ui.ip||'IP55'; $('orientation').value=s.ui.orientation||'FLAT';
       $('startType').value=s.ui.startType||'NKU';
       $('endType').value=s.ui.endType||'ENDCAP';
       $('startW').value=s.ui.startW||600; $('startD').value=s.ui.startD||600; $('startH').value=s.ui.startH||2200;

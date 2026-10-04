@@ -6,7 +6,7 @@ const code = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const calls = [];
 const context2d = new Proxy({measureText: text => ({width:text.length*7}), setTransform:(...a)=>calls.push(a),fillRect:(...a)=>calls.push(['fill',context2d.fillStyle,...a])}, {get:(o,k)=>o[k]||(()=>{})});
 const values = {mat:'CU',rating:'2000',ip:'IP65',startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200,startType:'NKU',endType:'ENDCAP',mountOn:'1',mountStep:1000,moduleLen:3000};
-function element(id){return {value:values[id]||'',style:{},dataset:{},clientWidth:820,clientHeight:760,innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(){},getContext:()=>context2d,appendChild(){},querySelector:()=>element(),getBoundingClientRect:()=>({left:0,top:0,width:820,height:760})};}
+function element(id){return {value:values[id]||'',style:{},dataset:{},clientWidth:820,clientHeight:760,innerHTML:'',classList:{toggle(){},add(){},remove(){}},listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},getContext:()=>context2d,appendChild(){},querySelector:()=>element(),getBoundingClientRect:()=>({left:0,top:0,width:820,height:760})};}
 const elements = new Map();
 const sandbox = {document:{getElementById:id=>{if(!elements.has(id))elements.set(id,element(id));return elements.get(id);},querySelectorAll:()=>[],addEventListener(){},createElement:()=>element()},window:{devicePixelRatio:2,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){},removeItem(){}},console,addEventListener(){},setTimeout:()=>{},URL,Blob,alert(){}};
 vm.createContext(sandbox); new vm.Script(code).runInContext(sandbox);
@@ -22,5 +22,28 @@ check('dimension labels separate and stay inside viewport',()=>{run('dimensionBo
 check('unsupported nominal and missing orientation section stay explicit',()=>{run("$('rating').value='1200';state.segs=[{dir:'+X',len:3420},{dir:'+Z',len:3420},{dir:'+Y',len:3420}];updateGeometryStatus()");assert.match(run("$('geometryStatus').textContent"),/1200/);assert.match(run("$('geometryStatus').textContent"),/изменения ориентации/);run("$('rating').value='4000';state.segs=[{dir:'+Z',len:100},{dir:'+X',len:100}];updateGeometryStatus()");assert.match(run("$('geometryStatus').textContent"),/недостаточно/);});
 check('PNG/PDF overlay uses screen pixel density',()=>{run("state.segs=[];draw=()=>{};captureWithOverlay()");assert.ok(calls.some(a=>a.join(',')==='2,0,0,2,0,0'));});
 check('export background stays white outside geometry',()=>assert.ok(calls.some(a=>a[0]==='fill'&&a[1]==='#fff')));
+check('edge orientation swaps cross-section, elbows and mounting references',()=>{
+  run("$('orientation').value='EDGE';$('mat').value='CU';$('rating').value='4000'");
+  assert.equal(run('P().busW'),118);assert.equal(run('P().busH'),470);
+  assert.equal(run("elbowCuts('+Z','+X').a"),320);assert.equal(run("elbowCuts('+X','+Y').a"),450);
+  run("PRICE.CU.HE['508']=99");
+  const costs=run('computeCost({lenHoriz:0,lenUp:0,lenDown:0,vert:0,horiz:0,joints:{total:0},nkuBlocks:0,trBlocks:0,endCap:0,mounts:1})');
+  assert.equal(costs.lines[0].ref,'DDW508HE');assert.equal(costs.lines[0].price,99);
+  run("$('orientation').value='FLAT'");assert.equal(run('P().busW'),470);assert.equal(run('P().busH'),118);
+});
+check('popup stays readable and inside viewport near every edge',()=>{
+  run('placeLengthPopup(epop,{x:99999,y:99999})');const el=elements.get('editPopup');
+  assert.equal(parseFloat(el.style.left)+330,808);assert.equal(parseFloat(el.style.top)+150,660);
+  run('placeLengthPopup(epop,{x:-99999,y:-99999})');assert.equal(el.style.left,'12px');assert.equal(el.style.top,'84px');
+});
+check('zoom and pan cannot lose the model; wheel does not scroll page',()=>{
+  run("state.segs=[{dir:'+Z',len:3420},{dir:'+X',len:3420}];scale=1;panX=1e9;panY=-1e9;constrainView()");
+  assert.ok(run('panX+scale*boundsProjected().minX<=wrap.clientWidth-80'));assert.ok(run('panY+scale*boundsProjected().maxY>=80'));
+  for(let i=0;i<100;i++)run('zoomAt(400,300,100000)');const low=run('scale');
+  for(let i=0;i<100;i++)run('zoomAt(400,300,-100000)');const high=run('scale');assert.ok(low>0&&high/low<=48.001);
+  let prevented=false,stopped=false;
+  elements.get('wrap').listeners.wheel({preventDefault(){prevented=true},stopPropagation(){stopped=true},target:{closest:()=>true}});
+  assert.ok(prevented&&stopped);
+});
 console.log(`${count} targeted checks passed`);
 
