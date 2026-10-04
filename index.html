@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Шинопровод SystemeLineB</title>
+<title>Шинопровод SystemeLineB · аудит 2026-10-04</title>
 <style>
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
@@ -28,18 +28,19 @@
   #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
   #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
   .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
-  #lenPopup,#editPopup{box-sizing:border-box;transform:none;width:min(330px,calc(100% - 24px));padding:12px}
-  #lenPopup .row,#editPopup .row{grid-template-columns:minmax(0,1fr)!important;margin:0;gap:10px}
-  #lenPopup input,#editPopup input{min-width:0;font-size:16px;height:44px}
-  #lenPopup .row>div,#editPopup .row>div{display:flex;gap:8px}
+  #lenPopup,#editPopup,#annoPopup{box-sizing:border-box;transform:none;width:min(330px,calc(100% - 24px));padding:12px}
+  #lenPopup .row,#editPopup .row,#annoPopup .row{grid-template-columns:minmax(0,1fr)!important;margin:0;gap:10px}
+  #lenPopup input,#editPopup input,#annoPopup input{min-width:0;font-size:16px;height:44px}
+  #lenPopup .row>div,#editPopup .row>div,#annoPopup .row>div{display:flex;gap:8px}
   .warn{color:#c43;font-size:12px}
   .dim{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;background:#fff;color:#17212b;border:1px solid #9ba8b5;border-radius:6px;padding:5px 10px;font:600 13px/18px system-ui;white-space:nowrap;box-shadow:var(--shadow);cursor:grab;user-select:none;touch-action:none;z-index:10}
   .dim.dragging{cursor:grabbing;opacity:.96}
   #dimLayer,#annoLayer{position:absolute;inset:0;pointer-events:none;z-index:9}
-  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno{position:absolute;box-sizing:border-box;transform:translate(-50%,-50%);max-width:260px;touch-action:none;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno-text{flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}.anno-edit{border:0;background:transparent;color:#365a83;cursor:pointer;padding:4px;font-size:16px}.anno:focus-visible,.anchor-dot:focus-visible{outline:2px solid #2d6cdf;outline-offset:2px}
   .anno .badge{display:inline-block;min-width:18px;height:18px;line-height:16px;padding:0 6px;border-radius:999px;background:#eef3ff;border:1px solid #bcd;font-weight:600;font-size:11px;text-align:center}
   .anno .x{position:absolute;right:-8px;top:-8px;width:18px;height:18px;border:1px solid #bbb;border-radius:999px;background:#fff;line-height:16px;text-align:center;font-size:12px;cursor:pointer;box-shadow:var(--shadow)}
-  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12}
+  .anchor-dot{position:absolute;box-sizing:border-box;padding:0;width:18px;height:18px;touch-action:none;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12}
   .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
@@ -59,7 +60,7 @@
 </style>
 </head>
 <body>
-<header><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-04 · выноски и восстановление проекта</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
@@ -119,7 +120,7 @@
       <div id="msg" class="warn"></div>
 
       <div id="spec" style="display:none">
-        <h3>Спецификация</h3>
+        <h3>Предварительная спецификация</h3><p class="warn">Разбиение прямых секций и комплектность требуют проверки. Стоимость без тарифа не определена.</p>
         <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
         <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
         <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
@@ -213,7 +214,7 @@
     <!-- ввод/правка текста выноски -->
     <div id="annoPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr auto">
-        <input id="annoInput" type="text" placeholder="текст выноски">
+        <input id="annoInput" aria-label="Текст выноски" type="text" placeholder="текст выноски">
         <div style="display:flex;gap:6px">
           <button class="btn" id="annoOk">OK</button>
           <button class="btn" id="annoDel">Удалить</button>
@@ -672,7 +673,7 @@ function updatePopups(){
 }
 
 cvs.addEventListener('click',e=>{
-  if(pointerMoved){pointerMoved=false;return;}
+  if(pointerMoved){pointerMoved=false;return;} if(apop.style.display==='block'||state.addAnno)return;
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
   openEdit(pick.idx);
@@ -704,122 +705,106 @@ function segMid(i,withCuts){
   return {x:panX,y:panY};
 }
 
-/* ===== ВЫНОСКИ ===== */
+/* ===== ВЫНОСКИ: обычное перетаскивание, позиции отдельно для каждого вида ===== */
 let annoId=1;
-function newPos(){ return {ax:0,ay:0,bx:0,by:0}; }
-function ensurePos(anno,view){ if(!anno.pos[view]){ const src=anno.pos[viewMode]||anno.pos.ISO||newPos(); anno.pos[view]={...src}; } return anno.pos[view]; }
-
-/* авто-нумерация/ремонт старых данных */
+function newPos(){return {ax:0,ay:0,bx:0,by:0};}
+function ensurePos(a,view){return a.pos[view] || null;}
 function ensureAnnoNumbers(){
-  let k=1;
-  for(const a of state.annos){
-    if(typeof a.num!=='number' || !(a.num>0)){ a.num=k; }
-    k++;
-  }
-  state.annoSeq=k;
+  const ids=new Set();let next=Math.max(0,...state.annos.map(a=>Number(a.id)||0))+1;
+  state.annos.forEach((a,i)=>{
+    if(!Number.isSafeInteger(a.id)||a.id<1||ids.has(a.id)) a.id=next++;
+    ids.add(a.id);a.num=i+1;a.pos=a.pos||{};
+    for(const [view,p] of Object.entries(a.pos)){
+      if(!p || !['ax','ay','bx','by'].every(k=>Number.isFinite(p[k]))) delete a.pos[view];
+      else if(p.ax===0&&p.ay===0&&p.bx===0&&p.by===0) delete a.pos[view];
+    }
+  });annoId=Math.max(0,...ids)+1;state.annoSeq=state.annos.length+1;
 }
-
-$('addAnno').addEventListener('click',()=>{ state.addAnno=true; msg.textContent='Кликни место якоря выноски'; setTimeout(()=>msg.textContent='',1500); });
+function annotationLayout(a,view=viewMode){
+  const p=ensurePos(a,view);if(!p)return null;
+  const anchor=localToScreen(p.ax,p.ay),center=localToScreen(p.bx,p.by);
+  const w=Math.min(Math.max(130,a.text.length*7+64),Math.min(260,wrap.clientWidth-24));
+  const lines=Math.max(1,Math.ceil(a.text.length/Math.max(8,(w-58)/7))),h=lines*18+20;
+  const x=Math.max(w/2+12,Math.min(wrap.clientWidth-w/2-12,center.x));
+  const y=Math.max(90+h/2,Math.min(wrap.clientHeight-100-h/2,center.y));
+  return {anchor,x,y,w,h};
+}
+function openAnnoEditor(a,point){
+  ainput.value=a?a.text:'';apop.dataset.mode=a?'edit':'create';apop.dataset.id=a?a.id:'';
+  $('annoDel').style.display=a?'':'none';apop.style.display='block';placeLengthPopup(apop,point);
+  setTimeout(()=>ainput.focus({preventScroll:true}),0);
+}
+$('addAnno').addEventListener('click',()=>{
+  state.addAnno=true;wrap.style.cursor='crosshair';msg.textContent='Выберите точку на рисунке. Затем введите текст.';
+});
 wrap.addEventListener('pointerdown',e=>{
-  if(!state.addAnno) return;
-  const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy);
-  apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; apop.style.display='block';
-  ainput.value=''; apop.dataset.mode='create'; apop.dataset.id='';
-  apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
+  if(!state.addAnno || e.target.closest('.viewbar-top,.viewbar-bottom,.prompt,#gizmo,.anno,.anchor-dot'))return;
+  e.preventDefault();const p=screenToLocal(e),scr=localToScreen(p.x,p.y);
+  apop.dataset.ux=p.x;apop.dataset.uy=p.y;apop.dataset.view=viewMode;
+  state.addAnno=false;wrap.style.cursor='';msg.textContent='';openAnnoEditor(null,scr);
 });
 $('annoOk').onclick=()=>{
-  const mode=apop.dataset.mode||'create';
-  if(mode==='create'){
-    const text=(ainput.value.trim()||'Примечание');
-    const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view;
-    const bx=ux+60/scale, by=uy-20/scale; const id=annoId++;
-    const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()};
-    base[vw]={ax:ux,ay:uy,bx,by};
-    const num=state.annoSeq++;
-    state.annos.push({id,num,text,pos:base,movingBox:false,movingAnchor:false});
-  }else{
-    const id=+apop.dataset.id; const a=state.annos.find(x=>x.id===id); if(a) a.text=(ainput.value.trim()||'Примечание');
-  }
-  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
+  const text=ainput.value.trim();if(!text){ainput.focus({preventScroll:true});return;}
+  if(apop.dataset.mode==='create'){
+    const x=+apop.dataset.ux,y=+apop.dataset.uy,view=apop.dataset.view;ensureAnnoNumbers();
+    state.annos.push({id:annoId++,num:state.annos.length+1,text,pos:{[view]:{ax:x,ay:y,bx:x+120/scale,by:y-45/scale}}});
+  }else{const a=state.annos.find(x=>x.id===+apop.dataset.id);if(a)a.text=text;}
+  apop.style.display='none';draw();saveState();
 };
-$('annoCancel').onclick=()=>apop.style.display='none';
-$('annoDel').onclick=()=>{
-  const id=+apop.dataset.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); }
-  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
-};
-
-function renderAnnos(){
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
-  ensureAnnoNumbers();
-  state.annos.forEach(a=>{
-    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
-    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=a.id;
-    const box=document.createElement('div'); box.className='anno'; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=a.id;
-    const badge=document.createElement('span'); badge.className='badge'; badge.textContent='A'+a.num;
-    box.appendChild(badge); box.appendChild(document.createTextNode(' '+a.text));
-
-    if(a.movingBox){
-      const x=document.createElement('div'); x.className='x'; x.textContent='×';
-      x.title='Удалить выноску'; x.onclick=(ev)=>{ ev.stopPropagation(); const i=state.annos.findIndex(t=>t.id===a.id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } };
-      box.appendChild(x);
-    }
-
-    annoLayer.appendChild(anchor); annoLayer.appendChild(box);
-
-    if(state.drawAnnoLines){
-      // линия к ближайшей точке прямоугольника
-      const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect();
-      const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
-      const tx=Math.max(cx-rect.width/2, Math.min(cx+rect.width/2, aScr.x));
-      const ty=Math.max(cy-rect.height/2, Math.min(cy+rect.height/2, aScr.y));
-      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
-    }
-
-    box.addEventListener('click',ev=>{
-      ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingBox){
-        a.movingBox=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingBox=true; a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; draw();
-      }
-    });
-    box.addEventListener('dblclick',ev=>{
-      ev.stopPropagation();
-      ainput.value=a.text;
-      const p=localToScreen(pv.bx,pv.by);
-      apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
-      apop.dataset.mode='edit'; apop.dataset.id=a.id;
-    });
-    anchor.addEventListener('click',ev=>{
-      ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingAnchor){
-        a.movingAnchor=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingAnchor=true; a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; draw();
-      }
-    });
-  }); 
-  ctx.restore();
+$('annoCancel').onclick=()=>{apop.style.display='none';state.addAnno=false;wrap.style.cursor='';};
+function deleteAnnotation(id){state.annos=state.annos.filter(a=>a.id!==id);state.movingAnno={id:null,what:null,view:null};draw();saveState();}
+$('annoDel').onclick=()=>{apop.style.display='none';deleteAnnotation(+apop.dataset.id);};
+ainput.addEventListener('keydown',e=>{if(e.key==='Enter')$('annoOk').onclick();if(e.key==='Escape')$('annoCancel').onclick();});
+function beginAnnotationDrag(e,a,what){
+  if(e.button!==0)return;e.preventDefault();e.stopPropagation();
+  const p=ensurePos(a,viewMode),local=screenToLocal(e);
+  state.movingAnno={id:a.id,what,view:viewMode,pointerId:e.pointerId,dx:p[what==='box'?'bx':'ax']-local.x,dy:p[what==='box'?'by':'ay']-local.y};
+  wrap.setPointerCapture(e.pointerId);
 }
-wrap.addEventListener('click',e=>{
-  const mv=state.movingAnno;
-  if(mv.id){
-    const a=state.annos.find(t=>t.id===mv.id);
-    if(a){ a.movingBox=false; a.movingAnchor=false; }
-    state.movingAnno={id:null,what:null,view:null};
-    draw(); saveState();
-  }
-});
+function renderAnnos(){
+  ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);annoLayer.innerHTML='';ensureAnnoNumbers();
+  state.annos.forEach(a=>{
+    const layout=annotationLayout(a);if(!layout)return;
+    const {anchor:point,x,y,w}=layout;
+    const anchor=document.createElement('button');anchor.type='button';anchor.className='anchor-dot';anchor.dataset.id=a.id;
+    anchor.style.left=(point.x-9)+'px';anchor.style.top=(point.y-9)+'px';anchor.setAttribute('aria-label',`Точка выноски A${a.num}: перетащить`);
+    const box=document.createElement('div');box.className='anno';box.dataset.id=a.id;box.tabIndex=0;
+    box.style.left=x+'px';box.style.top=y+'px';box.style.width=w+'px';box.title='Перетащите текст. Двойной щелчок — редактировать.';
+    const badge=document.createElement('span');badge.className='badge';badge.textContent='A'+a.num;
+    const text=document.createElement('span');text.className='anno-text';text.textContent=a.text;
+    const edit=document.createElement('button');edit.type='button';edit.className='anno-edit';edit.textContent='✎';edit.setAttribute('aria-label',`Редактировать выноску A${a.num}`);
+    edit.addEventListener('pointerdown',e=>e.stopPropagation());edit.onclick=e=>{e.stopPropagation();openAnnoEditor(a,{x,y});};
+    box.appendChild(badge);box.appendChild(text);box.appendChild(edit);annoLayer.appendChild(anchor);annoLayer.appendChild(box);
+    const rect=box.getBoundingClientRect(),host=wrap.getBoundingClientRect();
+    const left=rect.left-host.left,top=rect.top-host.top;
+    const target={x:Math.max(left,Math.min(left+rect.width,point.x)),y:Math.max(top,Math.min(top+rect.height,point.y))};
+    if(state.drawAnnoLines){ctx.strokeStyle='#365a83';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(point.x,point.y);ctx.lineTo(target.x,target.y);ctx.stroke();}
+    box.addEventListener('pointerdown',e=>beginAnnotationDrag(e,a,'box'));
+    anchor.addEventListener('pointerdown',e=>beginAnnotationDrag(e,a,'anchor'));
+    box.addEventListener('dblclick',e=>{e.stopPropagation();openAnnoEditor(a,{x,y});});
+    box.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();openAnnoEditor(a,{x,y});}
+      if(e.key==='Delete'){e.preventDefault();deleteAnnotation(a.id);}
+    });
+  });ctx.restore();
+}
 wrap.addEventListener('pointermove',e=>{
-  const mv=state.movingAnno; if(!mv.id||!mv.what) return;
-  const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
-  const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
-  if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
+  const mv=state.movingAnno;if(!mv.id||e.pointerId!==mv.pointerId)return;
+  const a=state.annos.find(a=>a.id===mv.id);if(!a)return;
+  const p=ensurePos(a,mv.view),local=screenToLocal(e);
+  if(mv.what==='box'){
+    p.bx=local.x+mv.dx;p.by=local.y+mv.dy;
+    const layout=annotationLayout(a,mv.view);p.bx=(layout.x-panX)/scale;p.by=(layout.y-panY)/scale;
+  }else{p.ax=local.x+mv.dx;p.ay=local.y+mv.dy;}
   draw();
 });
+function endAnnotationDrag(e){
+  const mv=state.movingAnno;if(!mv.id||e.pointerId!==mv.pointerId)return;
+  state.movingAnno={id:null,what:null,view:null};saveState();
+}
+wrap.addEventListener('pointerup',endAnnotationDrag);wrap.addEventListener('pointercancel',endAnnotationDrag);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Delete'){ const id=state.movingAnno.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } }
-  if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); saveState(); } }
+  if(e.key==='Escape'){state.addAnno=false;state.movingAnno={id:null,what:null,view:null};wrap.style.cursor='';apop.style.display='none';msg.textContent='';draw();}
 });
 
 /* ===== кадр/подгон ===== */
@@ -893,8 +878,8 @@ function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{}
 let PRICE = loadPrice() || emptyPrice();
 function loadPrice(){ try{ const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
 function savePrice(){ localStorage.setItem(STORAGE_PRICE,JSON.stringify(PRICE)); }
-function money(x){ const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
-function priceOf(type, mat, rating){ if(rating===1200) return 0; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return +P[key]||0; } return +P[rating]||0; }
+function money(x){ if(x==null)return '—'; const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
+function priceOf(type, mat, rating){ if(rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
   let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
@@ -925,7 +910,7 @@ function renderSpec(){
   const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
 
   const calcData=computeCost(sp);
-  $('spTotalCost').textContent = money(calcData.total);
+  $('spTotalCost').textContent = calcData.missingPrices?'Не определена: нет подтверждённого тарифа':money(calcData.total);
   const cb=$('costBody'); cb.innerHTML='';
   calcData.lines.forEach(L=>{
     const tr=document.createElement('tr');
@@ -962,7 +947,8 @@ function computeCost(sp){
 
   if(($('mountOn').value==='1') && sp.mounts>0){ const kind=$('orientation').value==='EDGE'?'HE':'HF'; const p=priceOf(kind,mat,r), ref=refFor(kind,r), sum=p*sp.mounts; lines.push({title:kind==='HE'?'Горизонтальный крепёж на ребро (HE)':'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
 
-  return {total,lines};
+  const missing=lines.filter(line=>line.price==null);missing.forEach(line=>line.sum=null);
+  return {total:missing.length?null:total,lines,missingPrices:missing.length};
 }
 
 /* ===== БУФЕР ДЛЯ PNG/PDF: аккуратные пузырьки ===== */
@@ -1032,7 +1018,7 @@ function drawOverlayToCanvas(ctx2){
   }
   // выноски
   state.annos.forEach(a=>{
-    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
+    const layout=annotationLayout(a);if(!layout)return;const aScr=layout.anchor,bScr={x:layout.x,y:layout.y};
     const label=`A${a.num}. ${a.text}`;
     drawLabel(ctx2, bScr.x, bScr.y, label, {x:aScr.x,y:aScr.y});
     // точка-якорь
@@ -1146,7 +1132,7 @@ $('savePDF').onclick=()=>{
     setProjection(z.view); panX=z.panX; panY=z.panY; scale=z.scale; draw();
 
     const sp=computeSpec(), calcData=computeCost(sp);
-    const m=state.meta;
+    const m=Object.fromEntries(Object.entries(state.meta).map(([key,value])=>[key,escapeHtml(value)]));
     const css=`<style>
       @page{size:A4;margin:10mm}
       body{font:12px Arial,Helvetica,sans-serif;color:#111}
@@ -1234,8 +1220,8 @@ $('saveCSV').onclick=()=>{
 };
 
 /* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
-function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); if(!sel.value) sel.value=list[0]; draw(); if(state.calc) renderSpec(); saveState(); }
-$('mat').addEventListener('change',fillRatings);
+function fillRatings(persist=true){ const previous=$('rating').value; const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list.includes(+previous)?previous:list[0]; if(persist){draw();if(state.calc)renderSpec();saveState();} }
+$('mat').addEventListener('change',()=>fillRatings());
 $('orientation').addEventListener('change',()=>{fit();if(state.calc)renderSpec();saveState();});
 $('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
 $('startType').addEventListener('change',()=>{
@@ -1271,7 +1257,8 @@ $('fit').onclick=()=>fit();
 
 /* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
 function initPriceUI(){ /* ... тот же код, что и ранее ... */ }
-function parsePriceLine(line){ /* ... как в прошлой версии ... */ }
+function parsePriceLine(line){ throw new Error('Загрузчик тарифных строк ещё не реализован. Тариф нельзя считать загруженным.'); }
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
@@ -1283,23 +1270,25 @@ function loadState(){
   try{
     const raw=localStorage.getItem(STORAGE_STATE); if(!raw) return;
     const s=JSON.parse(raw);
+    if(!s || typeof s!=='object' || !Array.isArray(s.segs) || !s.segs.every(p=>p && ['+X','-X','+Y','-Y','+Z','-Z'].includes(p.dir) && Number.isFinite(p.len) && p.len>0) || (s.annos && (!Array.isArray(s.annos) || !s.annos.every(a=>a && typeof a.text==='string')))) throw new Error('Некорректная структура проекта');
     state.segs=s.segs||[]; state.calc=!!s.calc; state.module=s.module||3000;
-    state.dimOffsets=s.dimOffsets||state.dimOffsets; state.annos=s.annos||[];
+    for(const view of Object.keys(state.dimOffsets))state.dimOffsets[view]=s.dimOffsets && s.dimOffsets[view] && typeof s.dimOffsets[view]==='object'?s.dimOffsets[view]:{};
+    state.annos=s.annos||[];
     state.meta=s.meta||state.meta;
     state.annoSeq=s.annoSeq||1;
     if(s.ui){
       $('mat').value=s.ui.mat||'AL';
-      fillRatings();
-      $('rating').value=s.ui.rating||$('rating').value;
+      fillRatings(false);
+      if(s.ui.rating && Array.from($('rating').options).some(o=>o.value===String(s.ui.rating))) $('rating').value=s.ui.rating;
       $('ip').value=s.ui.ip||'IP55'; $('orientation').value=s.ui.orientation||'FLAT';
       $('startType').value=s.ui.startType||'NKU';
       $('endType').value=s.ui.endType||'ENDCAP';
       $('startW').value=s.ui.startW||600; $('startD').value=s.ui.startD||600; $('startH').value=s.ui.startH||2200;
       $('endW').value=s.ui.endW||600; $('endD').value=s.ui.endD||600; $('endH').value=s.ui.endH||2200;
-      $('mountOn').value=s.ui.mountOn||'1'; $('mountStep').value=s.ui.mountStep||1000; $('moduleLen').value=s.ui.moduleLen||3000;
+      $('mountOn').value=s.ui.mountOn??'1'; $('mountStep').value=s.ui.mountStep||1000; $('moduleLen').value=s.ui.moduleLen||3000;
       $('endDims').classList.toggle('hid',$('endType').value!=='NKU');
-    } else fillRatings();
-  }catch(e){ fillRatings(); }
+    } else fillRatings(false);
+  }catch(e){ msg.textContent='Не удалось восстановить проект: сохранённые данные не перезаписаны.';fillRatings(false); }
   fillMetaInputs();
   ensureAnnoNumbers();
 }
@@ -1308,7 +1297,7 @@ function loadState(){
 $('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
 
 /* ===== СТАРТ ===== */
-function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{PRICE=JSON.parse(rd.result);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
+function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const incoming=JSON.parse(rd.result);if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)||!incoming.AL||!incoming.CU)throw new Error('Нужны разделы AL и CU');for(const mat of ['AL','CU']){for(const prices of Object.values(incoming[mat])){if(!prices||typeof prices!=='object'||Array.isArray(prices))throw new Error('Некорректный раздел цен');for(const value of Object.values(prices)){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw new Error('Цена должна быть неотрицательным числом');}}}PRICE=incoming;savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').disabled=true;$('priceParse').title='Разбор будет настроен после получения тарифа';$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
