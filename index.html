@@ -60,6 +60,10 @@
   #costTable tbody tr:nth-child(even){background:#f8fafc}
   @media(max-width:920px){#costTable{margin:0 10px 20px;padding:12px}}
 
+  #exportPreview{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
+  #exportCard{box-sizing:border-box;width:min(1100px,96vw);max-height:94vh;background:#fff;border-radius:12px;padding:12px;overflow:auto}
+  #exportContent iframe{display:block;width:100%;height:78vh;border:1px solid #ddd}
+  #exportContent img{display:block;max-width:100%;max-height:70vh;margin:8px auto;object-fit:contain}
   /* Прайс-редактор */
   #priceDlg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
   #priceCard{width:min(980px,90vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid #ddd;box-shadow:var(--shadow);padding:14px}
@@ -242,6 +246,7 @@
         <div id="costTable" class="hid" aria-label="Калькуляция">
           <h3>Калькуляция без НДС</h3><p>Цена и сумма приведены в рублях. Отсутствующая цена не считается нулевой. На узком экране прокрутите таблицу вправо.</p><div class="cost-scroll"><table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table></div>
         </div>
+<div id="exportPreview" role="dialog" aria-modal="true" aria-label="Предпросмотр экспорта"><div id="exportCard"><div style="display:flex;justify-content:space-between;align-items:center"><h3 id="exportTitle">Экспорт</h3><button class="btn" id="exportClose">Закрыть</button></div><div id="exportContent"></div></div></div>
 <!-- Прайс-редактор -->
 <div id="priceDlg">
   <div id="priceCard">
@@ -1075,6 +1080,28 @@ function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр кор�
   ctx2.fillText(text, cx, cy);
   ctx2.restore();
 }
+function wrapCanvasText(context,text,width){
+  const lines=[];let line='';
+  for(const char of String(text)){
+    if(char==='\n'){lines.push(line);line='';continue;}
+    if(line&&context.measureText(line+char).width>width){
+      const space=line.lastIndexOf(' ');
+      if(space>0){lines.push(line.slice(0,space+1));line=line.slice(space+1)+char;}else{lines.push(line);line=char;}
+    }else line+=char;
+  }
+  lines.push(line);return lines;
+}
+function drawCalloutLabel(context,layout,text){
+  context.save();context.font='12px system-ui';
+  const lines=wrapCanvasText(context,text,layout.w-20),height=lines.length*18+16;
+  const x=layout.x,y=Math.max(height/2+12,Math.min(wrap.clientHeight-height/2-12,layout.y));
+  const left=x-layout.w/2,top=y-height/2,anchor=layout.anchor;
+  context.strokeStyle='#365a83';context.lineWidth=1.5;context.beginPath();context.moveTo(anchor.x,anchor.y);
+  context.lineTo(Math.max(left,Math.min(left+layout.w,anchor.x)),Math.max(top,Math.min(top+height,anchor.y)));context.stroke();
+  context.fillStyle='#fff';context.strokeStyle='#aaa';roundRect(context,left,top,layout.w,height,8);context.fill();context.stroke();
+  context.fillStyle='#17212b';context.textAlign='left';context.textBaseline='top';
+  lines.forEach((line,index)=>context.fillText(line,left+10,top+8+index*18));context.restore();
+}
 function drawOverlayToCanvas(ctx2){
   ensureAnnoNumbers();
   dimensionBoxes=[];
@@ -1088,7 +1115,7 @@ function drawOverlayToCanvas(ctx2){
       if(Ldraw>0){
         const mid=adv(start,cur.dir,Ldraw/2);
         const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-        const text=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
+        const text=(axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм';
         const placed=dimensionPosition(i,base,text);
         drawLabel(ctx2, placed.x, placed.y, text);
       }
@@ -1106,7 +1133,7 @@ function drawOverlayToCanvas(ctx2){
   state.annos.forEach(a=>{
     const layout=annotationLayout(a);if(!layout)return;const aScr=layout.anchor,bScr={x:layout.x,y:layout.y};
     const label=`A${a.num}. ${a.text}`;
-    drawLabel(ctx2, bScr.x, bScr.y, label, {x:aScr.x,y:aScr.y});
+    drawCalloutLabel(ctx2,layout,label);
     // точка-якорь
     ctx2.fillStyle='#2d6cdf'; ctx2.beginPath(); ctx2.arc(aScr.x,aScr.y,5,0,Math.PI*2); ctx2.fill();
   });
@@ -1124,6 +1151,9 @@ function captureWithOverlay(){
 /* ===== ЭКСПОРТ (PNG/PDF/XLS/DXF/CSV) ===== */
 /* ... функции сохранения PNG, PNG все, DXF, XLS — без изменений ... */
 
+function showExportPreview(title){$('exportTitle').textContent=title;$('exportContent').innerHTML='';$('exportPreview').style.display='flex';$('exportClose').focus({preventScroll:true});}
+$('exportClose').onclick=()=>{$('exportPreview').style.display='none';$('exportContent').innerHTML='';};
+$('exportPreview').addEventListener('keydown',event=>{if(event.key==='Escape')$('exportClose').onclick();});
 $('savePNG').onclick=()=>{ const off=captureWithOverlay(); const url=off.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.png`; a.click(); };
 
 $('savePNGAll').onclick=()=>{
@@ -1135,7 +1165,7 @@ $('savePNGAll').onclick=()=>{
       files.push({name:`bus_${v.toLowerCase()}.png`,data:off.toDataURL('image/png')});
     }
     setProjection(zview); panX=zpanX; panY=zpanY; scale=zscale; draw();
-    const w=window.open('about:blank','_blank'); w.document.write('<h2>PNG файлы</h2>'); files.forEach(f=>w.document.write(`<div><a download="${f.name}" href="${f.data}">${f.name}</a></div>`));
+    showExportPreview('PNG — все виды');files.forEach(file=>{const figure=document.createElement('figure'),link=document.createElement('a'),image=document.createElement('img');link.download=file.name;link.href=file.data;link.textContent='Скачать '+file.name;image.src=file.data;image.alt=file.name;figure.appendChild(link);figure.appendChild(image);$('exportContent').appendChild(figure);});
   })();
 };
 
@@ -1203,17 +1233,20 @@ $('savePDF').onclick=()=>{
     const css=`<style>
       @page{size:A4;margin:10mm}
       body{font:12px Arial,Helvetica,sans-serif;color:#111}
-      .page{page-break-after:always; position:relative; min-height:270mm; padding:12mm 12mm 22mm 12mm; box-sizing:border-box;}
+      .page{page-break-after:always;break-inside:avoid; position:relative; min-height:270mm; padding:12mm 12mm 22mm 12mm; box-sizing:border-box;}
       .frame{position:absolute; inset:8mm; border:1px solid #000;}
       .title{position:absolute; right:8mm; bottom:8mm; border:1px solid #000; padding:6px 8px; font-size:11px}
       h1,h2{margin:0 0 8px}
-      img{max-width:100%; border:1px solid #ccc; padding:4px; background:#fff}
+      img{display:block;max-width:100%;max-height:220mm;width:auto;height:auto;object-fit:contain;margin:auto;border:1px solid #ccc; padding:4px; background:#fff}
       table{border-collapse:collapse;width:100%}
       th,td{border:1px solid #ccc;padding:4px 6px;vertical-align:top}
       .r{text-align:right}
       .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10}
       .btn{padding:6px 10px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}
       .muted{color:#666}
+      td.r,th.r{white-space:nowrap}thead{display:table-header-group}tr{break-inside:avoid}
+      @media print{body{margin:0}.toolbar{display:none}.page:last-child{page-break-after:auto}}
+
     </style>`;
     let html=`<html><head><meta charset="utf-8">${css}</head><body>`;
     html+=`<div class="toolbar"><button class="btn" onclick="window.print()">Печать</button></div>`;
@@ -1225,7 +1258,9 @@ $('savePDF').onclick=()=>{
       <h1>${m.title||'Проект шинопровода'}</h1>
       <div class="muted">${m.object||'Объект не указан'} · ${m.addr||'Адрес не указан'}</div>
       <p>Итого длина трассы: <b>${sp.totalLen} мм</b>; повороты — горизонтальные: ${sp.horiz}, вертикальные: ${sp.vert}; соединители: ${sp.joints.total}; крепления: ${sp.mounts}.</p>
-      <p><b>Итоговая стоимость:</b> ${money(calcData.total)}</p>
+      <p><b>Предварительная стоимость без НДС:</b> ${calcData.missingPrices?'Не определена: есть позиции без цены':money(calcData.total)}</p>
+      <p>Предварительная спецификация. Подключения FE/FET, вертикальные опоры, подвесы углов и монтажная комплектность IP требуют проверки.</p>
+      <p>Тариф: ${escapeHtml(PRICE.source?.filename||'Источник не подтверждён')}; дата: ${escapeHtml(PRICE.source?.date||'не указана')}. RUB, без НДС.</p>
     </div>`;
 
     /* Общие данные проекта */
@@ -1271,10 +1306,10 @@ $('savePDF').onclick=()=>{
       <table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
     const calcData2=computeCost(sp2);
     calcData2.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
-    html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${money(calcData2.total)}</th></tr></table></div>`;
+    html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${calcData2.missingPrices?'Не определено: есть позиции без цены':money(calcData2.total)}</th></tr></table></div>`;
 
     html+='</body></html>';
-    const w=window.open('', '_blank'); w.document.write(html); w.document.close(); w.focus();
+    showExportPreview('Проект — печать / PDF');const frame=document.createElement('iframe');frame.title='Печатный проект';frame.srcdoc=html;$('exportContent').appendChild(frame);
   })();
 };
 

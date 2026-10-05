@@ -182,4 +182,10 @@ check('true XLSX exports numeric quantities, cached formulas and explicit unknow
  run('delete PRICE.entries.DDW4532GFEM55');book=run('buildProjectWorkbook()');
  assert.equal(book.Sheets['Калькуляция'].G4,undefined);assert.match(book.Sheets['Калькуляция'].G6.v,/Не определено/);
 });
+check('export wraps callout text and print pages explicitly preserve axis sizes and unknown prices',()=>{
+ const lines=run("wrapCanvasText({measureText:t=>({width:t.length*7})},'A1. длинныйтекст\\nвтораястрока',42)");
+ assert.ok(Array.from(lines).every(s=>s.length<=6));assert.equal(Array.from(lines).join(''),'A1. длинныйтекствтораястрока');
+ assert.match(html,/max-height:220mm/);assert.match(html,/\.toolbar\{display:none\}/);
+ assert.match(html,/Не определено: есть позиции без цены/);assert.match(html,/ось =/);
+});
 console.log(`${count} targeted checks passed`);

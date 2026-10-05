@@ -48,10 +48,13 @@ function buildCadDXF(model){
     entities+=pair(0,'DIMENSION')+pair(8,'DIMENSIONS')+pair(2,name)+point(b)+point(mid,11)+pair(70,33)+pair(1,display)+pair(3,'STANDARD')+point(d.a,13)+point(d.b,14);
   }
   for(const a of model.annotations)entities+=line(a.anchor,a.point,'ANNOT')+label(a.text,a.point,'ANNOT');
-  entities+=label(`SystemeLine B / ${model.view} / mm / projected 2D / schematic fittings`,[0,-500],'ANNOT');
+  const bounds=[...groups.values()].flatMap(g=>g.lines.flatMap(e=>[e.a,e.b]));
+  const footerX=bounds.length?Math.min(...bounds.map(p=>p[0])):0,footerY=bounds.length?Math.min(...bounds.map(p=>p[1]))-300:-500;
+  entities+=label(`SystemeLine B / ${model.view} / mm`,[footerX,footerY],'ANNOT');
+  entities+=label('Projected 2D; schematic fittings',[footerX,footerY-100],'ANNOT');
   let tables=pair(0,'TABLE')+pair(2,'LTYPE')+pair(70,1)+pair(0,'LTYPE')+pair(2,'CONTINUOUS')+pair(70,0)+pair(3,'Solid line')+pair(72,65)+pair(73,0)+pair(40,0)+pair(0,'ENDTAB');
   tables+=pair(0,'TABLE')+pair(2,'LAYER')+pair(70,layers.length);
-  layers.forEach((layer,i)=>tables+=pair(0,'LAYER')+pair(2,layer)+pair(70,0)+pair(62,[7,7,3,8,8,7,7,7][i])+pair(6,'CONTINUOUS'));
+  layers.forEach((layer,i)=>tables+=pair(0,'LAYER')+pair(2,layer)+pair(70,0)+pair(62,[7,5,3,8,8,1,7,7][i])+pair(6,'CONTINUOUS'));
   tables+=pair(0,'ENDTAB')+pair(0,'TABLE')+pair(2,'STYLE')+pair(70,1)+pair(0,'STYLE')+pair(2,'STANDARD')+pair(70,0)+pair(40,0)+pair(41,1)+pair(50,0)+pair(71,0)+pair(42,50)+pair(3,'txt')+pair(4,'')+pair(0,'ENDTAB');
   const section=(name,body)=>pair(0,'SECTION')+pair(2,name)+body+pair(0,'ENDSEC');
   const header=pair(9,'$ACADVER')+pair(1,'AC1009')+pair(9,'$INSUNITS')+pair(70,4)+pair(9,'$MEASUREMENT')+pair(70,1)+pair(9,'$LUNITS')+pair(70,2);
