@@ -154,4 +154,32 @@ check('PER references follow individual tables and cannot reuse body-PE tariffs'
  run("PRICE={version:5,entries:{DDW4532GM55:{price:100,unit:'m'},DDW4732GM55:{price:130,unit:'m'}}}");assert.equal(run("priceOf('ST','CU',3200)"),130);
  run("$('conductors').value='5'");assert.equal(run("priceOf('ST','CU',3200)"),100);
 });
+check('currency keeps kopecks and never renders invalid values as zero',()=>{
+ assert.match(run('money(123.45)'),/123,45/);assert.equal(run('money(NaN)'),'—');assert.equal(run('money(null)'),'—');
+ run("$('conductors').value='5';$('mat').value='CU';$('rating').value=3200;$('ip').value='IP55';$('mountOn').value='0';$('startType').value='NKU';$('endType').value='ENDCAP';state.segs=[{dir:'+X',len:1010}];state.module=3000;PRICE={version:5,entries:{DDW4532GM55:{price:123.45,unit:'m'},DDW4532GFEM55:{price:10,unit:'piece'},DDW4532GJPKM55:{price:10,unit:'piece'},DDW507ECM55:{price:10,unit:'piece'}}}");
+ assert.equal(run('computeCost(computeSpec()).lines[0].sum'),124.68);
+ assert.equal(run('computeCost(computeSpec()).total'),154.68);
+ run('delete PRICE.entries.DDW4532GFEM55');assert.equal(run('computeCost(computeSpec()).total'),null);
+});
+if(process.env.SYSTEMELINE_TARIFF_XLSX)check('real tariff matrix verifies PE/PER, IP, quantities and independent line totals',()=>{
+ const report=[];const original=run('newTariff');
+ for(const mat of ['AL','CU'])for(const conductors of ['5','7'])for(const ip of ['55','65'])for(const orientation of ['FLAT','EDGE'])for(const rating of mat==='CU'?[400,500,630,800,1000,1250,1600,2000,2500,3200,4000,5000,6300]:[400,500,630,800,1000,1250,1600,2000,2500,3200,4000,5000]){
+ run(`PRICE=validateReferenceTariff(newTariff);$('mat').value='${mat}';$('conductors').value='${conductors}';$('ip').value='IP${ip}';$('orientation').value='${orientation}';$('rating').value=${rating};$('mountOn').value='1';$('mountStep').value=1000;$('startType').value='TR';$('endType').value='NKU';state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:6500},{dir:'+Y',len:6500},{dir:'-Z',len:1000}];state.module=3000`);
+ const cost=run('computeCost(computeSpec())');let cents=0,missing=0;
+ for(const line of cost.lines){const e=original.entries[line.ref];const unit=line.title.startsWith('Прямые')?'m':'piece';const expected=e&&e.unit===unit?e.price:null;assert.equal(line.price,expected);if(expected==null){missing++;assert.equal(line.sum,null);}else{const sum=Math.round(parseFloat(line.qty)*expected*100)/100;assert.equal(line.sum,sum);cents+=Math.round(sum*100);}}
+ assert.equal(cost.total,missing?null:cents/100);assert.equal(cost.missingPrices,missing);
+ report.push({mat,conductors,ip,orientation,rating,missing,total:cost.total,missingRefs:cost.lines.filter(l=>l.price==null).map(l=>l.ref)});
+ }
+ assert.equal(report.length,200);fs.writeFileSync('evidence/tariff-matrix.json',JSON.stringify(report,null,2));
+ console.log('REAL TARIFF: '+report.filter(r=>r.missing===0).length+'/200 complete-price scenarios; unknown references remain explicit');
+});
+check('true XLSX exports numeric quantities, cached formulas and explicit unknown totals',()=>{
+ sandbox.XLSX=require('../vendor/xlsx.full.min.js');
+ run("$('conductors').value='5';$('mat').value='CU';$('rating').value=3200;$('ip').value='IP55';$('mountOn').value='0';$('startType').value='NKU';$('endType').value='ENDCAP';state.segs=[{dir:'+X',len:1010}];state.module=3000;PRICE={version:5,entries:{DDW4532GM55:{price:123.45,unit:'m'},DDW4532GFEM55:{price:10,unit:'piece'},DDW4532GJPKM55:{price:10,unit:'piece'},DDW507ECM55:{price:10,unit:'piece'}}}");
+ let book=run('buildProjectWorkbook()');assert.deepEqual(Array.from(book.SheetNames),['Проект','Калькуляция','Раскрой','Проверки']);
+ assert.equal(book.Sheets['Калькуляция'].D2.v,1.01);assert.equal(book.Sheets['Калькуляция'].G2.f,'ROUND(D2*F2,2)');assert.equal(book.Sheets['Калькуляция'].G2.v,124.68);
+ fs.writeFileSync('evidence/export-acceptance.xlsx',sandbox.XLSX.write(book,{type:'buffer',bookType:'xlsx'}));
+ run('delete PRICE.entries.DDW4532GFEM55');book=run('buildProjectWorkbook()');
+ assert.equal(book.Sheets['Калькуляция'].G4,undefined);assert.match(book.Sheets['Калькуляция'].G6.v,/Не определено/);
+});
 console.log(`${count} targeted checks passed`);

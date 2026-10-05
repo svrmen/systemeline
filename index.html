@@ -194,7 +194,7 @@
       <button class="viewbtn" id="savePNG">PNG</button>
       <button class="viewbtn" id="savePNGAll">PNG все</button>
       <button class="viewbtn" id="saveDXF" title="Редактируемые блоки текущего вида, 1:1 мм">DXF · CAD</button>
-      <button class="viewbtn" id="saveXLS">XLS</button>
+      <button class="viewbtn" id="saveXLS">Excel</button>
       <button class="viewbtn" id="savePDF">Проект (PDF)</button>
       <button class="viewbtn" id="btnPrice">₽ Прайс</button>
     </div>
@@ -961,7 +961,7 @@ function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{}
 let PRICE = loadPrice() || emptyPrice();
 function loadPrice(){ try{ const exact=localStorage.getItem('BUS_TARIFF_V5');if(exact)return validateReferenceTariff(JSON.parse(exact)); const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
 function savePrice(){ localStorage.setItem(PRICE.version===5?'BUS_TARIFF_V5':STORAGE_PRICE,JSON.stringify(PRICE));if(PRICE.version!==5)localStorage.removeItem('BUS_TARIFF_V5'); }
-function money(x){ if(x==null)return '—'; const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
+function money(x){ if(x==null||!Number.isFinite(Number(x)))return '—';const n=Math.round(Number(x)*100)/100;return n.toLocaleString('ru-RU',{minimumFractionDigits:Number.isInteger(n)?0:2,maximumFractionDigits:2})+' ₽'; }
 function priceOf(type, mat, rating){ if(PRICE.version===5){const entry=PRICE.entries[refFor(type,rating)];return entry&&entry.unit===(type==='ST'?'m':'piece')?entry.price:null;} if((conductorCode()==='7'&&!['HE','HF','EC'].includes(type))||rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
@@ -1030,7 +1030,10 @@ function computeCost(sp){
 
   if(($('mountOn').value==='1') && sp.mounts>0){ const kind=$('orientation').value==='EDGE'?'HE':'HF'; const p=priceOf(kind,mat,r), ref=refFor(kind,r), sum=p*sp.mounts; lines.push({title:kind==='HE'?'Горизонтальный крепёж на ребро (HE)':'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
 
-  const missing=lines.filter(line=>line.price==null);missing.forEach(line=>line.sum=null);
+  const missing=lines.filter(line=>line.price==null||!Number.isFinite(Number(line.price)));missing.forEach(line=>line.sum=null);
+  // Сумма счёта совпадает с суммой строк, округлённых до копейки.
+  lines.forEach(line=>{if(line.sum!=null)line.sum=Math.round(line.sum*100)/100;});
+  total=lines.reduce((sum,line)=>sum+Math.round((line.sum??0)*100),0)/100;
   return {total:missing.length?null:total,lines,missingPrices:missing.length};
 }
 
@@ -1151,30 +1154,35 @@ $('saveDXF').onclick=()=>{
   a.href=url;a.download=`bus_${viewMode.toLowerCase()}_mm.dxf`;a.click();URL.revokeObjectURL(url);
 };
 
+function buildProjectWorkbook(){
+  const sp=computeSpec(),cost=computeCost(sp),book=XLSX.utils.book_new();
+  const append=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows);sheet['!cols']=widths.map(wch=>({wch}));XLSX.utils.book_append_sheet(book,sheet,name);return sheet;};
+  const source=PRICE.source||{};
+  append('Проект',[
+    ['Параметр','Значение'],['Статус','Предварительная спецификация; монтажная комплектность требует проверки'],
+    ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Материал',$('mat').value==='CU'?'Медь':'Алюминий'],
+    ['Номинальный ток, А',Number($('rating').value)],['Проводники',conductorLabel()],['Степень защиты',$('ip').value],
+    ['Положение',$('orientation').value==='EDGE'?'На ребро':'На плоскость'],['Осевая длина, мм',sp.totalLen],['Длина прямых деталей, мм',sp.straightLen],
+    ['Горизонтальные крепления, шт',sp.mounts],['Тариф',source.filename||'Источник не подтверждён'],['Лист тарифа',source.sheet||''],['Дата тарифа',source.date||''],['Валюта / НДС','RUB / без НДС']
+  ],[32,90]);
+  const rows=[['№','Позиция','Артикул','Количество','Единица','Цена без НДС, ₽','Сумма без НДС, ₽']];
+  cost.lines.forEach((line,index)=>rows.push([index+1,line.title,line.ref,parseFloat(line.qty),typeof line.qty==='string'&&line.qty.endsWith(' м')?'м':'шт',line.price??null,line.sum??null]));
+  rows.push(['','Итого','','','','',cost.total??'Не определено: есть позиции без цены']);
+  const sheet=append('Калькуляция',rows,[6,58,24,14,10,20,22]);
+  cost.lines.forEach((line,index)=>{const row=index+2;if(line.sum!=null)sheet['G'+row]={t:'n',f:`ROUND(D${row}*F${row},2)`,v:line.sum,z:'#,##0.00'};if(sheet['F'+row])sheet['F'+row].z='#,##0.00';});
+  const last=cost.lines.length+2;if(cost.total!=null&&cost.lines.length)sheet['G'+last]={t:'n',f:`SUM(G2:G${last-1})`,v:cost.total,z:'#,##0.00'};
+  sheet['!autofilter']={ref:`A1:G${cost.lines.length+1}`};
+  append('Раскрой',[['Длина прямой детали, мм','Количество, шт'],...[...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).map(([length,quantity])=>[length,quantity])],[30,20]);
+  append('Проверки',[
+    ['Проверка','Статус'],['Позиции без цены',cost.missingPrices],...cost.lines.filter(line=>line.price==null).map(line=>[line.ref,'Цена отсутствует или не совпадает единица тарифа']),
+    ['Подключения FE/FET','Геометрия условная, заказные размеры не учтены в раскрое'],['Вертикальные опоры и подвесы углов','Не рассчитаны'],
+    ['IP','Полная монтажная комплектность не подтверждена'],['Геометрия и монтаж',$('geometryStatus').textContent||'См. проект монтажа']
+  ],[36,110]);
+  return book;
+}
 $('saveXLS').onclick=()=>{
-  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
-  const sp=computeSpec(), calcData=computeCost(sp);
-  let html=`<html><head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:4px 6px} table{border-collapse:collapse} .r{text-align:right}</style></head><body>`;
-  html+=`<h2>Спецификация</h2>
-  <table>
-    <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()}</td></tr>
-    <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
-    <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
-    <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
-    <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
-    <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
-    <tr><td>Соединители (всего)</td><td>${sp.joints.total}</td></tr>
-    <tr><td>Горизонтальные крепления</td><td>${sp.mounts}</td></tr>
-  </table>`;
-  html+=`<h3>Прямые детали по заказным длинам</h3><table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
-  html+=`</table>`;
-  html+=`<h2>Калькуляция</h2><table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
-  const calc=calcData;
-  calc.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${L.price}</td><td class="r">${Math.round(L.sum)}</td></tr>`; });
-  html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${Math.round(calc.total)}</th></tr></table>`;
-  html+='</body></html>';
-  const blob=new Blob([html],{type:'application/vnd.ms-excel'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
+  if(!state.calc){alert('Сначала рассчитайте разбиение.');return;}
+  XLSX.writeFile(buildProjectWorkbook(),'busway_spec.xlsx',{bookType:'xlsx'});
 };
 
 $('savePDF').onclick=()=>{
