@@ -493,6 +493,16 @@ function straightLayout(index){
     const full=Math.floor(length/module),remainder=length-full*module;
     for(let i=0;i<full;i++)parts.push(module);
     if(remainder>1e-7)parts.push(remainder);
+    // 450 мм — консервативный предел; противоречие Cu400/450 не снято.
+    // Перераспределяем только допустимые кратные10 длины, без округления трассы.
+    if(module<=3000&&module>=450&&module%10===0&&length%10===0&&parts.length>1&&parts[parts.length-1]<450){
+      const needed=450-parts[parts.length-1];
+      const available=parts.slice(0,-1).reduce((sum,n)=>sum+Math.max(0,n-450),0);
+      if(available>=needed){
+        let remaining=needed;
+        for(let i=parts.length-2;i>=0&&remaining>0;i--){const transfer=Math.min(remaining,parts[i]-450);parts[i]-=transfer;parts[parts.length-1]+=transfer;remaining-=transfer;}
+      }
+    }
     let offset=0;for(let i=0;i<parts.length-1;i++){offset+=parts[i];joints.push(offset);}
   }
   return {startCut,endCut,length,parts,joints};

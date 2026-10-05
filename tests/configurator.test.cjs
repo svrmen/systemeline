@@ -69,9 +69,11 @@ check('equal spans use identical physical parts in either direction',()=>{
 });
 check('drawn module joints exactly match specification and ignore axis sign',()=>{
  run("state.segs=[{dir:'+X',len:6500},{dir:'+Y',len:6500}];state.module=3000");
- assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,6000]);
+ assert.equal(run('straightLayout(0).length'),6050);
+ assert.deepEqual(Array.from(run('straightLayout(0).parts')),[3000,2600,450]);
+ assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,5600]);
  assert.equal(run('computeSpec().joints.mod'),4);
- run("state.segs=[{dir:'-X',len:6500},{dir:'-Y',len:6500}]");assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,6000]);
+ run("state.segs=[{dir:'-X',len:6500},{dir:'-Y',len:6500}]");assert.deepEqual(Array.from(run('straightLayout(0).joints')),[3000,5600]);
 });
 check('exact module and impossible short spans never create phantom joints',()=>{
  run("state.segs=[{dir:'+X',len:3000}]");assert.equal(run('straightLayout(0).joints.length'),0);
@@ -113,5 +115,17 @@ check('Excel conflicts and incorrect quantity bases never silently quote',()=>{
  const x=require('../vendor/xlsx.full.min.js');sandbox.XLSX=x;const book=x.utils.book_new();x.utils.book_append_sheet(book,x.utils.aoa_to_sheet([['Референс','Тариф без НДС','Единица измерения'],['DDW4504GM55',100,'за метр'],['DDW4504GM55',200,'за метр']]),'Тариф');sandbox.badTariff=book;
  assert.throws(()=>run("parseTariffWorkbook(badTariff,'bad.xlsx',XLSX)"),/Разные цены/);
  run("PRICE={version:5,entries:{DDW4540GM55:{price:100,unit:'piece'}}};$('rating').value='4000';$('ip').value='IP55'");assert.equal(run("priceOf('ST','CU',4000)"),null);
+});
+check('short remainder redistributes without changing length or inventing viable cuts',()=>{
+ run("state.module=3000;state.segs=[{dir:'+X',len:3100}]");
+ assert.deepEqual(Array.from(run('straightLayout(0).parts')),[2650,450]);
+ assert.deepEqual(Array.from(run('straightLayout(0).joints')),[2650]);
+ run("state.segs=[{dir:'-X',len:6100}]");
+ assert.deepEqual(Array.from(run('straightLayout(0).parts')),[3000,2650,450]);
+ run("state.module=600;state.segs=[{dir:'+X',len:1250}]");
+ assert.deepEqual(Array.from(run('straightLayout(0).parts')),[600,600,50]);
+ run("state.module=3000;state.segs=[{dir:'+X',len:3105}]");
+ assert.deepEqual(Array.from(run('straightLayout(0).parts')),[3000,105]);
+ run("state.segs=[{dir:'+X',len:400}]");assert.deepEqual(Array.from(run('straightLayout(0).parts')),[400]);
 });
 console.log(`${count} targeted checks passed`);

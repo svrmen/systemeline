@@ -1,5 +1,5 @@
 # PROJECT_STATE
-Дата:2026-10-04. Repo:svrmen/systemeline; ветка:codex/configurator-review; draft PR:https://github.com/svrmen/systemeline/pull/4.
+Дата:2026-10-05. Repo:svrmen/systemeline; ветка:codex/configurator-review; draft PR:https://github.com/svrmen/systemeline/pull/4.
 CURRENT TASK: реальные подключения FE/FET, перенос точки выноски, калькуляция и предложения отображения.
 STATUS: UI DONE; инженерные подключения NEEDS_SOURCE/NEEDS_FIX. Полный аудит не завершён.
 LAST USER DECISION: исходный вид сохранить; синие углы/зелёные соединители. Альтернативы только предложить.
@@ -8,3 +8,5 @@ SOURCE: просмотрены только B25/30/42/47. FE L280–800, FET д�
 WHAT REMAINS: реальная FE/FETгеометрия и резерв длины в общем раскрое, допустимый раскрой/монтаж, сверкаR, CADпечать.
 NEXT ACTION: получить модель/чертёж выводов трансформатора; определить заказную длину FE и плоскость фланца, затем внедрить общие физические детали/BOM/CAD. Вопрос о модели ТР задан асинхронно.
 PREVIOUS DONE: Excelтариф2608артикулов/77безцен; originalview;2D CADblocks/attributes/dimensions;AutoCAD2022AUDIT0/DWGsave;CADvisual/printpending.
+
+STEP2026-10-05 DONE: независимый раскрой — перераспределение коротких остатков, без округления и без изменения суммы.25целевых проверок PASS; отдельная визуальная проверка нового раскроя pending. Основная FE/FETзадача не отменена. NEXT независимый шаг: правила крепления по ранее извлечённому руководству; FE/FET продолжить после источника.
