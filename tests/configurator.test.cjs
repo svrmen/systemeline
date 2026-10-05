@@ -128,4 +128,17 @@ check('short remainder redistributes without changing length or inventing viable
  assert.deepEqual(Array.from(run('straightLayout(0).parts')),[3000,105]);
  run("state.segs=[{dir:'+X',len:400}]");assert.deepEqual(Array.from(run('straightLayout(0).parts')),[400]);
 });
+check('mounting follows physical parts, orientation limits and explicit short-part exclusions',()=>{
+ let p=run("horizontalMountPlan([3000,2650,450],5000,'FLAT')");
+ assert.equal(p.step,2000);assert.deepEqual(Array.from(p.unsupported),[3]);
+ assert.deepEqual(Array.from(p.positions),[300,1500,2700,3300,4325,5350]);
+ p=run("horizontalMountPlan([3000,2650,450],5000,'EDGE')");
+ assert.equal(p.step,3000);assert.deepEqual(Array.from(p.positions),[1500,4325,5875]);
+ assert.deepEqual(Array.from(p.unsupported),[]);
+ p=run("horizontalMountPlan([600],1000,'FLAT')");assert.deepEqual(Array.from(p.positions),[300]);
+ assert.equal(run("horizontalMountPlan([3000],-1,'FLAT').step"),2000);
+ run("state.segs=[{dir:'+X',len:6100}];state.module=3000;$('orientation').value='EDGE';$('mountStep').value=5000;$('mountOn').value='1'");
+ assert.equal(run('computeSpec().mounts'),3);assert.equal(run('computeSpec().mountStep'),3000);
+ run("$('mountOn').value='0'");assert.equal(run('computeSpec().mounts'),0);
+});
 console.log(`${count} targeted checks passed`);
