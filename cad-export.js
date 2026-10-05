@@ -28,7 +28,7 @@ function buildCadDXF(model){
     for(const e of g.lines)blocks+=line(local(e.a),local(e.b),'0');
     const type=g.meta.type||(g.layer==='ENDCAP'?'EC':g.layer==='MOUNT'?'MOUNT':g.layer);
     const reference=['ST','EL','JPK','EC'].includes(type)?model.ref(type):'';
-    const attributes={POSITION:`P${number}`,ROUTE:'T1',TYPE:type,REFERENCE:reference,LENGTH_MM:g.meta.length??'',RATING_A:model.rating,IP:model.ip,MATERIAL:model.material};
+    const attributes={POSITION:`P${number}`,ROUTE:'T1',TYPE:type,REFERENCE:reference,LENGTH_MM:g.meta.length??'',RATING_A:model.rating,IP:model.ip,MATERIAL:model.material,CONDUCTORS:model.conductors||'3L+N+PE (корпус)'};
     for(const [tag,value]of Object.entries(attributes))blocks+=pair(0,'ATTDEF')+pair(8,'0')+point([0,0])+pair(40,50)+pair(1,text(value))+pair(3,tag)+pair(2,tag)+pair(70,1)+pair(7,'STANDARD');
     blocks+=pair(0,'ENDBLK')+pair(8,g.layer);
     entities+=pair(0,'INSERT')+pair(8,g.layer)+pair(2,name)+pair(66,1)+point(base);

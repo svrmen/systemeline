@@ -141,4 +141,17 @@ check('mounting follows physical parts, orientation limits and explicit short-pa
  assert.equal(run('computeSpec().mounts'),3);assert.equal(run('computeSpec().mountStep'),3000);
  run("$('mountOn').value='0'");assert.equal(run('computeSpec().mounts'),0);
 });
+check('PER references follow individual tables and cannot reuse body-PE tariffs',()=>{
+ run("$('conductors').value='7';$('mat').value='CU';$('ip').value='IP55'");
+ assert.equal(run("refFor('ST',3200)"),'DDW4732GM55');
+ assert.equal(run("refFor('FE',3200)"),'DDW4632GFEM55');
+ assert.equal(run("refFor('FET',3200)"),'DDW4732GFETM55');
+ for(const mat of ['AL','CU'])for(const ip of ['55','65']){
+ run(`$('mat').value='${mat}';$('ip').value='IP${ip}'`);
+ assert.equal(run("refFor('JPK',4000)"),`${mat==='AL'?'BDW':'DDW'}4740GJPKM${ip}`);
+ }
+ run("$('mat').value='CU';$('ip').value='IP55';PRICE={CU:{ST:{3200:100}}}");assert.equal(run("priceOf('ST','CU',3200)"),null);
+ run("PRICE={version:5,entries:{DDW4532GM55:{price:100,unit:'m'},DDW4732GM55:{price:130,unit:'m'}}}");assert.equal(run("priceOf('ST','CU',3200)"),130);
+ run("$('conductors').value='5'");assert.equal(run("priceOf('ST','CU',3200)"),100);
+});
 console.log(`${count} targeted checks passed`);

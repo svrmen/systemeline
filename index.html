@@ -85,6 +85,7 @@
       <div class="row"><label>Материал шин</label>
         <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
       </div>
+      <div class="row"><label for="conductors">Защитный проводник</label><select id="conductors"><option value="5">PE — корпус (3L+N+PE)</option><option value="7">PER — отдельная шина полного сечения (3L+N+PER)</option></select></div>
       <div class="row"><label>Номинальный ток, A</label><select id="rating"></select></div>
       <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
       <div class="row"><label for="orientation">Положение шинопровода</label><select id="orientation"><option value="FLAT">На плоскость</option><option value="EDGE">На ребро</option></select></div>
@@ -878,6 +879,8 @@ function draw(){
 }
 function updateGeometryStatus(){
   const warnings=[];
+  if(conductorCode()==='7')warnings.push('PER: выбраны отдельная защитная шина полного сечения и соответствующие артикулы; внутренние проводники на схеме не показаны.');
+  if(state.segs.length)warnings.push('IP55/IP65 — выбранное исполнение, степень защиты обеспечивается после полного монтажа; проходы, уплотнения и специальные детали требуют проверки.');
   if(state.segs.length){warnings.push('Подключения FE/FET показаны условно: пластина на оборудовании не является монтажным чертежом.');if($('startType').value==='TR')warnings.push('FET: длина и расположение контактов по заказу — требуется чертёж выводов трансформатора.');}
   if(+$('rating').value===1200) warnings.push('1200 А отсутствует в таблицах каталога: габариты и артикулы не подтверждены.');
   for(let i=0;i<state.segs.length;i++){
@@ -933,6 +936,8 @@ function fit(){
 
 const RATE_CODE={400:'04',500:'05',630:'06',800:'08',1000:'10',1200:'12',1250:'12',1600:'16',2000:'20',2500:'25',3200:'32',4000:'40',5000:'50',6300:'63'};
 function ipSuffix(){ return 'M'+$('ip').value.replace('IP',''); }
+function conductorCode(){return $('conductors').value==='7'?'7':'5';}
+function conductorLabel(){return conductorCode()==='7'?'3L+N+PER':'3L+N+PE (корпус)';}
 function refBase(){ return ($('mat').value==='CU'?'DDW4':'BDW4'); }
 function heStep(r){ if(r<=800) return 1; if(r<=1000) return 2; if(r<=1250) return 3; if(r<=1600) return 4; if(r<=2000) return 5; if(r<=2500) return 6; if(r<=3200) return 7; if(r<=4000) return 8; return 9; }
 function refFor(type, rating){
@@ -947,7 +952,8 @@ function refFor(type, rating){
   const code=RATE_CODE[rating]||'04';
   const ip=$('ip').value.replace('IP','');
   const tmap={ST:'GM'+ip,EL:'GELM'+ip,JPK:'GJPKM'+ip,FE:'GFEM'+ip,FET:'GFETM'+ip,GETB:'GETBM'+ip};
-  return `${base}5${code}${tmap[type]||'GM'+ip}`;
+  const protection=conductorCode()==='7'&&type==='FE'&&$('mat').value==='CU'?'6':conductorCode();
+  return `${base}${protection}${code}${tmap[type]||'GM'+ip}`;
 }
 
 /* ===== ЦЕНЫ (как раньше) ===== */
@@ -956,7 +962,7 @@ let PRICE = loadPrice() || emptyPrice();
 function loadPrice(){ try{ const exact=localStorage.getItem('BUS_TARIFF_V5');if(exact)return validateReferenceTariff(JSON.parse(exact)); const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
 function savePrice(){ localStorage.setItem(PRICE.version===5?'BUS_TARIFF_V5':STORAGE_PRICE,JSON.stringify(PRICE));if(PRICE.version!==5)localStorage.removeItem('BUS_TARIFF_V5'); }
 function money(x){ if(x==null)return '—'; const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
-function priceOf(type, mat, rating){ if(PRICE.version===5){const entry=PRICE.entries[refFor(type,rating)];return entry&&entry.unit===(type==='ST'?'m':'piece')?entry.price:null;} if(rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
+function priceOf(type, mat, rating){ if(PRICE.version===5){const entry=PRICE.entries[refFor(type,rating)];return entry&&entry.unit===(type==='ST'?'m':'piece')?entry.price:null;} if((conductorCode()==='7'&&!['HE','HF','EC'].includes(type))||rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
   const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
   let lenH=0,lenUp=0,lenDown=0,straightLen=0; let pos=originTop(); const target=+$('mountStep').value;
@@ -977,7 +983,7 @@ function computeSpec(){
 function renderSpec(){
   if(!state.calc){ $('spec').style.display='none';$('costTable').classList.add('hid');$('toggleCost').textContent='Показать калькуляцию'; return; }
   const sp=computeSpec(); $('spec').style.display='block';
-  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
+  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
   $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
   $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
   $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
@@ -1136,7 +1142,7 @@ function collectCadDrawing(){
   const annotations=state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]}));
   let pos=originTop();const dimensions=[];
   for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
-  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,ref:type=>refFor(type,+$('rating').value)};
+  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
 }
 $('saveDXF').onclick=()=>{
   if(!state.calc){msg.textContent='Сначала рассчитайте разбиение для экспорта отдельных деталей.';return;}
@@ -1151,7 +1157,7 @@ $('saveXLS').onclick=()=>{
   let html=`<html><head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:4px 6px} table{border-collapse:collapse} .r{text-align:right}</style></head><body>`;
   html+=`<h2>Спецификация</h2>
   <table>
-    <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+    <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()}</td></tr>
     <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
     <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
     <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
@@ -1207,7 +1213,7 @@ $('savePDF').onclick=()=>{
     /* Титул */
     html+=`<div class="page">
       <div class="frame"></div>
-      <div class="title">Проект шинопровода · ${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'} · ${$('rating').value} A · ${$('ip').value}</div>
+      <div class="title">Проект шинопровода · ${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'} · ${$('rating').value} A · ${$('ip').value} · ${conductorLabel()}</div>
       <h1>${m.title||'Проект шинопровода'}</h1>
       <div class="muted">${m.object||'Объект не указан'} · ${m.addr||'Адрес не указан'}</div>
       <p>Итого длина трассы: <b>${sp.totalLen} мм</b>; повороты — горизонтальные: ${sp.horiz}, вертикальные: ${sp.vert}; соединители: ${sp.joints.total}; крепления: ${sp.mounts}.</p>
@@ -1237,7 +1243,7 @@ $('savePDF').onclick=()=>{
     /* Спецификация */
     html+=`<div class="page"><div class="frame"></div><div class="title">Спецификация</div><h2>Спецификация</h2>
       <table>
-        <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+        <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()}</td></tr>
         <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
         <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
         <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
@@ -1267,7 +1273,7 @@ $('savePDF').onclick=()=>{
 $('saveCSV').onclick=()=>{
   if(!state.calc) return;
   const sp=computeSpec();
-  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts],[],['Длина сегмента (мм)','Кол-во, шт']];
+  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Проводники',conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts],[],['Длина сегмента (мм)','Кол-во, шт']];
   [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt]));
   const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
 };
@@ -1275,6 +1281,7 @@ $('saveCSV').onclick=()=>{
 /* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
 function fillRatings(persist=true){ const previous=$('rating').value; const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list.includes(+previous)?previous:list[0]; if(persist){draw();if(state.calc)renderSpec();saveState();} }
 $('mat').addEventListener('change',()=>fillRatings());
+$('conductors').addEventListener('change',()=>{draw();if(state.calc)renderSpec();saveState();});
 $('orientation').addEventListener('change',()=>{fit();if(state.calc)renderSpec();saveState();});
 $('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
 $('startType').addEventListener('change',()=>{
@@ -1298,7 +1305,7 @@ $('clear').onclick=()=>{
   state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
   state.annoSeq=1;
   $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
-  $('ip').value='IP55'; $('orientation').value='FLAT'; $('startType').value='NKU'; $('endType').value='ENDCAP';
+  $('ip').value='IP55';$('conductors').value='5'; $('orientation').value='FLAT'; $('startType').value='NKU'; $('endType').value='ENDCAP';
   $('startW').value=600; $('startD').value=600; $('startH').value=2200;
   $('endW').value=600; $('endD').value=600; $('endH').value=2200;
   $('endDims').classList.add('hid'); $('mountOn').value='1'; $('mountStep').value=1000; $('moduleLen').value=3000;
@@ -1342,7 +1349,7 @@ function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
-function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, orientation:$('orientation').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
+function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{conductors:conductorCode(),mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, orientation:$('orientation').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
 function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
 function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; saveState(); }
 $('metaSave').onclick=()=>{ readMetaInputs(); msg.textContent='Данные проекта сохранены'; setTimeout(()=>msg.textContent='',1400); };
@@ -1360,7 +1367,7 @@ function loadState(){
       $('mat').value=s.ui.mat||'AL';
       fillRatings(false);
       if(s.ui.rating && Array.from($('rating').options).some(o=>o.value===String(s.ui.rating))) $('rating').value=s.ui.rating;
-      $('ip').value=s.ui.ip||'IP55'; $('orientation').value=s.ui.orientation||'FLAT';
+      $('conductors').value=s.ui.conductors==='7'?'7':'5';$('ip').value=s.ui.ip||'IP55'; $('orientation').value=s.ui.orientation||'FLAT';
       $('startType').value=s.ui.startType||'NKU';
       $('endType').value=s.ui.endType||'ENDCAP';
       $('startW').value=s.ui.startW||600; $('startD').value=s.ui.startD||600; $('startH').value=s.ui.startH||2200;
