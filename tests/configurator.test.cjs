@@ -188,4 +188,69 @@ check('export wraps callout text and print pages explicitly preserve axis sizes 
  assert.match(html,/max-height:220mm/);assert.match(html,/\.toolbar\{display:none\}/);
  assert.match(html,/Не определено: есть позиции без цены/);assert.match(html,/ось =/);
 });
+function withProjectStorage(fn){
+ const previous=sandbox.localStorage,stored=new Map();
+ sandbox.localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value),removeItem:key=>stored.delete(key)};
+ try{fn(stored);}finally{sandbox.localStorage=previous;run('projectStorageBlocked=false;recoveryProjectRaw=null');}
+}
+check('changing maximum section length immediately updates cuts, BOM and saved limit',()=>withProjectStorage(stored=>{
+ run("$('mat').value='CU';$('rating').value='3200';$('conductors').value='5';$('orientation').value='FLAT';$('ip').value='IP55';state.segs=[{dir:'+X',len:6500}];state.calc=true;state.module=3000;$('moduleLen').value=1000");
+ elements.get('moduleLen').listeners.input();
+ assert.equal(run('state.module'),1000);assert.equal(run('computeSpec().module'),1000);assert.equal(run("$('spModule').textContent"),'1000 мм');
+ assert.ok(Array.from(run('straightLayout(0).parts')).every(n=>n<=1000));
+ const saved=JSON.parse(stored.get('BUS_STATE_V3'));assert.equal(saved.module,1000);assert.equal(saved.ui.moduleLen,1000);
+ const raw=stored.get('BUS_STATE_V3');
+ for(const value of ['',0,-1,Infinity,3100,1001]){elements.get('moduleLen').value=value;elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1000);assert.equal(stored.get('BUS_STATE_V3'),raw);assert.match(run("$('moduleHint').textContent"),/400.*3000/);}
+ run("$('moduleLen').value=1250");elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1250);assert.equal(run("$('moduleHint').textContent"),'');
+}));
+check('invalid or stale segment edits explain the error and preserve geometry',()=>withProjectStorage(()=>{
+ run("state.segs=[{dir:'+X',len:6500}];openEdit(0)");
+ for(const value of ['',100,450.5,Infinity,NaN,Number.MAX_SAFE_INTEGER+1]){elements.get('editInput').value=value;run('applyEdit()');assert.equal(run('state.segs[0].len'),6500);assert.ok(run("$('editHint').textContent.length")>0);}
+ run("state.editingIdx=99;$('editInput').value=4000;applyEdit()");assert.equal(run('state.segs[0].len'),6500);assert.match(run("$('editHint').textContent"),/удалён/);
+ run("openEdit(0);$('editInput').value=4000;applyEdit()");assert.equal(run('state.segs[0].len'),4000);assert.equal(run("$('spTotalLen').textContent"),'4000 мм');
+}));
+check('adding a segment after calculation updates the displayed specification',()=>withProjectStorage(()=>{
+ run("state.lastDir='+X';$('lenInput').value='Infinity';commitLength()");assert.equal(run('state.segs[0].len'),4000);
+ run("$('lenInput').value=500;commitLength()");assert.equal(run('state.segs[0].len'),4500);assert.equal(run("$('spTotalLen').textContent"),'4500 мм');
+ run("state.lastDir='+Y';$('lenInput').value=2000;commitLength()");assert.equal(run('state.segs.length'),2);assert.equal(run("$('spTotalLen').textContent"),'6500 мм');
+}));
+check('old fractional lengths preserve coordinates and totals without integer truncation',()=>{
+ run("state.segs=[{dir:'+X',len:1010.5}]");assert.equal(run('endPoint()[0]-originTop()[0]'),1010.5);assert.equal(run('computeSpec().totalLen'),1010.5);assert.equal(run('straightLayout(0).length'),1010.5);
+});
+check('saved project round trip keeps conductor/IP, dimensions, metadata and independent callout points',()=>withProjectStorage(stored=>{
+ run("$('mat').value='CU';$('rating').value='4000';$('conductors').value='7';$('orientation').value='EDGE';$('ip').value='IP65';$('moduleLen').value=1500;syncModule();state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:6500}];state.calc=true;state.dimOffsets.ISO={'0':{dx:42,dy:-15}};state.annos=[{id:4,text:'Выводы ТР',pos:{ISO:{ax:17,ay:23,bx:-500,by:900},TOP:{ax:10,ay:20,bx:500,by:700}}}];state.meta.title='Проект проверки';saveState()");
+ const original=JSON.parse(stored.get('BUS_STATE_V3'));
+ run("state.segs=[];state.annos=[];$('conductors').value='5';$('ip').value='IP55';loadState()");
+ assert.equal(run("$('conductors').value"),'7');assert.equal(run("$('ip').value"),'IP65');assert.equal(run("$('rating').value"),4000);assert.equal(run('state.module'),1500);
+ assert.equal(run('state.meta.title'),'Проект проверки');assert.equal(run('state.annos[0].pos.ISO.ax'),17);assert.equal(run('state.annos[0].pos.ISO.bx'),-500);assert.equal(run('state.dimOffsets.ISO[0].dx'),42);
+ run('saveState()');assert.deepEqual(JSON.parse(stored.get('BUS_STATE_V3')),original);
+ // Migration from the former stale-module bug follows the saved visible field.
+ original.module=3000;stored.set('BUS_STATE_V3',JSON.stringify(original));run('loadState()');assert.equal(run('state.module'),1500);
+ // Older projects without new conductor/orientation/metadata fields still load.
+ stored.set('BUS_STATE_V3',JSON.stringify({segs:[{dir:'+X',len:3000}],calc:true,module:3000}));run('loadState()');assert.equal(run("$('conductors').value"),'5');assert.equal(run('state.segs[0].len'),3000);
+}));
+check('corrupt project fails atomically and cannot be overwritten by subsequent autosave',()=>withProjectStorage(stored=>{
+ const baseline=JSON.parse(run('JSON.stringify(projectSnapshot())'));
+ const cases=[{...baseline,meta:'broken'},{...baseline,module:-1},{...baseline,dimOffsets:{ISO:{0:{dx:'bad',dy:0}}}},{...baseline,annos:[{text:'Bad',pos:{ISO:{ax:null,ay:0,bx:1,by:2}}}]},{...baseline,ui:{...baseline.ui,ip:'IP54'}},{...baseline,ui:{...baseline.ui,mat:'AL',rating:6300}},{...baseline,ui:{...baseline.ui,startW:0}}];
+ for(const bad of cases){const before=run('JSON.stringify(projectSnapshot())'),raw=JSON.stringify({...bad,segs:[{dir:'+Y',len:9999}]});stored.set('BUS_STATE_V3',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_STATE_V3'),raw);assert.match(run("$('storageStatus').textContent"),/защищены/);}
+ const raw=stored.get('BUS_STATE_V3');run("$('clear').onclick()");assert.equal(JSON.parse(stored.get('BUS_STATE_V3')).segs.length,0);assert.ok([...stored.entries()].some(([key,value])=>key.startsWith('BUS_STATE_V3.recovery.')&&value===raw));assert.equal(run('computeSpec().endCap'),0);
+}));
+check('storage write failure never reports a successful save or deletes recovery data',()=>withProjectStorage(stored=>{
+ sandbox.localStorage.setItem=()=>{throw new Error('QuotaExceededError');};
+ assert.equal(run('saveState()'),false);assert.match(run("$('storageStatus').textContent"),/QuotaExceededError/);
+ run("$('metaSave').onclick()");assert.match(run("$('msg').textContent"),/не сохранены/);
+ stored.set('BUS_STATE_V3','invalid-json');run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);assert.equal(stored.get('BUS_STATE_V3'),'invalid-json');assert.equal(run('projectStorageBlocked'),true);
+}));
+check('invalid equipment dimensions retain last valid geometry and prevent a corrupt saved project',()=>withProjectStorage(stored=>{
+ run("$('startW').value=2000;P();saveState()");const previous=stored.get('BUS_STATE_V3');
+ for(const value of ['',-100,Infinity]){elements.get('startW').value=value;assert.equal(run('P().startW'),2000);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_STATE_V3'),previous);}
+ run("$('startW').value=600;P()");assert.equal(run('P().startW'),600);
+}));
+check('unavailable material rating is announced and notice clears after an explicit choice',()=>withProjectStorage(()=>{
+ run("$('mat').value='CU';$('rating').value='6300';$('mat').value='AL';fillRatings()");assert.equal(Number(run("$('rating').value")),400);assert.match(run("$('msg').textContent"),/6300.*400/);
+ run("$('rating').value='3200'");elements.get('rating').listeners.change();assert.equal(run("$('msg').textContent"),'');
+}));
+check('unreadable storage cannot be reset without protecting its original content',()=>withProjectStorage(()=>{
+ const before=run('JSON.stringify(projectSnapshot())');sandbox.localStorage.getItem=()=>{throw new Error('SecurityError');};run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);run("$('clear').onclick()");assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('projectStorageBlocked'),true);
+}));
 console.log(`${count} targeted checks passed`);
