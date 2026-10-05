@@ -336,12 +336,13 @@
   </div>
 </div>
 
-<script src="vendor/xlsx.full.min.js"></script>
-<script src="tariff-import.js"></script>
-<script src="cad-export.js"></script>
-<script src="routes.js"></script>
-<script src="equipment.js"></script>
-<script src="nku-columns.js"></script>
+<!-- Bump every local asset revision together when the HTML/module contract changes. -->
+<script src="vendor/xlsx.full.min.js?v=20261005-columns-2"></script>
+<script src="tariff-import.js?v=20261005-columns-2"></script>
+<script src="cad-export.js?v=20261005-columns-2"></script>
+<script src="routes.js?v=20261005-columns-2"></script>
+<script src="equipment.js?v=20261005-columns-2"></script>
+<script src="nku-columns.js?v=20261005-columns-2"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -1612,6 +1613,7 @@ function start(){
   ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
     $(id).addEventListener('input',()=>{ readMetaInputs(); });
   });
+  window.systemelineReady=true;
 }
 document.addEventListener('DOMContentLoaded',start);
 </script>

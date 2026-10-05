@@ -1,5 +1,18 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
+const SYSTEMELINE_BUILD='20261005-columns-2';
+function showStartupFailure(){
+  let banner=document.getElementById('startupFailure');
+  if(!banner){banner=document.createElement('div');banner.id='startupFailure';(document.querySelector('header')??document.body).appendChild(banner);}
+  banner.hidden=false;banner.setAttribute('role','alert');
+  banner.style.cssText='padding:12px;margin:10px 0;border:1px solid #b83d3d;border-radius:10px;background:#fff1f1;color:#862525';
+  banner.textContent='Конфигуратор не запустился. Возможно, браузер загрузил части разных версий. Обновите приложение; сохранённый проект останется на месте. ';
+  const link=document.createElement('a'),url=new URL(window.location.href);url.searchParams.set('build',SYSTEMELINE_BUILD);url.searchParams.set('refresh',Date.now());
+  link.href=url.href;link.textContent='Обновить приложение';link.style.cssText='display:inline-block;padding:7px 12px;background:white;border:1px solid #b83d3d;border-radius:8px;color:#862525';banner.appendChild(link);
+}
+// New modules can reach an older HTML page through a stale browser cache.
+if(!document.getElementById('routeStartColumn'))showStartupFailure();
+window.addEventListener('error',()=>{if(!window.systemelineReady)showStartupFailure();},true);
 const ROUTE_FIELDS=['segs','calc','module','dimOffsets','annos','annoSeq','lastDir','routeName','routeOffset','routeBindings','routeRouting','routePorts'];
 let routeContextDepth=0, routeInteractive=true, routesUIReady=false;
 function activeRouteData(){
