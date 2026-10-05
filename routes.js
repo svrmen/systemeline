@@ -1,9 +1,9 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
-const ROUTE_FIELDS=['segs','calc','module','dimOffsets','annos','annoSeq','lastDir','routeName','routeOffset','routeBindings','routeRouting'];
+const ROUTE_FIELDS=['segs','calc','module','dimOffsets','annos','annoSeq','lastDir','routeName','routeOffset','routeBindings','routeRouting','routePorts'];
 let routeContextDepth=0, routeInteractive=true, routesUIReady=false;
 function activeRouteData(){
-  return {...singleProjectSnapshot(),id:state.activeRouteId,name:state.routeName,offset:{...state.routeOffset},lastDir:state.lastDir,bindings:{...state.routeBindings},routing:{...state.routeRouting}};
+  return {...singleProjectSnapshot(),id:state.activeRouteId,name:state.routeName,offset:{...state.routeOffset},lastDir:state.lastDir,bindings:{...state.routeBindings},routing:{...state.routeRouting},ports:{...state.routePorts}};
 }
 function routeEntries(){
   const active=activeRouteData();
@@ -12,6 +12,7 @@ function routeEntries(){
 function installRoute(route){
   Object.assign(state,{segs:route.segs,calc:route.calc,module:route.module,dimOffsets:route.dimOffsets,annos:route.annos,annoSeq:route.annoSeq,lastDir:route.lastDir||'+Z',routeName:route.name,routeOffset:{...route.offset}});
   state.routeBindings={...emptyBindings(),...route.bindings};state.routeRouting={...defaultRouting(),...route.routing};
+  state.routePorts={...emptyPorts(),...route.ports};
   $('mat').value=route.ui.mat;fillRatings(false);
   for(const key of PROJECT_UI_KEYS)$(key).value=route.ui[key];
 }
@@ -60,7 +61,7 @@ function validateRouteFields(){
 }
 function validateProjectSnapshot(snapshot){
   const root=validateSingleProjectSnapshot(snapshot);
-  if(snapshot.version!==undefined&&![4,5].includes(snapshot.version))throw new Error('Версия проекта не поддерживается.');
+  if(snapshot.version!==undefined&&![4,5,6].includes(snapshot.version))throw new Error('Версия проекта не поддерживается.');
   const raw=snapshot.routes??[{...root,id:'r1',name:'Трасса 1',offset:{x:0,y:0,z:0}}];
   if(!Array.isArray(raw)||!raw.length||raw.length>20)throw new Error('Проект должен содержать от 1 до 20 трасс.');
   const ids=new Set();
@@ -70,7 +71,7 @@ function validateProjectSnapshot(snapshot){
     if(typeof route.name!=='string'||!route.name.trim()||route.name.length>80)throw new Error('Название трассы: от 1 до 80 символов.');
     if(!route.offset||!['x','y','z'].every(axis=>Number.isFinite(route.offset[axis])&&Math.abs(route.offset[axis])<=1000000))throw new Error('Некорректные координаты трассы.');
     const clean=validateSingleProjectSnapshot(route);
-    return {...clean,id:route.id,name:route.name.trim(),offset:{...route.offset},lastDir:['+X','-X','+Y','-Y','+Z','-Z'].includes(route.lastDir)?route.lastDir:'+Z',bindings:route.bindings,routing:route.routing};
+    return {...clean,id:route.id,name:route.name.trim(),offset:{...route.offset},lastDir:['+X','-X','+Y','-Y','+Z','-Z'].includes(route.lastDir)?route.lastDir:'+Z',bindings:route.bindings,routing:route.routing,ports:route.ports};
   });
   const activeRouteId=snapshot.activeRouteId??routes[0].id;
   if(!ids.has(activeRouteId))throw new Error('Выбранная трасса отсутствует в проекте.');
@@ -78,11 +79,11 @@ function validateProjectSnapshot(snapshot){
   if(snapshot.showAllDimensions!==undefined&&typeof snapshot.showAllDimensions!=='boolean')throw new Error('Некорректный режим размеров.');
   if(snapshot.specScope!==undefined&&!['active','all'].includes(snapshot.specScope))throw new Error('Некорректная область спецификации.');
   const placed=validateEquipmentProject(snapshot,routes);
-  return {...root,version:5,...placed,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
+  return {...root,version:6,...placed,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
 }
 function projectSnapshot(){
   validateRouteFields();
-  return {...singleProjectSnapshot(),version:5,equipment:state.equipment,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
+  return {...singleProjectSnapshot(),version:6,equipment:state.equipment,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
 }
 function commitActiveRoute(){
   const clean=validateProjectSnapshot(projectSnapshot());state.routes=clean.routes;return clean;
@@ -119,7 +120,7 @@ function addRoute(kind='TR_NKU',copy=false){
     route.id='r'+number;route.name=copy?`${source.name.slice(0,64)} (копия)`:kind==='NKU_NKU'?'Связь НКУ':`ТР${number} → НКУ${number}`;
     route.offset.y+=4000;
     route.annos=[];route.annoSeq=1;route.dimOffsets=Object.fromEntries(PROJECT_VIEWS.map(view=>[view,{}]));
-    route.bindings=emptyBindings();route.routing=defaultRouting();
+    route.bindings=emptyBindings();route.routing=defaultRouting();route.ports=emptyPorts();
     const copiedEquipment=[];
     if(copy&&source.bindings?.start){
       for(const side of ['start','end']){
@@ -127,7 +128,7 @@ function addRoute(kind='TR_NKU',copy=false){
         let n=1;while([...state.equipment,...copiedEquipment].some(e=>e.id==='e'+n))n++;
         const item=JSON.parse(JSON.stringify(original));item.id='e'+n;item.name=`${original.name.slice(0,64)} (копия)`;item.position.y+=4000;copiedEquipment.push(item);route.bindings[side]=item.id;
       }
-      route.routing={...source.routing};synchronizeEquipmentRoute(route,[...state.equipment,...copiedEquipment]);
+      route.routing={...source.routing};route.ports={...source.ports};synchronizeEquipmentRoute(route,[...state.equipment,...copiedEquipment]);
     }
     let linked=false;
     if(!copy){
@@ -142,7 +143,7 @@ function addRoute(kind='TR_NKU',copy=false){
           ['X','Y','Z'].forEach((axis,index)=>{const delta=b[index]-a[index];if(delta)route.segs.push({dir:(delta>0?'+':'-')+axis,len:Math.abs(delta)});});
           if(!route.segs.length)throw new Error('Выбранные НКУ совпадают. Измените координаты исходных трасс.');
           linked=true;
-          if(ends[0].bindings?.end&&ends[1].bindings?.end){route.bindings={start:ends[0].bindings.end,end:ends[1].bindings.end};route.routing={...defaultRouting(),mode:'auto',path:'DIRECT'};synchronizeEquipmentRoute(route,state.equipment);}
+          if(ends[0].bindings?.end&&ends[1].bindings?.end){route.bindings={start:ends[0].bindings.end,end:ends[1].bindings.end};route.ports={start:ends[0].ports.end,end:ends[1].ports.end};route.routing={...defaultRouting(),mode:'auto',path:'DIRECT'};synchronizeEquipmentRoute(route,state.equipment);}
         }
       }
     }

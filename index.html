@@ -75,6 +75,8 @@
   .route-card{border:1px solid #d5dfed;border-radius:10px;padding:10px;margin-bottom:12px;background:#f8faff}
   .route-card h3{margin:0 0 6px;font-size:15px}.route-card .row{margin:6px 0}
   .route-card .row-3 input{max-width:none;width:100%;height:34px}.route-card small{display:block;color:#526276}
+  .column-row{display:grid;grid-template-columns:22px minmax(0,1fr) 88px 32px;gap:6px;align-items:center;margin:6px 0}
+  .column-row input{min-width:0;width:100%;height:34px;padding:5px 7px}.column-row .btn{padding:4px}.column-row span{font-size:13px;color:#526276}
 </style>
 </head>
 <body>
@@ -108,13 +110,15 @@
       <div class="route-card">
         <h3>Подключённое оборудование</h3>
         <div class="row"><label for="routeStartEquipment">Начало</label><select id="routeStartEquipment"></select></div>
+        <div class="row"><label for="routeStartColumn">Из колонны</label><select id="routeStartColumn"></select></div>
         <div class="row"><label for="routeEndEquipment">Конец — НКУ</label><select id="routeEndEquipment"></select></div>
+        <div class="row"><label for="routeEndColumn">В колонну</label><select id="routeEndColumn"></select></div>
         <div class="row"><label for="routePath">Путь</label><select id="routePath"><option value="OVERHEAD">Через заданную высоту</option><option value="DIRECT">Напрямую по осям</option></select></div>
         <div class="row"><label for="routeLevel">Отметка трассы Z, мм</label><input id="routeLevel" type="number" value="3700"></div>
         <div class="row"><label for="routeOrder">Порядок поворотов</label><select id="routeOrder"><option value="XY">Сначала X, затем Y</option><option value="YX">Сначала Y, затем X</option></select></div>
         <small id="routingHint"></small>
         <div class="row"><button class="btn" id="routeBuild">Построить</button><button class="btn" id="routeDetach">Снять привязки</button></div>
-        <small>Объекты размещаются на вкладке «Оборудование». Точки подключения условно в центре верха; реальные FE/FET требуют заказных чертежей.</small>
+        <small>Объекты размещаются на вкладке «Оборудование». Подключение НКУ — условно в центре верха выбранной колонны, ТР — корпуса. Реальные FE/FET требуют заказных чертежей.</small>
       </div>
       <div class="row"><label>Материал шин</label>
         <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
@@ -212,6 +216,13 @@
           <div class="row-3"><input id="equipmentX" type="number" aria-label="Оборудование X"><input id="equipmentY" type="number" aria-label="Оборудование Y"><input id="equipmentZ" type="number" aria-label="Оборудование Z"></div>
           <label>Габариты W / D / H, мм</label>
           <div class="row-3"><input id="equipmentW" type="number" min="1" aria-label="Оборудование ширина"><input id="equipmentD" type="number" min="1" aria-label="Оборудование глубина"><input id="equipmentH" type="number" min="1" aria-label="Оборудование высота"></div>
+          <div id="equipmentColumnsCard" class="hid">
+            <h3>Колонны НКУ</h3>
+            <small>Слева направо по X: номер, название, ширина в мм. Глубина и высота общие. Ширина НКУ — сумма колонн.</small>
+            <div id="equipmentColumns"></div>
+            <button class="btn" id="equipmentColumnAdd">Добавить колонну</button>
+            <small id="equipmentColumnTotal"></small>
+          </div>
           <button class="btn" id="equipmentApply">Применить координаты и габариты</button>
           <div class="row"><button class="btn" id="equipmentPlace">Поставить на плане</button><button class="btn" id="equipmentRemove">Удалить объект</button></div>
         </div>
@@ -330,6 +341,7 @@
 <script src="cad-export.js"></script>
 <script src="routes.js"></script>
 <script src="equipment.js"></script>
+<script src="nku-columns.js"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -346,8 +358,9 @@ const MOUNT_ALONG=10, MOUNT_THICK=10;
 /* расстояния креплений вдоль сегмента */
 
 
-const STORAGE_STATE='BUS_PROJECT_V5';
-const STORAGE_STATE_PREVIOUS='BUS_PROJECT_V4';
+const STORAGE_STATE='BUS_PROJECT_V6';
+const STORAGE_STATE_PREVIOUS='BUS_PROJECT_V5';
+const STORAGE_STATE_MULTI='BUS_PROJECT_V4';
 const STORAGE_STATE_OLD='BUS_STATE_V3';
 const STORAGE_PRICE='BUS_PRICE_V4';
 const STORAGE_PRICE_OLD='BUS_PRICE_V3';
@@ -439,7 +452,7 @@ document.querySelectorAll('.tab').forEach(t=>{
 /* ===== МОДЕЛЬ ===== */
 const state={
   routes:[],activeRouteId:'r1',routeName:'Трасса 1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,showAllDimensions:false,specScope:'active',
-  equipment:[],selectedEquipmentId:null,equipmentEditMode:false,placingEquipment:false,routeBindings:{start:null,end:null},routeRouting:{mode:'manual',level:3700,order:'XY',path:'OVERHEAD'},
+  equipment:[],selectedEquipmentId:null,equipmentEditMode:false,placingEquipment:false,routeBindings:{start:null,end:null},routePorts:{start:null,end:null},routeRouting:{mode:'manual',level:3700,order:'XY',path:'OVERHEAD'},
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
   annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
@@ -460,7 +473,7 @@ function P(){
     busH:edge?width:BUS_H
   };
 }
-function originTop(){ const p=P(),o=state.routeOffset; return [o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
+function originTop(){ const item=equipmentById(state.routeBindings.start);if(item)return equipmentTerminal(item,state.routePorts.start);const p=P(),o=state.routeOffset; return [o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
 const axis=d=>d[1];
 const sgn=d=>d[0]==='+'?1:-1;
 const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
@@ -470,7 +483,7 @@ function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const 
 let DXF_COLLECT=false, DXF_ENT=[],cadGroup=0,cadMeta={};
 function drawingStyle(){return false;}
 const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
-function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:cadMeta.equipmentId?'PROJECT':state.activeRouteId,routeName:cadMeta.equipmentId?'Оборудование проекта':state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),reference:['ST','EL','JPK','FE','FET','GETB','EC','HF','HE'].includes(type)?refFor(type,Number($('rating').value)):undefined}}); }
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:cadMeta.equipmentId?'PROJECT':state.activeRouteId,routeName:cadMeta.equipmentId?'Оборудование проекта':state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),bindings:{...state.routeBindings},ports:{...state.routePorts},reference:['ST','EL','JPK','FE','FET','GETB','EC','HF','HE'].includes(type)?refFor(type,Number($('rating').value)):undefined}}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
@@ -654,7 +667,7 @@ function floorBoundsXY(){
   function expand(px,py){ minX=Math.min(minX, px-bw/2); maxX=Math.max(maxX, px+bw/2); minY=Math.min(minY, py-bw/2); maxY=Math.max(maxY, py+bw/2); }
   expand(x,y);
   for(const s of state.segs){ const L=Number(s.len); if(s.dir==='+X') x+=L; else if(s.dir==='-X') x-=L; if(s.dir==='+Y') y+=L; else if(s.dir==='-Y') y-=L; expand(x,y); }
-  if($('endType').value==='NKU'){ const e=endPoint(); minX=Math.min(minX, e[0]-p.endW/2); maxX=Math.max(maxX, e[0]+p.endW/2); minY=Math.min(minY, e[1]-p.endD/2); maxY=Math.max(maxY, e[1]+p.endD/2); }
+  if($('endType').value==='NKU'){const item=equipmentById(state.routeBindings.end),e=endPoint(),x=item?.position.x??e[0]-p.endW/2,y=item?.position.y??e[1]-p.endD/2;minX=Math.min(minX,x);maxX=Math.max(maxX,x+p.endW);minY=Math.min(minY,y);maxY=Math.max(maxY,y+p.endD);}
   return {minX, maxX, minY, maxY};
 }
 function drawFloorBounded(){
@@ -1003,7 +1016,7 @@ function updateGeometryStatus(){
 function routeBoundsProjected(){
   const p=P(),o=state.routeOffset; const pts=[[o.x,o.y,o.z],[o.x,o.y,originTop()[2]-p.startH],[o.x+p.startW,o.y+p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
   for(const s of state.segs){ pos=adv(pos,s.dir,Number(s.len)); pts.push(pos); }
-  if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
+  if($('endType').value==='NKU'){const item=equipmentById(state.routeBindings.end);if(item)pts.push(...equipmentCorners(item));else{const e=endPoint();pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]);pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]);}}
   const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
   return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
 }
@@ -1255,7 +1268,7 @@ $('savePNGAll').onclick=()=>{
 function collectCadDrawing(){
   DXF_ENT.length=0;cadGroup=0;cadMeta={};DXF_COLLECT=true;
   try{draw();}finally{DXF_COLLECT=false;}
-  const annotations=[],dimensions=[];
+  const annotations=[],dimensions=[],labels=[];
   for(const route of visibleRoutes())withRoute(route,()=>{
     ensureAnnoNumbers();
     annotations.push(...state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`${state.routeName} / A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]})));
@@ -1263,7 +1276,8 @@ function collectCadDrawing(){
     for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
   });
   for(const item of equipmentInScope()){const p=proj(...equipmentTerminal(item));annotations.push({text:item.name,point:[p[0],-p[1]+150],anchor:[p[0],-p[1]]});}
-  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
+  for(const item of equipmentInScope().filter(item=>item.columns?.length>1))for(const part of nkuColumnGeometry(item)){const p=proj(part.position.x+part.size.w/2,part.position.y+part.size.d/2,part.position.z+part.size.h/2);labels.push({text:String(part.number),point:[p[0],-p[1]]});}
+  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,labels,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
 }
 $('saveDXF').onclick=()=>{
   if(visibleRoutes().some(route=>boundRouteGap(route))){msg.textContent='Показанная ручная трасса не достигает выбранного НКУ. Скорректируйте путь перед CAD-экспортом.';return;}
@@ -1278,6 +1292,7 @@ function buildProjectWorkbook(){
   const append=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows);sheet['!cols']=widths.map(wch=>({wch}));XLSX.utils.book_append_sheet(book,sheet,name);return sheet;};
   const source=PRICE.source||{};
   if(equipmentExportRows().length)append('Оборудование',[['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows()],[28,20,18,18,22,18,18,18]);
+  if(equipmentColumnRows().length)append('Колонны НКУ',[['НКУ','№','Колонна','ID','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentColumnRows()],[28,6,28,10,18,18,22,18,18,18]);
   append('Проект',[
     ['Параметр','Значение'],['Статус','Предварительная спецификация; монтажная комплектность требует проверки'],
     ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Адрес',state.meta?.addr||''],['Заказчик',state.meta?.customer||''],['Подрядчик',state.meta?.contractor||''],['Шифр',state.meta?.code||''],['Дата',state.meta?.date||''],['Примечания',state.meta?.notes||''],['Область спецификации',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По листу «Трассы»':($('mat').value==='CU'?'Медь':'Алюминий')],
@@ -1371,10 +1386,15 @@ function buildPrintableProject(images){
     }
     /* Виды */
     if(equipmentExportRows().length){
-      html+=`<div class="page"><div class="frame"></div><div class="title">Размещение оборудования</div><h2>Размещение оборудования</h2><p>Нижний угол корпуса; размеры в мм. Точка подключения условно в центре верха.</p><table><thead><tr><th>Объект</th><th>Тип</th><th>X</th><th>Y</th><th>Z основания</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
+      html+=`<div class="page"><div class="frame"></div><div class="title">Размещение оборудования</div><h2>Размещение оборудования</h2><p>Нижний угол корпуса; размеры в мм. Подключение НКУ — условно в центре верха выбранной колонны, ТР — корпуса.</p><table><thead><tr><th>Объект</th><th>Тип</th><th>X</th><th>Y</th><th>Z основания</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
       equipmentExportRows().forEach(row=>{html+='<tr>'+row.map(value=>`<td>${escapeHtml(String(value))}</td>`).join('')+'</tr>';});
       html+='</tbody></table><h3>Подключения трасс</h3><table><tr><th>Трасса</th><th>Начало</th><th>Конец</th></tr>';
       specificationRoutes().forEach(route=>{html+='<tr>'+[route.name,...routeEndpointNames(route)].map(value=>`<td>${escapeHtml(value)}</td>`).join('')+'</tr>';});html+='</table></div>';
+    }
+    const columns=equipmentColumnRows();
+    for(let offset=0;offset<columns.length;offset+=14){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Колонны НКУ</div><h2>Колонны НКУ</h2><p>Ряд по X; размеры в мм. Номера колонн — слева направо.</p><table><thead><tr><th>НКУ</th><th>№</th><th>Колонна</th><th>ID</th><th>X</th><th>Y</th><th>Z</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
+      columns.slice(offset,offset+14).forEach(row=>{html+='<tr>'+row.map(value=>`<td>${escapeHtml(String(value))}</td>`).join('')+'</tr>';});html+='</tbody></table></div>';
     }
     images.forEach(img=>{ html+=`<div class="page"><div class="frame"></div><div class="title">Вид: ${img.name}</div><h2>Вид: ${img.name}</h2><img src="${img.src}"></div>`; });
 
@@ -1424,6 +1444,7 @@ $('saveCSV').onclick=()=>{
   const rows=[['Область',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По трассам':($('mat').value==='CU'?'Cu':'Al')],['Номинал, A',sp.routes?'По трассам':$('rating').value],['IP',sp.routes?'По трассам':$('ip').value],['Проводники',sp.routes?'По трассам':conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts]];
   if(sp.routes)rows.push([],['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows());
   if(equipmentExportRows().length){rows.push([],['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows(),[],['Трасса','Начало','Конец'],...specificationRoutes().map(route=>[route.name,...routeEndpointNames(route)]));}
+  if(equipmentColumnRows().length)rows.push([],['НКУ','№','Колонна','ID','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentColumnRows());
   rows.push([],['Трасса','Артикул','Длина сегмента (мм)','Кол-во, шт']);
   for(const route of specificationRoutes())withRoute(route,()=>{for(const [length,count]of [...computeSpec().parts].sort((a,b)=>b[0]-a[0]))rows.push([route.name,refFor('ST',Number($('rating').value)),length,count]);});
   const csv='\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\r\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
@@ -1570,7 +1591,7 @@ $('metaSave').onclick=()=>{ if(readMetaInputs()){msg.textContent='Данные �
 function loadState(){
   let raw=null;
   try{
-    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_PREVIOUS);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
+    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_PREVIOUS);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_MULTI);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
     const s=validateProjectSnapshot(JSON.parse(raw));
     Object.assign(state,{equipment:s.equipment,routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
     installRoute(s.routes.find(route=>route.id===s.activeRouteId));

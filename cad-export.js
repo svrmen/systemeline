@@ -33,7 +33,9 @@ function buildCadDXF(model){
       for(const key of ['RATING_A','IP','MATERIAL','CONDUCTORS'])delete attributes[key];
       attributes.EQUIPMENT_ID=g.meta.equipmentId;attributes.EQUIPMENT_NAME=g.meta.equipmentName;attributes.EQUIPMENT_KIND=g.meta.equipmentKind??'';
       if(g.meta.equipmentPosition){for(const key of ['x','y','z'])attributes[key.toUpperCase()+'_MM']=g.meta.equipmentPosition[key];for(const key of ['w','d','h'])attributes[key.toUpperCase()+'_MM']=g.meta.equipmentSize[key];}
+      if(g.meta.columnId){attributes.COLUMN_ID=g.meta.columnId;attributes.COLUMN_NAME=g.meta.columnName??'';attributes.COLUMN_NUMBER=g.meta.columnNumber??'';attributes.COLUMN_WIDTH_MM=g.meta.columnWidth??'';if(g.meta.columnPosition)for(const key of ['x','y','z'])attributes['COLUMN_'+key.toUpperCase()+'_MM']=g.meta.columnPosition[key];}
     }
+    else if(g.meta.bindings){for(const side of ['start','end']){attributes[side.toUpperCase()+'_EQUIPMENT']=g.meta.bindings[side]??'';attributes[side.toUpperCase()+'_COLUMN']=g.meta.ports?.[side]??'';}}
     for(const [tag,value]of Object.entries(attributes))blocks+=pair(0,'ATTDEF')+pair(8,'0')+point([0,0])+pair(40,50)+pair(1,text(value))+pair(3,tag)+pair(2,tag)+pair(70,1)+pair(7,'STANDARD');
     blocks+=pair(0,'ENDBLK')+pair(8,g.layer);
     entities+=pair(0,'INSERT')+pair(8,g.layer)+pair(2,name)+pair(66,1)+point(base);
@@ -53,6 +55,7 @@ function buildCadDXF(model){
     entities+=pair(0,'DIMENSION')+pair(8,'DIMENSIONS')+pair(2,name)+point(b)+point(mid,11)+pair(70,33)+pair(1,display)+pair(3,'STANDARD')+point(d.a,13)+point(d.b,14);
   }
   for(const a of model.annotations)entities+=line(a.anchor,a.point,'ANNOT')+label(a.text,a.point,'ANNOT');
+  for(const entry of model.labels??[])entities+=label(entry.text,entry.point,'ANNOT');
   const bounds=[...groups.values()].flatMap(g=>g.lines.flatMap(e=>[e.a,e.b]));
   const footerX=bounds.length?Math.min(...bounds.map(p=>p[0])):0,footerY=bounds.length?Math.min(...bounds.map(p=>p[1]))-300:-500;
   entities+=label(`SystemeLine B / ${model.view} / mm`,[footerX,footerY],'ANNOT');

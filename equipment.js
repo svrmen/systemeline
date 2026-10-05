@@ -4,7 +4,7 @@ let equipmentUIReady=false,equipmentDrag=null;
 const emptyBindings=()=>({start:null,end:null});
 const defaultRouting=()=>({mode:'manual',level:3700,order:'XY',path:'OVERHEAD'});
 function equipmentById(id,list=state.equipment){return list.find(item=>item.id===id);}
-function equipmentTerminal(item){return [item.position.x+item.size.w/2,item.position.y+item.size.d/2,item.position.z+item.size.h];}
+function equipmentTerminal(item,port=null){const column=equipmentPort(item,port),p=column?.position??item.position,s=column?.size??item.size;return [p.x+s.w/2,p.y+s.d/2,p.z+s.h];}
 function equipmentCorners(item){const p=item.position,s=item.size;return [0,s.w].flatMap(x=>[0,s.d].flatMap(y=>[0,s.h].map(z=>[p.x+x,p.y+y,p.z+z])));}
 function validateEquipmentProject(snapshot,routes){
   let equipment=snapshot.equipment??[];
@@ -18,7 +18,8 @@ function validateEquipmentProject(snapshot,routes){
     if(!['TR','NKU'].includes(item.kind)||typeof item.name!=='string'||!item.name.trim()||item.name.length>80)throw new Error('Проверьте тип и название оборудования.');
     if(!item.position||!['x','y','z'].every(k=>Number.isFinite(item.position[k])&&Math.abs(item.position[k])<=1000000))throw new Error('Координаты оборудования: от −1 000 000 до 1 000 000 мм.');
     if(!item.size||!['w','d','h'].every(k=>Number.isFinite(item.size[k])&&item.size[k]>0&&item.size[k]<=100000))throw new Error('Габариты оборудования: положительные числа до 100 000 мм.');
-    return {id:item.id,name:item.name.trim(),kind:item.kind,position:{...item.position},size:{...item.size}};
+    const columns=validateNKUColumns(item,snapshot.version!==6);
+    return {id:item.id,name:item.name.trim(),kind:item.kind,position:{...item.position},size:{...item.size},...(columns?{columns}:{})};
   });
   routes=routes.map(route=>{
     const bindings=route.bindings??emptyBindings(),routing={...defaultRouting(),...route.routing};
@@ -27,6 +28,7 @@ function validateEquipmentProject(snapshot,routes){
     if(bindings.end&&equipmentById(bindings.end,equipment).kind!=='NKU')throw new Error('В конце трассы выберите НКУ.');
     if(!['manual','auto'].includes(routing.mode)||!['XY','YX'].includes(routing.order)||!['OVERHEAD','DIRECT'].includes(routing.path)||!Number.isFinite(routing.level)||Math.abs(routing.level)>1000000)throw new Error('Некорректные настройки пути трассы.');
     const clean={...route,bindings:{start:bindings.start,end:bindings.end},routing};
+    clean.ports=validateRoutePorts(clean,equipment,snapshot.version!==6);
     // Reject inconsistent saved bindings rather than moving equipment on load.
     for(const side of ['start','end'])if(bindings[side]){
       const item=equipmentById(bindings[side],equipment);
@@ -35,7 +37,7 @@ function validateEquipmentProject(snapshot,routes){
     }
     if(routing.mode==='auto'){
       if(!bindings.start||!bindings.end)throw new Error('Автоматическая трасса требует два выбранных объекта.');
-      const expected=equipmentPath(equipmentById(bindings.start,equipment),equipmentById(bindings.end,equipment),routing);
+      const expected=equipmentPath(equipmentById(bindings.start,equipment),equipmentById(bindings.end,equipment),routing,clean.ports);
       if(JSON.stringify(route.segs)!==JSON.stringify(expected))throw new Error('Путь автоматической трассы не совпадает с оборудованием.');
     }
     return clean;
@@ -46,19 +48,20 @@ function equipmentFromRoutes(entries){
   const equipment=[],routes=JSON.parse(JSON.stringify(entries));
   const get=(kind,position,size)=>{
     let item=equipment.find(e=>e.kind===kind&&JSON.stringify(e.position)===JSON.stringify(position)&&JSON.stringify(e.size)===JSON.stringify(size));
-    if(!item){const n=equipment.filter(e=>e.kind===kind).length+1;item={id:'e'+(equipment.length+1),name:(kind==='TR'?'ТР':'НКУ')+n,kind,position,size};equipment.push(item);}return item.id;
+    if(!item){const n=equipment.filter(e=>e.kind===kind).length+1;item={id:'e'+(equipment.length+1),name:(kind==='TR'?'ТР':'НКУ')+n,kind,position,size,...(kind==='NKU'?{columns:singleNKUColumn(size.w)}:{})};equipment.push(item);}return item.id;
   };
   for(const route of routes){
     const ui=route.ui,startSize={w:Number(ui.startW),d:Number(ui.startD),h:Number(ui.startH)},endSize={w:Number(ui.endW),d:Number(ui.endD),h:Number(ui.endH)};
     const end=[route.offset.x+startSize.w/2,route.offset.y+startSize.d/2,route.offset.z+startSize.h];
     for(const seg of route.segs){const i='XYZ'.indexOf(seg.dir[1]);end[i]+=(seg.dir[0]==='+'?1:-1)*seg.len;}
     route.bindings={start:get(ui.startType,{...route.offset},startSize),end:ui.endType==='NKU'&&route.segs.length?get('NKU',{x:end[0]-endSize.w/2,y:end[1]-endSize.d/2,z:end[2]-endSize.h},endSize):null};
+    route.ports={start:ui.startType==='NKU'?'c1':null,end:route.bindings.end?'c1':null};
     route.routing={...defaultRouting(),level:Math.max(...route.segs.reduce((points,seg)=>{const p=adv(points[points.length-1],seg.dir,seg.len);return [...points,p];},[[route.offset.x+startSize.w/2,route.offset.y+startSize.d/2,route.offset.z+startSize.h]]).map(p=>p[2]))};
   }
   return {equipment,routes};
 }
-function equipmentPath(start,end,routing){
-  const a=equipmentTerminal(start),b=equipmentTerminal(end),segments=[];let current=[...a];
+function equipmentPath(start,end,routing,ports=emptyPorts()){
+  const a=equipmentTerminal(start,ports.start),b=equipmentTerminal(end,ports.end),segments=[];let current=[...a];
   const move=(index,value)=>{const delta=value-current[index];if(Math.abs(delta)>1e-7){segments.push({dir:(delta>0?'+':'-')+'XYZ'[index],len:Math.abs(delta)});current[index]=value;}};
   if(a.every((value,i)=>value===b[i]))throw new Error('Точки подключения совпадают. Переместите оборудование.');
   if(routing.path==='OVERHEAD'&&(a[0]!==b[0]||a[1]!==b[1])){
@@ -69,16 +72,19 @@ function equipmentPath(start,end,routing){
   move(2,b[2]);return segments;
 }
 function translateRouteAnnotations(route,delta){for(const anno of route.annos)for(const [view,p]of Object.entries(anno.pos)){const shift=projectRouteDelta(view,delta);for(const key of ['ax','bx'])p[key]+=shift[0];for(const key of ['ay','by'])p[key]+=shift[1];}}
-function synchronizeEquipmentRoute(route,equipment,rebuild=true){
-  const before=[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)];
+function synchronizeEquipmentRoute(route,equipment,rebuild=true,previousOrigin=null){
+  const original=equipmentById(route.bindings?.start),before=previousOrigin??(original?equipmentTerminal(original,route.ports?.start):[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)]);
+  route.ports={...emptyPorts(),...route.ports};
   for(const side of ['start','end']){
     const item=equipmentById(route.bindings?.[side],equipment);if(!item)continue;
     route.ui[side+'Type']=item.kind;for(const key of ['w','d','h'])route.ui[side+key.toUpperCase()]=item.size[key];
     if(side==='start')route.offset={...item.position};
+    if(item.kind==='NKU'&&route.ports[side]===null)route.ports[side]=item.columns[0].id;
+    if(item.kind!=='NKU')route.ports[side]=null;
   }
-  const after=[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)];
+  const updated=equipmentById(route.bindings?.start,equipment),after=updated?equipmentTerminal(updated,route.ports.start):[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)];
   translateRouteAnnotations(route,after.map((value,i)=>value-before[i]));
-  if(rebuild&&route.routing?.mode==='auto')route.segs=equipmentPath(equipmentById(route.bindings.start,equipment),equipmentById(route.bindings.end,equipment),route.routing);
+  if(rebuild&&route.routing?.mode==='auto')route.segs=equipmentPath(equipmentById(route.bindings.start,equipment),equipmentById(route.bindings.end,equipment),route.routing,route.ports);
 }
 function applyEquipmentDraft(draft,{fitView=false,persist=true}={}){
   const clean=validateProjectSnapshot(draft);
@@ -98,6 +104,7 @@ function addEquipment(kind){
     let n=1;while(draft.equipment.some(e=>e.id==='e'+n))n++;
     let count=1;while(draft.equipment.some(e=>e.name===(kind==='TR'?'ТР':'НКУ')+count))count++;
     const item={id:'e'+n,name:(kind==='TR'?'ТР':'НКУ')+count,kind,position:{x:kind==='TR'?0:6000,y:(count-1)*4000,z:0},size:kind==='TR'?{w:2000,d:1400,h:1700}:{w:600,d:600,h:2200}};
+    if(kind==='NKU')item.columns=singleNKUColumn(item.size.w);
     draft.equipment.push(item);state.selectedEquipmentId=item.id;applyEquipmentDraft(draft,{fitView:true});return item.id;
   }catch(error){$('equipmentStatus').textContent=error.message;return null;}
 }
@@ -117,21 +124,23 @@ function removeEquipment(){
 function buildEquipmentRoute(){
   try{
     const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===state.activeRouteId);
+    const before=withRoute(route,originTop);
     route.bindings={start:$('routeStartEquipment').value||null,end:$('routeEndEquipment').value||null};
+    route.ports={start:$('routeStartColumn').value||null,end:$('routeEndColumn').value||null};
     if(!route.bindings.start||!route.bindings.end)throw new Error('Выберите оборудование в начале и конце трассы.');
     if(String($('routeLevel').value).trim()==='')throw new Error('Введите отметку трассы.');
     route.routing={mode:'auto',level:Number($('routeLevel').value),order:$('routeOrder').value,path:$('routePath').value};
     if(!Number.isFinite(route.routing.level))throw new Error('Введите конечное число для отметки трассы.');
-    synchronizeEquipmentRoute(route,draft.equipment);route.calc=true;
+    synchronizeEquipmentRoute(route,draft.equipment,true,before);route.calc=true;
     applyEquipmentDraft(draft,{fitView:true});$('routeStatus').textContent='Трасса построена. При переносе оборудования этот путь обновляется автоматически.';return true;
   }catch(error){$('routeStatus').textContent=error.message;return false;}
 }
 function detachEquipmentRoute(){
-  state.routeBindings=emptyBindings();state.routeRouting.mode='manual';updateRouteControls();draw();saveState();$('routeStatus').textContent='Привязки сняты. Геометрия сохранена для ручного редактирования.';
+  const origin=originTop();state.routeOffset={x:origin[0]-Number($('startW').value)/2,y:origin[1]-Number($('startD').value)/2,z:origin[2]-Number($('startH').value)};state.routeBindings=emptyBindings();state.routePorts=emptyPorts();state.routeRouting.mode='manual';updateRouteControls();draw();saveState();$('routeStatus').textContent='Привязки сняты. Геометрия сохранена для ручного редактирования.';
 }
 function boundRouteGap(route=activeRouteData()){
   const item=equipmentById(route.bindings?.end);if(!item||!route.segs.length)return null;
-  const end=withRoute(route,endPoint),target=equipmentTerminal(item),delta=target.map((value,i)=>value-end[i]);
+  const end=withRoute(route,endPoint),target=equipmentTerminal(item,route.ports?.end),delta=target.map((value,i)=>value-end[i]);
   return delta.some(value=>Math.abs(value)>.01)?delta:null;
 }
 function equipmentInScope(routes=visibleRoutes(),planning=state.equipmentEditMode){
@@ -141,8 +150,10 @@ function equipmentBounds(projected){return equipmentInScope().map(item=>{const p
 function drawEquipmentObjects(){
   for(const item of equipmentInScope()){
     const p=item.position,s=item.size,top=equipmentTerminal(item),previous=cadMeta;
-    cadMeta={type:'EQUIPMENT',equipmentId:item.id,equipmentName:item.name,equipmentKind:item.kind,equipmentPosition:p,equipmentSize:s};
-    box(p.x,p.y,p.z,s.w,s.d,s.h,'CAB','#666');cadMeta={type:'CONNECTION_PLATE',equipmentId:item.id,equipmentName:item.name};box(top[0]-60,top[1]-60,top[2],120,120,8,'CAB','#999');cadMeta=previous;
+    if(item.kind==='NKU')for(const part of nkuColumnGeometry(item))drawEquipmentColumn(part,item);else drawEquipmentColumn({position:p,size:s},item);
+    const ports=new Set(visibleRoutes().flatMap(route=>['start','end'].filter(side=>route.bindings?.[side]===item.id).map(side=>route.ports?.[side]??null)));
+    if(!ports.size)ports.add(item.columns?.[0]?.id??null);
+    for(const port of ports){const point=equipmentTerminal(item,port);cadMeta={type:'CONNECTION_PLATE',equipmentId:item.id,equipmentName:item.name,columnId:port};box(point[0]-60,point[1]-60,point[2],120,120,8,'CAB','#999');}cadMeta=previous;
     drawText3(top,item.name,'center',-20/scale,'#365a83');
     if(!DXF_COLLECT&&state.equipmentEditMode&&state.drawAnnoLines&&item.id===state.selectedEquipmentId){
       const corners=[[p.x,p.y,p.z+s.h],[p.x+s.w,p.y,p.z+s.h],[p.x+s.w,p.y+s.d,p.z+s.h],[p.x,p.y+s.d,p.z+s.h]];
@@ -157,9 +168,11 @@ function updateEquipmentControls(){
   options($('equipmentSelect'),state.equipment,'Выберите оборудование');$('equipmentSelect').value=state.selectedEquipmentId??'';
   const selected=equipmentById(state.selectedEquipmentId);$('equipmentFields').classList.toggle('hid',!selected);
   if(selected){$('equipmentName').value=selected.name;for(const k of ['x','y','z'])$('equipment'+k.toUpperCase()).value=selected.position[k];for(const k of ['w','d','h'])$('equipment'+k.toUpperCase()).value=selected.size[k];}
+  renderNKUColumnEditor(selected);
   $('equipmentImport').disabled=state.equipment.length>0;
   options($('routeStartEquipment'),state.equipment,'Не выбрано');options($('routeEndEquipment'),state.equipment.filter(e=>e.kind==='NKU'),'Не выбрано');
   $('routeStartEquipment').value=state.routeBindings.start??'';$('routeEndEquipment').value=state.routeBindings.end??'';
+  for(const side of ['start','end'])routeColumnControl(side,state.routeBindings[side],state.routePorts[side]);
   $('routeLevel').value=state.routeRouting.level;$('routeOrder').value=state.routeRouting.order;$('routePath').value=state.routeRouting.path;
   for(const side of ['start','end'])for(const suffix of ['Type','W','D','H'])$(side+suffix).disabled=Boolean(state.routeBindings[side]);
   for(const axis of ['X','Y','Z'])$('route'+axis).disabled=Boolean(state.routeBindings.start);
@@ -174,12 +187,9 @@ function initEquipmentUI(){
   equipmentUIReady=true;updateEquipmentControls();
   $('equipmentImport').onclick=importEquipmentFromRoutes;$('equipmentAddTR').onclick=()=>addEquipment('TR');$('equipmentAddNKU').onclick=()=>addEquipment('NKU');$('equipmentRemove').onclick=removeEquipment;
   $('equipmentSelect').addEventListener('change',()=>{state.selectedEquipmentId=$('equipmentSelect').value;updateEquipmentControls();draw();});
-  $('equipmentApply').onclick=()=>{
-    const patch={name:$('equipmentName').value,position:{},size:{}};
-    for(const k of ['x','y','z'])patch.position[k]=String($('equipment'+k.toUpperCase()).value).trim()===''?NaN:Number($('equipment'+k.toUpperCase()).value);
-    for(const k of ['w','d','h'])patch.size[k]=Number($('equipment'+k.toUpperCase()).value);
-    updateEquipment(state.selectedEquipmentId,patch);
-  };
+  $('equipmentApply').onclick=()=>updateEquipment(state.selectedEquipmentId,readEquipmentForm());
+  $('equipmentColumnAdd').onclick=addNKUColumn;
+  for(const side of ['start','end'])$('route'+(side==='start'?'Start':'End')+'Equipment').addEventListener('change',()=>routeColumnControl(side,$('route'+(side==='start'?'Start':'End')+'Equipment').value,null));
   $('equipmentPlace').onclick=()=>{if(!equipmentById(state.selectedEquipmentId))return;setProjection('TOP');state.placingEquipment=true;$('equipmentStatus').textContent='Щёлкните по плану: здесь будет центр выбранного оборудования. Отметка Z сохранится.';};
   $('routeBuild').onclick=buildEquipmentRoute;$('routeDetach').onclick=detachEquipmentRoute;
   wrap.addEventListener('pointerdown',event=>{
@@ -198,4 +208,4 @@ function initEquipmentUI(){
   cvs.addEventListener('click',event=>{if(state.equipmentEditMode){event.stopImmediatePropagation();pointerMoved=false;}},true);
 }
 function equipmentExportRows(){return equipmentInScope(specificationRoutes(),false).map(item=>[item.name,item.kind==='TR'?'Трансформатор':'НКУ',item.position.x,item.position.y,item.position.z,item.size.w,item.size.d,item.size.h]);}
-function routeEndpointNames(route){return ['start','end'].map(side=>equipmentById(route.bindings?.[side])?.name??'Ручное размещение');}
+function routeEndpointNames(route){return ['start','end'].map(side=>{const item=equipmentById(route.bindings?.[side]),part=item?equipmentPort(item,route.ports?.[side]):null;return item?item.name+(part?` / ${part.number}. ${part.column.name}`:''):'Ручное размещение';});}
