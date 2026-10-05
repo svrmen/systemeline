@@ -1,9 +1,9 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
-const ROUTE_FIELDS=['segs','calc','module','dimOffsets','annos','annoSeq','lastDir','routeName','routeOffset'];
+const ROUTE_FIELDS=['segs','calc','module','dimOffsets','annos','annoSeq','lastDir','routeName','routeOffset','routeBindings','routeRouting'];
 let routeContextDepth=0, routeInteractive=true, routesUIReady=false;
 function activeRouteData(){
-  return {...singleProjectSnapshot(),id:state.activeRouteId,name:state.routeName,offset:{...state.routeOffset},lastDir:state.lastDir};
+  return {...singleProjectSnapshot(),id:state.activeRouteId,name:state.routeName,offset:{...state.routeOffset},lastDir:state.lastDir,bindings:{...state.routeBindings},routing:{...state.routeRouting}};
 }
 function routeEntries(){
   const active=activeRouteData();
@@ -11,6 +11,7 @@ function routeEntries(){
 }
 function installRoute(route){
   Object.assign(state,{segs:route.segs,calc:route.calc,module:route.module,dimOffsets:route.dimOffsets,annos:route.annos,annoSeq:route.annoSeq,lastDir:route.lastDir||'+Z',routeName:route.name,routeOffset:{...route.offset}});
+  state.routeBindings={...emptyBindings(),...route.bindings};state.routeRouting={...defaultRouting(),...route.routing};
   $('mat').value=route.ui.mat;fillRatings(false);
   for(const key of PROJECT_UI_KEYS)$(key).value=route.ui[key];
 }
@@ -29,19 +30,20 @@ function withRoute(route,action){
 function visibleRoutes(){return state.showAllRoutes?routeEntries():[activeRouteData()];}
 function specificationRoutes(){return state.specScope==='all'?routeEntries():[activeRouteData()];}
 function unionBounds(bounds,axes){return Object.fromEntries(axes.flatMap(axis=>[['min'+axis,Math.min(...bounds.map(b=>b['min'+axis]))],['max'+axis,Math.max(...bounds.map(b=>b['max'+axis]))]]));}
-function sceneFloorBounds(){return unionBounds(visibleRoutes().map(route=>withRoute(route,floorBoundsXY)),['X','Y']);}
-function sceneProjectedBounds(){return unionBounds(visibleRoutes().map(route=>withRoute(route,routeBoundsProjected)),['X','Y']);}
+function sceneRoutes(){return visibleRoutes().filter(route=>!(state.equipmentEditMode&&state.equipment.length&&!route.segs.length&&!route.bindings?.start));}
+function sceneFloorBounds(){return unionBounds([...sceneRoutes().map(route=>withRoute(route,floorBoundsXY)),...equipmentBounds(false)],['X','Y']);}
+function sceneProjectedBounds(){return unionBounds([...sceneRoutes().map(route=>withRoute(route,routeBoundsProjected)),...equipmentBounds(true)],['X','Y']);}
 function routeDimensionLabel(label){return state.showAllRoutes&&state.showAllDimensions&&state.routes.length>1?`${state.routeName} · ${label}`:label;}
 function drawSceneRoutes(){
   dimLayer.innerHTML='';dimensionBoxes=[];
-  const routes=visibleRoutes().sort((a,b)=>Number(a.id===state.activeRouteId)-Number(b.id===state.activeRouteId));
+  const routes=sceneRoutes().sort((a,b)=>Number(a.id===state.activeRouteId)-Number(b.id===state.activeRouteId));
   const activeId=state.activeRouteId;
   try{for(const route of routes)withRoute(route,()=>{
     routeInteractive=route.id===activeId;
-    drawStartCab();drawPath();drawEndCab();if(state.segs.length)drawEndCap(P().busW);
+    if(!state.routeBindings.start)drawStartCab();drawPath();if(!state.routeBindings.end)drawEndCab();if(state.segs.length)drawEndCap(P().busW);
     if(!routeInteractive&&state.drawAnnoLines){ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);drawRouteAnnotations(ctx);ctx.restore();}
-    if(routes.length>1)drawText3(originTop(),state.routeName,'center',-24/scale,'#365a83');
-  });}finally{routeInteractive=true;}
+    if(routes.length>1&&!state.routeBindings.start)drawText3(originTop(),state.routeName,'center',-24/scale,'#365a83');
+  });drawEquipmentObjects();}finally{routeInteractive=true;}
 }
 function drawOverlayToCanvas(context){
   dimensionBoxes=[];const activeId=state.activeRouteId,previous=routeInteractive;
@@ -58,7 +60,7 @@ function validateRouteFields(){
 }
 function validateProjectSnapshot(snapshot){
   const root=validateSingleProjectSnapshot(snapshot);
-  if(snapshot.version!==undefined&&snapshot.version!==4)throw new Error('Версия проекта не поддерживается.');
+  if(snapshot.version!==undefined&&![4,5].includes(snapshot.version))throw new Error('Версия проекта не поддерживается.');
   const raw=snapshot.routes??[{...root,id:'r1',name:'Трасса 1',offset:{x:0,y:0,z:0}}];
   if(!Array.isArray(raw)||!raw.length||raw.length>20)throw new Error('Проект должен содержать от 1 до 20 трасс.');
   const ids=new Set();
@@ -68,18 +70,19 @@ function validateProjectSnapshot(snapshot){
     if(typeof route.name!=='string'||!route.name.trim()||route.name.length>80)throw new Error('Название трассы: от 1 до 80 символов.');
     if(!route.offset||!['x','y','z'].every(axis=>Number.isFinite(route.offset[axis])&&Math.abs(route.offset[axis])<=1000000))throw new Error('Некорректные координаты трассы.');
     const clean=validateSingleProjectSnapshot(route);
-    return {...clean,id:route.id,name:route.name.trim(),offset:{...route.offset},lastDir:['+X','-X','+Y','-Y','+Z','-Z'].includes(route.lastDir)?route.lastDir:'+Z'};
+    return {...clean,id:route.id,name:route.name.trim(),offset:{...route.offset},lastDir:['+X','-X','+Y','-Y','+Z','-Z'].includes(route.lastDir)?route.lastDir:'+Z',bindings:route.bindings,routing:route.routing};
   });
   const activeRouteId=snapshot.activeRouteId??routes[0].id;
   if(!ids.has(activeRouteId))throw new Error('Выбранная трасса отсутствует в проекте.');
   if(snapshot.showAllRoutes!==undefined&&typeof snapshot.showAllRoutes!=='boolean')throw new Error('Некорректный режим общего вида.');
   if(snapshot.showAllDimensions!==undefined&&typeof snapshot.showAllDimensions!=='boolean')throw new Error('Некорректный режим размеров.');
   if(snapshot.specScope!==undefined&&!['active','all'].includes(snapshot.specScope))throw new Error('Некорректная область спецификации.');
-  return {...root,version:4,routes,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
+  const placed=validateEquipmentProject(snapshot,routes);
+  return {...root,version:5,...placed,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
 }
 function projectSnapshot(){
   validateRouteFields();
-  return {...singleProjectSnapshot(),version:4,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
+  return {...singleProjectSnapshot(),version:5,equipment:state.equipment,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
 }
 function commitActiveRoute(){
   const clean=validateProjectSnapshot(projectSnapshot());state.routes=clean.routes;return clean;
@@ -94,6 +97,7 @@ function updateRouteControls(){
   $('showAllDimensions').checked=state.showAllDimensions;
   $('routeRemove').disabled=state.routes.length<=1;
   $('routeHint').textContent=state.showAllRoutes?'Общий вид. Размеры и выноски редактируются у выбранной трассы.':'Показана выбранная трасса. Координаты — нижний угол оборудования в начале, мм.';
+  updateEquipmentControls();
 }
 function closeRouteEditors(){
   for(const popup of [pop,epop,apop])popup.style.display='none';
@@ -115,6 +119,16 @@ function addRoute(kind='TR_NKU',copy=false){
     route.id='r'+number;route.name=copy?`${source.name.slice(0,64)} (копия)`:kind==='NKU_NKU'?'Связь НКУ':`ТР${number} → НКУ${number}`;
     route.offset.y+=4000;
     route.annos=[];route.annoSeq=1;route.dimOffsets=Object.fromEntries(PROJECT_VIEWS.map(view=>[view,{}]));
+    route.bindings=emptyBindings();route.routing=defaultRouting();
+    const copiedEquipment=[];
+    if(copy&&source.bindings?.start){
+      for(const side of ['start','end']){
+        const original=equipmentById(source.bindings[side]);if(!original)continue;
+        let n=1;while([...state.equipment,...copiedEquipment].some(e=>e.id==='e'+n))n++;
+        const item=JSON.parse(JSON.stringify(original));item.id='e'+n;item.name=`${original.name.slice(0,64)} (копия)`;item.position.y+=4000;copiedEquipment.push(item);route.bindings[side]=item.id;
+      }
+      route.routing={...source.routing};synchronizeEquipmentRoute(route,[...state.equipment,...copiedEquipment]);
+    }
     let linked=false;
     if(!copy){
       route.segs=[];route.calc=false;route.ui.startType=kind==='NKU_NKU'?'NKU':'TR';route.ui.endType='NKU';
@@ -128,12 +142,13 @@ function addRoute(kind='TR_NKU',copy=false){
           ['X','Y','Z'].forEach((axis,index)=>{const delta=b[index]-a[index];if(delta)route.segs.push({dir:(delta>0?'+':'-')+axis,len:Math.abs(delta)});});
           if(!route.segs.length)throw new Error('Выбранные НКУ совпадают. Измените координаты исходных трасс.');
           linked=true;
+          if(ends[0].bindings?.end&&ends[1].bindings?.end){route.bindings={start:ends[0].bindings.end,end:ends[1].bindings.end};route.routing={...defaultRouting(),mode:'auto',path:'DIRECT'};synchronizeEquipmentRoute(route,state.equipment);}
         }
       }
     }
-    validateProjectSnapshot({...projectSnapshot(),routes:[...state.routes,route]});
-    state.routes.push(route);state.showAllRoutes=true;state.specScope='all';switchRoute(route.id);
-    $('routeStatus').textContent=copy?'Геометрия скопирована со смещением 4000 мм по Y. Выноски и положения размеров создаются отдельно.':linked?'Связь построена между концами первых двух непустых трасс к НКУ. Проверьте исполнение и путь. Координаты зафиксированы; после изменения исходных трасс связь нужно скорректировать.':'Новая трасса пустая. Постройте её стрелками или используйте «Копия» существующей.';
+    validateProjectSnapshot({...projectSnapshot(),equipment:[...state.equipment,...copiedEquipment],routes:[...state.routes,route]});
+    state.equipment.push(...copiedEquipment);state.routes.push(route);state.showAllRoutes=true;state.specScope='all';switchRoute(route.id);
+    $('routeStatus').textContent=copy?'Скопированы трасса и её оборудование со смещением 4000 мм по Y.':linked?'Создана связь НКУ. Можно выбрать другие объекты и путь в блоке «Подключённое оборудование».':'Новая трасса пустая. Выберите её оборудование и нажмите «Построить» либо постройте путь вручную.';
     return route.id;
   }catch(error){$('routeStatus').textContent=error.message;return null;}
 }
@@ -173,16 +188,18 @@ function costForScope(spec){
 }
 function exportScopeReady(){
   try{validateProjectSnapshot(projectSnapshot());}catch(error){msg.textContent='Исправьте параметры перед экспортом: '+error.message;return false;}
+  const disconnected=specificationRoutes().filter(route=>boundRouteGap(route));
+  if(disconnected.length){msg.textContent='Трасса не достигает выбранного НКУ: '+disconnected.map(r=>r.name).join(', ')+'. Скорректируйте ручной путь или нажмите «Построить».';return false;}
   const pending=specificationRoutes().filter(route=>route.segs.length&&!route.calc);
   if(pending.length){msg.textContent='Сначала рассчитайте разбиение: '+pending.map(route=>route.name).join(', ');return false;}
   if(!specificationRoutes().some(route=>route.segs.length)){msg.textContent='Нет участков для экспорта.';return false;}return true;
 }
 function captureProjectViews(all=state.showAllRoutes){
-  const previous={view:viewMode,projection:proj,panX,panY,scale,all:state.showAllRoutes};
+  const previous={view:viewMode,projection:proj,panX,panY,scale,all:state.showAllRoutes,equipmentEditMode:state.equipmentEditMode};
   try{
-    state.showAllRoutes=all;
+    state.showAllRoutes=all;state.equipmentEditMode=false;
     return PROJECT_VIEWS.map(view=>{setProjection(view);const canvas=captureWithOverlay();return {name:view,src:canvas.toDataURL('image/png')};});
-  }finally{viewMode=previous.view;proj=previous.projection;panX=previous.panX;panY=previous.panY;scale=previous.scale;state.showAllRoutes=previous.all;document.querySelectorAll('.viewbtn[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===viewMode));draw();}
+  }finally{viewMode=previous.view;proj=previous.projection;panX=previous.panX;panY=previous.panY;scale=previous.scale;state.showAllRoutes=previous.all;state.equipmentEditMode=previous.equipmentEditMode;document.querySelectorAll('.viewbtn[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===viewMode));draw();}
 }
 function routeSummaryRows(){
   return specificationRoutes().map(route=>withRoute(route,()=>{

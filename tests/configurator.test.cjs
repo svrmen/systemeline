@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
-const exporter = fs.readFileSync('cad-export.js', 'utf8')+'\n'+fs.readFileSync('tariff-import.js','utf8')+'\n'+fs.readFileSync('routes.js','utf8');
+const exporter = fs.readFileSync('cad-export.js', 'utf8')+'\n'+fs.readFileSync('tariff-import.js','utf8')+'\n'+fs.readFileSync('routes.js','utf8')+'\n'+fs.readFileSync('equipment.js','utf8');
 const code = exporter + '\n' + html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const calls = [];
 const context2d = new Proxy({measureText: text => ({width:text.length*7}), setTransform:(...a)=>calls.push(a),moveTo:(...a)=>calls.push(['move',...a]),lineTo:(...a)=>calls.push(['line',...a]),fillRect:(...a)=>calls.push(['fill',context2d.fillStyle,...a])}, {get:(o,k)=>o[k]||(()=>{})});
@@ -198,9 +198,9 @@ check('changing maximum section length immediately updates cuts, BOM and saved l
  elements.get('moduleLen').listeners.input();
  assert.equal(run('state.module'),1000);assert.equal(run('computeSpec().module'),1000);assert.equal(run("$('spModule').textContent"),'1000 мм');
  assert.ok(Array.from(run('straightLayout(0).parts')).every(n=>n<=1000));
- const saved=JSON.parse(stored.get('BUS_PROJECT_V4'));assert.equal(saved.module,1000);assert.equal(saved.ui.moduleLen,1000);
- const raw=stored.get('BUS_PROJECT_V4');
- for(const value of ['',0,-1,Infinity,3100,1001]){elements.get('moduleLen').value=value;elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1000);assert.equal(stored.get('BUS_PROJECT_V4'),raw);assert.match(run("$('moduleHint').textContent"),/400.*3000/);}
+ const saved=JSON.parse(stored.get('BUS_PROJECT_V5'));assert.equal(saved.module,1000);assert.equal(saved.ui.moduleLen,1000);
+ const raw=stored.get('BUS_PROJECT_V5');
+ for(const value of ['',0,-1,Infinity,3100,1001]){elements.get('moduleLen').value=value;elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1000);assert.equal(stored.get('BUS_PROJECT_V5'),raw);assert.match(run("$('moduleHint').textContent"),/400.*3000/);}
  run("$('moduleLen').value=1250");elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1250);assert.equal(run("$('moduleHint').textContent"),'');
 }));
 check('invalid or stale segment edits explain the error and preserve geometry',()=>withProjectStorage(()=>{
@@ -219,31 +219,31 @@ check('old fractional lengths preserve coordinates and totals without integer tr
 });
 check('saved project round trip keeps conductor/IP, dimensions, metadata and independent callout points',()=>withProjectStorage(stored=>{
  run("$('mat').value='CU';$('rating').value='4000';$('conductors').value='7';$('orientation').value='EDGE';$('ip').value='IP65';$('moduleLen').value=1500;syncModule();state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:6500}];state.calc=true;state.dimOffsets.ISO={'0':{dx:42,dy:-15}};state.annos=[{id:4,text:'Выводы ТР',pos:{ISO:{ax:17,ay:23,bx:-500,by:900},TOP:{ax:10,ay:20,bx:500,by:700}}}];state.meta.title='Проект проверки';saveState()");
- const original=JSON.parse(stored.get('BUS_PROJECT_V4'));
+ const original=JSON.parse(stored.get('BUS_PROJECT_V5'));
  run("state.segs=[];state.annos=[];$('conductors').value='5';$('ip').value='IP55';loadState()");
  assert.equal(run("$('conductors').value"),'7');assert.equal(run("$('ip').value"),'IP65');assert.equal(run("$('rating').value"),4000);assert.equal(run('state.module'),1500);
  assert.equal(run('state.meta.title'),'Проект проверки');assert.equal(run('state.annos[0].pos.ISO.ax'),17);assert.equal(run('state.annos[0].pos.ISO.bx'),-500);assert.equal(run('state.dimOffsets.ISO[0].dx'),42);
- run('saveState()');assert.deepEqual(JSON.parse(stored.get('BUS_PROJECT_V4')),original);
+ run('saveState()');assert.deepEqual(JSON.parse(stored.get('BUS_PROJECT_V5')),original);
  // Migration from the former stale-module bug follows the saved visible field.
- original.module=3000;stored.set('BUS_PROJECT_V4',JSON.stringify(original));run('loadState()');assert.equal(run('state.module'),1500);
+ original.module=3000;stored.set('BUS_PROJECT_V5',JSON.stringify(original));run('loadState()');assert.equal(run('state.module'),1500);
  // Older projects without new conductor/orientation/metadata fields still load.
- stored.set('BUS_PROJECT_V4',JSON.stringify({segs:[{dir:'+X',len:3000}],calc:true,module:3000}));run('loadState()');assert.equal(run("$('conductors').value"),'5');assert.equal(run('state.segs[0].len'),3000);
+ stored.set('BUS_PROJECT_V5',JSON.stringify({segs:[{dir:'+X',len:3000}],calc:true,module:3000}));run('loadState()');assert.equal(run("$('conductors').value"),'5');assert.equal(run('state.segs[0].len'),3000);
 }));
 check('corrupt project fails atomically and cannot be overwritten by subsequent autosave',()=>withProjectStorage(stored=>{
  const baseline=JSON.parse(run('JSON.stringify(projectSnapshot())'));
  const cases=[{...baseline,meta:'broken'},{...baseline,module:-1},{...baseline,dimOffsets:{ISO:{0:{dx:'bad',dy:0}}}},{...baseline,annos:[{text:'Bad',pos:{ISO:{ax:null,ay:0,bx:1,by:2}}}]},{...baseline,ui:{...baseline.ui,ip:'IP54'}},{...baseline,ui:{...baseline.ui,mat:'AL',rating:6300}},{...baseline,ui:{...baseline.ui,startW:0}}];
- for(const bad of cases){const before=run('JSON.stringify(projectSnapshot())'),raw=JSON.stringify({...bad,segs:[{dir:'+Y',len:9999}]});stored.set('BUS_PROJECT_V4',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),raw);assert.match(run("$('storageStatus').textContent"),/защищены/);}
- const raw=stored.get('BUS_PROJECT_V4');run("$('clear').onclick()");assert.equal(JSON.parse(stored.get('BUS_PROJECT_V4')).segs.length,0);assert.ok([...stored.entries()].some(([key,value])=>key.startsWith('BUS_PROJECT_V4.recovery.')&&value===raw));assert.equal(run('computeSpec().endCap'),0);
+ for(const bad of cases){const before=run('JSON.stringify(projectSnapshot())'),raw=JSON.stringify({...bad,segs:[{dir:'+Y',len:9999}]});stored.set('BUS_PROJECT_V5',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V5'),raw);assert.match(run("$('storageStatus').textContent"),/защищены/);}
+ const raw=stored.get('BUS_PROJECT_V5');run("$('clear').onclick()");assert.equal(JSON.parse(stored.get('BUS_PROJECT_V5')).segs.length,0);assert.ok([...stored.entries()].some(([key,value])=>key.startsWith('BUS_PROJECT_V5.recovery.')&&value===raw));assert.equal(run('computeSpec().endCap'),0);
 }));
 check('storage write failure never reports a successful save or deletes recovery data',()=>withProjectStorage(stored=>{
  sandbox.localStorage.setItem=()=>{throw new Error('QuotaExceededError');};
  assert.equal(run('saveState()'),false);assert.match(run("$('storageStatus').textContent"),/QuotaExceededError/);
  run("$('metaSave').onclick()");assert.match(run("$('msg').textContent"),/не сохранены/);
- stored.set('BUS_PROJECT_V4','invalid-json');run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),'invalid-json');assert.equal(run('projectStorageBlocked'),true);
+ stored.set('BUS_PROJECT_V5','invalid-json');run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);assert.equal(stored.get('BUS_PROJECT_V5'),'invalid-json');assert.equal(run('projectStorageBlocked'),true);
 }));
 check('invalid equipment dimensions retain last valid geometry and prevent a corrupt saved project',()=>withProjectStorage(stored=>{
- run("$('startW').value=2000;P();saveState()");const previous=stored.get('BUS_PROJECT_V4');
- for(const value of ['',-100,Infinity]){elements.get('startW').value=value;assert.equal(run('P().startW'),2000);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),previous);}
+ run("$('startW').value=2000;P();saveState()");const previous=stored.get('BUS_PROJECT_V5');
+ for(const value of ['',-100,Infinity]){elements.get('startW').value=value;assert.equal(run('P().startW'),2000);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V5'),previous);}
  run("$('startW').value=600;P()");assert.equal(run('P().startW'),600);
 }));
 check('unavailable material rating is announced and notice clears after an explicit choice',()=>withProjectStorage(()=>{
@@ -254,11 +254,11 @@ check('unreadable storage cannot be reset without protecting its original conten
  const before=run('JSON.stringify(projectSnapshot())');sandbox.localStorage.getItem=()=>{throw new Error('SecurityError');};run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);run("$('clear').onclick()");assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('projectStorageBlocked'),true);
 }));
 function multipleRouteFixture(){
- run("routesUIReady=false;Object.assign(state,{routes:[],activeRouteId:'r1',routeName:'ТР1 → НКУ1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,specScope:'active',segs:[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1500}],calc:true,module:3000,annos:[],annoSeq:1,dimOffsets:Object.fromEntries(PROJECT_VIEWS.map(v=>[v,{}])),meta:{title:'Несколько трасс',object:'Контроль',addr:'Адрес',customer:'Заказчик',contractor:'Подрядчик',code:'ТП-01',date:'2026-10-05',notes:'Проверка'}});for(const [key,value]of Object.entries({mat:'CU',rating:3200,conductors:'5',ip:'IP55',orientation:'FLAT',startType:'TR',endType:'NKU',startW:2000,startD:1400,startH:1700,endW:600,endD:600,endH:2200,mountOn:'1',mountStep:1000,moduleLen:3000}))$(key).value=value;initRoutesUI()");
+ run("routesUIReady=false;equipmentUIReady=false;Object.assign(state,{equipment:[],routeBindings:emptyBindings(),routeRouting:defaultRouting(),equipmentEditMode:false,selectedEquipmentId:null,routes:[],activeRouteId:'r1',routeName:'ТР1 → НКУ1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,specScope:'active',segs:[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1500}],calc:true,module:3000,annos:[],annoSeq:1,dimOffsets:Object.fromEntries(PROJECT_VIEWS.map(v=>[v,{}])),meta:{title:'Несколько трасс',object:'Контроль',addr:'Адрес',customer:'Заказчик',contractor:'Подрядчик',code:'ТП-01',date:'2026-10-05',notes:'Проверка'}});for(const [key,value]of Object.entries({mat:'CU',rating:3200,conductors:'5',ip:'IP55',orientation:'FLAT',startType:'TR',endType:'NKU',startW:2000,startD:1400,startH:1700,endW:600,endD:600,endH:2200,mountOn:'1',mountStep:1000,moduleLen:3000}))$(key).value=value;initRoutesUI()");
 }
 check('legacy single-route projects migrate without changing geometry or settings',()=>withProjectStorage(stored=>{
  run('routesUIReady=false');stored.set('BUS_STATE_V3',JSON.stringify({segs:[{dir:'+X',len:3100}],calc:true,module:3000,ui:{mat:'CU',rating:3200,ip:'IP65',conductors:'7',orientation:'EDGE'}}));const legacy=stored.get('BUS_STATE_V3');run('loadState()');
- assert.equal(run('state.routes.length'),1);assert.equal(run('state.routeOffset.x'),0);assert.equal(run('computeSpec().totalLen'),3100);assert.equal(run("$('conductors').value"),'7');assert.equal(run('saveState()'),true);assert.equal(JSON.parse(stored.get('BUS_PROJECT_V4')).version,4);assert.equal(stored.get('BUS_STATE_V3'),legacy);stored.set('BUS_STATE_V3','old tab overwrote the old key');run('loadState()');assert.equal(run('computeSpec().totalLen'),3100);
+ assert.equal(run('state.routes.length'),1);assert.equal(run('state.routeOffset.x'),0);assert.equal(run('computeSpec().totalLen'),3100);assert.equal(run("$('conductors').value"),'7');assert.equal(run('saveState()'),true);assert.equal(JSON.parse(stored.get('BUS_PROJECT_V5')).version,5);assert.equal(stored.get('BUS_STATE_V3'),legacy);stored.set('BUS_STATE_V3','old tab overwrote the old key');run('loadState()');assert.equal(run('computeSpec().totalLen'),3100);
 }));
 check('route copies preserve geometry while parameters, annotations and offsets remain independent',()=>withProjectStorage(()=>{
  multipleRouteFixture();run("state.annos=[{id:1,text:'ТР1',pos:{ISO:{ax:10,ay:20,bx:30,by:40}}}];addRoute('TR_NKU',true)");
@@ -276,9 +276,9 @@ check('NKU link starts and finishes exactly at existing equipment terminals',()=
  assert.equal(spec.joints.total,spec.routes.reduce((sum,s)=>sum+s.joints.total,0));
 }));
 check('route context restores active state, input values and geometry cache even on failure',()=>withProjectStorage(stored=>{
- const before=run('JSON.stringify(projectSnapshot())'),cache=run('JSON.stringify(equipmentDimensions)');const prior=stored.get('BUS_PROJECT_V4');
+ const before=run('JSON.stringify(projectSnapshot())'),cache=run('JSON.stringify(equipmentDimensions)');const prior=stored.get('BUS_PROJECT_V5');
  assert.throws(()=>run("withRoute(state.routes[0],()=>{P();saveState();throw new Error('injected route error')})"),/injected/);
- assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('JSON.stringify(equipmentDimensions)'),cache);assert.equal(stored.get('BUS_PROJECT_V4'),prior);assert.equal(run('routeContextDepth'),0);
+ assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('JSON.stringify(equipmentDimensions)'),cache);assert.equal(stored.get('BUS_PROJECT_V5'),prior);assert.equal(run('routeContextDepth'),0);
 }));
 check('common quotation merges exact references and units and preserves missing prices',()=>{
  run("PRICE={version:5,entries:{}};globalThis.commonSpec=specForScope();globalThis.commonCost=costForScope(commonSpec);for(const line of commonCost.lines)PRICE.entries[line.ref]={price:123.45,unit:typeof line.qty==='string'?'m':'piece'};globalThis.commonCost=costForScope(commonSpec)");
@@ -315,10 +315,10 @@ check('moving a route moves its callout anchor and text together in every view',
 }));
 check('all routes, common metadata, view scope and selected route survive reload atomically',()=>withProjectStorage(stored=>{
  run('saveState()');const before=run('JSON.stringify(projectSnapshot())');run("state.routes=[];state.segs=[];state.showAllRoutes=false;loadState()");assert.equal(run('JSON.stringify(projectSnapshot())'),before);
- const good=JSON.parse(before);for(const bad of [{...good,routes:good.routes.map((r,i)=>i===1?{...r,id:good.routes[0].id}:r)},{...good,routes:good.routes.map((r,i)=>i===1?{...r,offset:{x:null,y:0,z:0}}:r)},{...good,activeRouteId:'r99'}]){stored.set('BUS_PROJECT_V4',JSON.stringify(bad));run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);}
+ const good=JSON.parse(before);for(const bad of [{...good,routes:good.routes.map((r,i)=>i===1?{...r,id:good.routes[0].id}:r)},{...good,routes:good.routes.map((r,i)=>i===1?{...r,offset:{x:null,y:0,z:0}}:r)},{...good,activeRouteId:'r99'}]){stored.set('BUS_PROJECT_V5',JSON.stringify(bad));run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);}
 }));
 check('invalid pending inputs block switching and exports without losing the active route',()=>withProjectStorage(stored=>{
- run('saveState()');const saved=stored.get('BUS_PROJECT_V4'),id=run('state.activeRouteId');elements.get('moduleLen').value=1001;assert.equal(run("switchRoute('r1')"),false);assert.equal(run('state.activeRouteId'),id);assert.equal(stored.get('BUS_PROJECT_V4'),saved);assert.equal(run('exportScopeReady()'),false);
+ run('saveState()');const saved=stored.get('BUS_PROJECT_V5'),id=run('state.activeRouteId');elements.get('moduleLen').value=1001;assert.equal(run("switchRoute('r1')"),false);assert.equal(run('state.activeRouteId'),id);assert.equal(stored.get('BUS_PROJECT_V5'),saved);assert.equal(run('exportScopeReady()'),false);
  run("$('moduleLen').value=state.module;state.calc=false");assert.equal(run('exportScopeReady()'),false);assert.match(run("$('msg').textContent"),/Сначала рассчитайте/);run('state.calc=true');
 }));
 check('failed view capture restores camera, selected route and callout rendering',()=>{
@@ -335,6 +335,62 @@ check('common view shows only selected dimensions by default and can show all ex
  layer.children=[];run('state.showAllDimensions=true;draw()');const all=layer.children.length;assert.ok(all>selected);assert.ok(layer.children.some(child=>child.textContent?.includes(' · ')));run('state.showAllDimensions=false');
 });
 check('out-of-bounds copies fail before adding an invalid route or corrupting saved data',()=>withProjectStorage(stored=>{
- run('state.routeOffset.y=1000000;updateRouteControls();saveState()');const previous=stored.get('BUS_PROJECT_V4'),number=run('state.routes.length');assert.equal(run("addRoute('TR_NKU',true)"),null);assert.equal(run('state.routes.length'),number);assert.equal(stored.get('BUS_PROJECT_V4'),previous);assert.equal(run('saveState()'),true);
+ run('state.routeOffset.y=1000000;updateRouteControls();saveState()');const previous=stored.get('BUS_PROJECT_V5'),number=run('state.routes.length');assert.equal(run("addRoute('TR_NKU',true)"),null);assert.equal(run('state.routes.length'),number);assert.equal(stored.get('BUS_PROJECT_V5'),previous);assert.equal(run('saveState()'),true);
+}));
+
+function equipmentFixture(){
+ multipleRouteFixture();run("initEquipmentUI();importEquipmentFromRoutes();$('routeStartEquipment').value=state.equipment.find(e=>e.kind==='TR').id;$('routeEndEquipment').value=state.equipment.find(e=>e.kind==='NKU').id;$('routePath').value='OVERHEAD';$('routeOrder').value='XY';$('routeLevel').value=4000;buildEquipmentRoute();addRoute('TR_NKU',true);state.routeName='ТР2 → НКУ2';updateRouteControls();addRoute('NKU_NKU')");
+}
+check('equipment migration keeps v4 geometry and shares the two NKU endpoints',()=>withProjectStorage(stored=>{
+ multipleRouteFixture();run("addRoute('TR_NKU',true);addRoute('NKU_NKU')");const old=JSON.parse(run('JSON.stringify(projectSnapshot())'));old.version=4;delete old.equipment;old.routes.forEach(r=>{delete r.bindings;delete r.routing;});stored.set('BUS_PROJECT_V4',JSON.stringify(old));stored.delete('BUS_PROJECT_V5');run('loadState()');
+ assert.equal(run('state.equipment.length'),4);assert.deepEqual(JSON.parse(run('JSON.stringify(state.routes.map(r=>r.segs))')),old.routes.map(r=>r.segs));
+ assert.equal(run('state.routes[2].bindings.start'),run('state.routes[0].bindings.end'));assert.equal(run('state.routes[2].bindings.end'),run('state.routes[1].bindings.end'));assert.equal(run('state.routeRouting.mode'),'manual');run('saveState()');assert.equal(stored.get('BUS_PROJECT_V4'),JSON.stringify(old));assert.equal(JSON.parse(stored.get('BUS_PROJECT_V5')).version,5);
+}));
+check('three equipment-bound lines update both routes sharing a moved NKU',()=>withProjectStorage(()=>{
+ equipmentFixture();assert.equal(run('state.equipment.length'),4);assert.equal(run('state.routes.length'),3);assert.equal(run('state.routeRouting.mode'),'auto');
+ const id=run('state.routes[0].bindings.end'),before=run('withRoute(state.routes[1],endPoint)');
+ assert.equal(run(`updateEquipment('${id}',{position:{x:7000,y:4500,z:200}})`),true);
+ for(const n of [0,2])assert.equal(run(`boundRouteGap(state.routes[${n}])`),null);
+ assert.deepEqual(Array.from(run('withRoute(state.routes[1],endPoint)')),Array.from(before));
+ assert.deepEqual(Array.from(run('withRoute(state.routes[0],endPoint)')),Array.from(run('withRoute(state.routes[2],originTop)')));
+ assert.equal(run('state.routes[0].ui.endH'),2200);assert.equal(run('specForScope().nkuBlocks'),4);assert.equal(run('specForScope().trBlocks'),2);
+}));
+check('equipment changes are atomic and invalid or too high placements preserve project and storage',()=>withProjectStorage(stored=>{
+ const before=run('JSON.stringify(projectSnapshot())'),saved=stored.get('BUS_PROJECT_V5'),id=run('state.routes[0].bindings.start');
+ for(const patch of ["{position:{x:NaN,y:0,z:0}}","{size:{w:0,d:1400,h:1700}}","{position:{x:0,y:0,z:9000}}","{name:''}"]){assert.equal(run(`updateEquipment('${id}',${patch})`),false);assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(stored.get('BUS_PROJECT_V5'),saved);}
+}));
+check('manual geometry survives equipment moves and a disconnected endpoint blocks export',()=>withProjectStorage(()=>{
+ run("switchRoute('r1');state.routeRouting.mode='manual';updateRouteControls();saveState()");const old=run('JSON.stringify(state.segs)'),id=run('state.routeBindings.end'),item=run(`equipmentById('${id}')`);
+ assert.equal(run(`updateEquipment('${id}',{position:{x:${item.position.x+500},y:${item.position.y},z:${item.position.z}}})`),true);assert.equal(run('JSON.stringify(state.segs)'),old);assert.ok(run('boundRouteGap()'));assert.equal(run('exportScopeReady()'),false);assert.match(run("$('geometryStatus').textContent"),/не достигает/);
+ assert.equal(run('buildEquipmentRoute()'),true);assert.equal(run('boundRouteGap()'),null);
+}));
+check('explicit route endpoint choices and path order control connection geometry',()=>withProjectStorage(()=>{
+ const source=run('state.routeBindings.start');run("$('routeStartEquipment').value=state.routeBindings.end;$('routeEndEquipment').value=state.routeBindings.end");assert.equal(run('buildEquipmentRoute()'),false);
+ run(`$('routeStartEquipment').value='${source}';$('routeOrder').value='YX';$('routeLevel').value=4200`);assert.equal(run('buildEquipmentRoute()'),true);assert.equal(run('state.segs[1].dir'),'+Y');assert.equal(run('boundRouteGap()'),null);
+ run("$('routeLevel').value=''");assert.equal(run('buildEquipmentRoute()'),false);run('updateEquipmentControls()');
+}));
+check('common equipment is drawn once and exported with names and coordinates',()=>withProjectStorage(()=>{
+ run('state.showAllRoutes=true;state.specScope="all";draw=originalDraw;box=originalBox');const model=run('collectCadDrawing()');
+ const cabinets=model.lines.filter(e=>e.meta.type==='EQUIPMENT');assert.equal(new Set(cabinets.map(e=>e.group)).size,4);assert.equal(new Set(cabinets.map(e=>e.meta.equipmentId)).size,4);
+ const output=run('buildCadDXF(collectCadDrawing())');assert.match(output,/EQUIPMENT_NAME/);fs.writeFileSync('evidence/equipment-cad.dxf',output);
+ const book=run('buildProjectWorkbook()');assert.ok(book.SheetNames.includes('Оборудование'));const rows=sandbox.XLSX.utils.sheet_to_json(book.Sheets['Оборудование'],{header:1});assert.equal(rows.length,5);assert.equal(rows[1][2],run('state.equipment[0].position.x'));
+ const traces=sandbox.XLSX.utils.sheet_to_json(book.Sheets['Трассы'],{header:1});assert.equal(traces[1][14],run('equipmentById(state.routes[0].bindings.start).name'));fs.writeFileSync('evidence/equipment-project.xlsx',Buffer.from(sandbox.XLSX.write(book,{bookType:'xlsx',type:'array'})));
+ const printable=run('buildPrintableProject([{name:"ISO",src:"data:image/png;base64,AA=="}])');assert.match(printable,/Размещение оборудования/);assert.match(printable,/Подключения трасс/);
+}));
+check('equipment project reload is exact and corrupt bindings block autosave',()=>withProjectStorage(stored=>{
+ run('saveState()');const before=run('JSON.stringify(projectSnapshot())');run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);
+ const bad=JSON.parse(before);bad.routes[0].bindings.end='e99';const raw=JSON.stringify(bad);stored.set('BUS_PROJECT_V5',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V5'),raw);
+}));
+check('plan placement uses the centre, preserves Z and snaps to 10 mm',()=>{
+ run('scale=1;panX=0;panY=0');const p=run('plannedEquipmentPosition({position:{x:0,y:0,z:123},size:{w:600,d:400}},{clientX:1357,clientY:-2443})');assert.deepEqual({...p},{x:1060,y:2240,z:123});
+});
+check('deleting bound equipment is prevented; deleting a route keeps its placed objects',()=>withProjectStorage(()=>{
+ run('state.selectedEquipmentId=state.routes[0].bindings.end');assert.equal(run('removeEquipment()'),false);const count=run('state.equipment.length');assert.equal(run('removeActiveRoute()'),true);assert.equal(run('state.equipment.length'),count);
+}));
+check('plan mode does not invent a cabinet for an empty route and CAD excludes its selection highlight',()=>withProjectStorage(()=>{
+ multipleRouteFixture();run('state.segs=[];state.calc=false;initEquipmentUI();addEquipment("TR");state.equipmentEditMode=true;state.selectedEquipmentId=state.equipment[0].id');
+ assert.equal(run('sceneRoutes().length'),0);assert.ok(Number.isFinite(run('sceneProjectedBounds().minX')));
+ const model=run('collectCadDrawing()');assert.equal(model.lines.filter(e=>e.layer==='ANNOT').length,0);assert.equal(new Set(model.lines.filter(e=>e.meta.type==='EQUIPMENT').map(e=>e.group)).size,1);
+ const output=run('buildCadDXF(collectCadDrawing())');assert.match(output,/X_MM/);assert.match(output,/H_MM/);
 }));
 console.log(`${count} targeted checks passed`);

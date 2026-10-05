@@ -29,6 +29,11 @@ function buildCadDXF(model){
     const type=g.meta.type||(g.layer==='ENDCAP'?'EC':g.layer==='MOUNT'?'MOUNT':g.layer);
     const reference=g.meta.reference??(['ST','EL','JPK','EC'].includes(type)?model.ref(type):'');
     const attributes={POSITION:`P${number}`,ROUTE:g.meta.route||'T1',ROUTE_NAME:g.meta.routeName||'Трасса 1',TYPE:type,REFERENCE:reference,LENGTH_MM:g.meta.length??'',RATING_A:g.meta.rating??model.rating,IP:g.meta.ip??model.ip,MATERIAL:g.meta.material??model.material,CONDUCTORS:g.meta.conductors??model.conductors??'3L+N+PE (корпус)'};
+    if(g.meta.equipmentId){
+      for(const key of ['RATING_A','IP','MATERIAL','CONDUCTORS'])delete attributes[key];
+      attributes.EQUIPMENT_ID=g.meta.equipmentId;attributes.EQUIPMENT_NAME=g.meta.equipmentName;attributes.EQUIPMENT_KIND=g.meta.equipmentKind??'';
+      if(g.meta.equipmentPosition){for(const key of ['x','y','z'])attributes[key.toUpperCase()+'_MM']=g.meta.equipmentPosition[key];for(const key of ['w','d','h'])attributes[key.toUpperCase()+'_MM']=g.meta.equipmentSize[key];}
+    }
     for(const [tag,value]of Object.entries(attributes))blocks+=pair(0,'ATTDEF')+pair(8,'0')+point([0,0])+pair(40,50)+pair(1,text(value))+pair(3,tag)+pair(2,tag)+pair(70,1)+pair(7,'STANDARD');
     blocks+=pair(0,'ENDBLK')+pair(8,g.layer);
     entities+=pair(0,'INSERT')+pair(8,g.layer)+pair(2,name)+pair(66,1)+point(base);

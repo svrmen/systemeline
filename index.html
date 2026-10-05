@@ -84,6 +84,7 @@
   <div class="panel">
     <div class="tabs">
       <button class="tab active" data-tab="route">Трасса</button>
+      <button class="tab" data-tab="equipment">Оборудование</button>
       <button class="tab" data-tab="meta">Данные проекта</button>
     </div>
 
@@ -103,6 +104,17 @@
         <div class="row"><label for="specScope">Спецификация</label><select id="specScope"><option value="active">Выбранная трасса</option><option value="all">Все трассы</option></select></div>
         <button class="btn" id="calcAll">Рассчитать все трассы</button>
         <div id="routeStatus" class="warn" role="status"></div>
+      </div>
+      <div class="route-card">
+        <h3>Подключённое оборудование</h3>
+        <div class="row"><label for="routeStartEquipment">Начало</label><select id="routeStartEquipment"></select></div>
+        <div class="row"><label for="routeEndEquipment">Конец — НКУ</label><select id="routeEndEquipment"></select></div>
+        <div class="row"><label for="routePath">Путь</label><select id="routePath"><option value="OVERHEAD">Через заданную высоту</option><option value="DIRECT">Напрямую по осям</option></select></div>
+        <div class="row"><label for="routeLevel">Отметка трассы Z, мм</label><input id="routeLevel" type="number" value="3700"></div>
+        <div class="row"><label for="routeOrder">Порядок поворотов</label><select id="routeOrder"><option value="XY">Сначала X, затем Y</option><option value="YX">Сначала Y, затем X</option></select></div>
+        <small id="routingHint"></small>
+        <div class="row"><button class="btn" id="routeBuild">Построить</button><button class="btn" id="routeDetach">Снять привязки</button></div>
+        <small>Объекты размещаются на вкладке «Оборудование». Точки подключения условно в центре верха; реальные FE/FET требуют заказных чертежей.</small>
       </div>
       <div class="row"><label>Материал шин</label>
         <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
@@ -187,6 +199,25 @@
     </div>
 
     <!-- TAB: ДАННЫЕ ПРОЕКТА -->
+    <div id="tab-equipment" class="hid">
+      <div class="route-card">
+        <h3>Размещение оборудования</h3>
+        <small>Координаты нижнего угла, мм. В виде сверху перетаскивайте корпус мышью или задайте координаты ниже. Синим выделен выбранный объект.</small>
+        <button class="btn" id="equipmentImport">Взять оборудование из трасс</button>
+        <div class="row"><button class="btn" id="equipmentAddTR">Добавить ТР</button><button class="btn" id="equipmentAddNKU">Добавить НКУ</button></div>
+        <label for="equipmentSelect">Оборудование проекта</label><select id="equipmentSelect"></select>
+        <div id="equipmentFields" class="hid">
+          <div class="row"><label for="equipmentName">Название</label><input id="equipmentName" type="text" maxlength="80"></div>
+          <label>Координаты X / Y / Z, мм</label>
+          <div class="row-3"><input id="equipmentX" type="number" aria-label="Оборудование X"><input id="equipmentY" type="number" aria-label="Оборудование Y"><input id="equipmentZ" type="number" aria-label="Оборудование Z"></div>
+          <label>Габариты W / D / H, мм</label>
+          <div class="row-3"><input id="equipmentW" type="number" min="1" aria-label="Оборудование ширина"><input id="equipmentD" type="number" min="1" aria-label="Оборудование глубина"><input id="equipmentH" type="number" min="1" aria-label="Оборудование высота"></div>
+          <button class="btn" id="equipmentApply">Применить координаты и габариты</button>
+          <div class="row"><button class="btn" id="equipmentPlace">Поставить на плане</button><button class="btn" id="equipmentRemove">Удалить объект</button></div>
+        </div>
+        <div id="equipmentStatus" class="warn" role="status"></div>
+      </div>
+    </div>
     <div id="tab-meta" class="hid">
       <div class="row"><label>Название проекта</label><input id="metaTitle" type="text" placeholder="Проект шинопровода"></div>
       <div class="row"><label>Объект / площадка</label><input id="metaObject" type="text" placeholder="Цех №..."></div>
@@ -298,6 +329,7 @@
 <script src="tariff-import.js"></script>
 <script src="cad-export.js"></script>
 <script src="routes.js"></script>
+<script src="equipment.js"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -314,7 +346,8 @@ const MOUNT_ALONG=10, MOUNT_THICK=10;
 /* расстояния креплений вдоль сегмента */
 
 
-const STORAGE_STATE='BUS_PROJECT_V4';
+const STORAGE_STATE='BUS_PROJECT_V5';
+const STORAGE_STATE_PREVIOUS='BUS_PROJECT_V4';
 const STORAGE_STATE_OLD='BUS_STATE_V3';
 const STORAGE_PRICE='BUS_PRICE_V4';
 const STORAGE_PRICE_OLD='BUS_PRICE_V3';
@@ -398,12 +431,15 @@ document.querySelectorAll('.tab').forEach(t=>{
     const tab=t.dataset.tab;
     $('tab-route').classList.toggle('hid',tab!=='route');
     $('tab-meta').classList.toggle('hid',tab!=='meta');
+    $('tab-equipment').classList.toggle('hid',tab!=='equipment');
+    setEquipmentEditing(tab==='equipment');
   });
 });
 
 /* ===== МОДЕЛЬ ===== */
 const state={
   routes:[],activeRouteId:'r1',routeName:'Трасса 1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,showAllDimensions:false,specScope:'active',
+  equipment:[],selectedEquipmentId:null,equipmentEditMode:false,placingEquipment:false,routeBindings:{start:null,end:null},routeRouting:{mode:'manual',level:3700,order:'XY',path:'OVERHEAD'},
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
   annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
@@ -434,7 +470,7 @@ function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const 
 let DXF_COLLECT=false, DXF_ENT=[],cadGroup=0,cadMeta={};
 function drawingStyle(){return false;}
 const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
-function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:state.activeRouteId,routeName:state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),reference:type?refFor(type,Number($('rating').value)):undefined}}); }
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:cadMeta.equipmentId?'PROJECT':state.activeRouteId,routeName:cadMeta.equipmentId?'Оборудование проекта':state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),reference:['ST','EL','JPK','FE','FET','GETB','EC','HF','HE'].includes(type)?refFor(type,Number($('rating').value)):undefined}}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
@@ -759,7 +795,7 @@ function commitLength(){
   if(last&&last.dir===state.lastDir&&!Number.isSafeInteger(last.len+L)){hint.textContent='Суммарная длина участка слишком велика.';return;}
   window.__lastLen=L;
   if(last&&last.dir===state.lastDir)last.len+=L;else state.segs.push({dir:state.lastDir,len:L});
-  hideLenPopup();fit();renderSpec();saveState();
+  state.routeRouting.mode='manual';updateEquipmentControls();hideLenPopup();fit();renderSpec();saveState();
 }
 
 function openEdit(i){ if(!Number.isInteger(i)||!state.segs[i])return;state.editingIdx=i;editInput.value=state.segs[i].len;$('editHint').textContent='';epop.style.display='block';updatePopups();setTimeout(()=>editInput.focus({preventScroll:true}),0); }
@@ -769,7 +805,7 @@ function applyEdit(){
   const i=state.editingIdx,error=lengthError(editInput.value);
   if(!Number.isInteger(i)||!state.segs[i]){$('editHint').textContent='Участок уже удалён. Закройте окно и выберите другой.';updatePopups();return;}
   if(error){$('editHint').textContent=error;updatePopups();return;}
-  state.segs[i].len=Number(editInput.value);epop.style.display='none';draw();renderSpec();saveState();
+  state.segs[i].len=Number(editInput.value);state.routeRouting.mode='manual';updateEquipmentControls();epop.style.display='none';draw();renderSpec();saveState();
 }
 function placeLengthPopup(el,p){
   const w=el.offsetWidth||Math.min(330,wrap.clientWidth-24),h=el.offsetHeight||150;
@@ -929,6 +965,7 @@ function draw(){
 }
 function updateGeometryStatus(){
   const warnings=[];
+  const gap=boundRouteGap();if(gap)warnings.push(`Ручная трасса не достигает выбранного НКУ: разница X/Y/Z ${gap.map(n=>Math.round(n*100)/100).join(' / ')} мм. Скорректируйте путь или нажмите «Построить».`);
   if(moduleError($('moduleLen').value))warnings.push(`Максимальная длина секции введена неверно. Раскрой использует последнее корректное значение ${state.module} мм.`);
   if(Object.keys(equipmentDimensions).some(key=>!Number.isFinite(Number($(key).value))||Number($(key).value)<=0))warnings.push('Габариты оборудования должны быть положительными числами. Схема использует последние корректные габариты; изменения не сохраняются до исправления ввода.');
   if(conductorCode()==='7')warnings.push('PER: выбраны отдельная защитная шина полного сечения и соответствующие артикулы; внутренние проводники на схеме не показаны.');
@@ -1225,9 +1262,11 @@ function collectCadDrawing(){
     let pos=originTop();
     for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
   });
+  for(const item of equipmentInScope()){const p=proj(...equipmentTerminal(item));annotations.push({text:item.name,point:[p[0],-p[1]+150],anchor:[p[0],-p[1]]});}
   return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
 }
 $('saveDXF').onclick=()=>{
+  if(visibleRoutes().some(route=>boundRouteGap(route))){msg.textContent='Показанная ручная трасса не достигает выбранного НКУ. Скорректируйте путь перед CAD-экспортом.';return;}
   if(visibleRoutes().some(route=>route.segs.length&&!route.calc)){msg.textContent='Сначала рассчитайте все показанные трассы для экспорта деталей.';return;}
   const data=buildCadDXF(collectCadDrawing());
   const blob=new Blob([data],{type:'application/dxf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -1238,6 +1277,7 @@ function buildProjectWorkbook(){
   const sp=specForScope(),cost=costForScope(sp),book=XLSX.utils.book_new();
   const append=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows);sheet['!cols']=widths.map(wch=>({wch}));XLSX.utils.book_append_sheet(book,sheet,name);return sheet;};
   const source=PRICE.source||{};
+  if(equipmentExportRows().length)append('Оборудование',[['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows()],[28,20,18,18,22,18,18,18]);
   append('Проект',[
     ['Параметр','Значение'],['Статус','Предварительная спецификация; монтажная комплектность требует проверки'],
     ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Адрес',state.meta?.addr||''],['Заказчик',state.meta?.customer||''],['Подрядчик',state.meta?.contractor||''],['Шифр',state.meta?.code||''],['Дата',state.meta?.date||''],['Примечания',state.meta?.notes||''],['Область спецификации',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По листу «Трассы»':($('mat').value==='CU'?'Медь':'Алюминий')],
@@ -1253,7 +1293,7 @@ function buildProjectWorkbook(){
   const last=cost.lines.length+2;if(cost.total!=null&&cost.lines.length)sheet['G'+last]={t:'n',f:`SUM(G2:G${last-1})`,v:cost.total,z:'#,##0.00'};
   sheet['!autofilter']={ref:`A1:G${cost.lines.length+1}`};
   if(sp.routes){
-    append('Трассы',[['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows()],[28,12,12,10,24,18,20,20,20,12,12,20,20,22]);
+    append('Трассы',[['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт','Начало','Конец'],...routeSummaryRows().map((row,i)=>[...row,...routeEndpointNames(specificationRoutes()[i])])],[28,12,12,10,24,18,20,20,20,12,12,20,20,22,28,28]);
     const cutRows=[['Трасса','Артикул прямой секции','Длина прямой детали, мм','Количество, шт']];
     for(const routeSpec of sp.routes)withRoute(routeSpec.route,()=>{for(const [length,quantity]of [...routeSpec.parts].sort((a,b)=>b[0]-a[0]))cutRows.push([routeSpec.route.name,refFor('ST',Number($('rating').value)),length,quantity]);});
     append('Раскрой',cutRows,[28,28,30,20]);
@@ -1330,6 +1370,12 @@ function buildPrintableProject(images){
       html+='</tbody></table></div>';
     }
     /* Виды */
+    if(equipmentExportRows().length){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Размещение оборудования</div><h2>Размещение оборудования</h2><p>Нижний угол корпуса; размеры в мм. Точка подключения условно в центре верха.</p><table><thead><tr><th>Объект</th><th>Тип</th><th>X</th><th>Y</th><th>Z основания</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
+      equipmentExportRows().forEach(row=>{html+='<tr>'+row.map(value=>`<td>${escapeHtml(String(value))}</td>`).join('')+'</tr>';});
+      html+='</tbody></table><h3>Подключения трасс</h3><table><tr><th>Трасса</th><th>Начало</th><th>Конец</th></tr>';
+      specificationRoutes().forEach(route=>{html+='<tr>'+[route.name,...routeEndpointNames(route)].map(value=>`<td>${escapeHtml(value)}</td>`).join('')+'</tr>';});html+='</table></div>';
+    }
     images.forEach(img=>{ html+=`<div class="page"><div class="frame"></div><div class="title">Вид: ${img.name}</div><h2>Вид: ${img.name}</h2><img src="${img.src}"></div>`; });
 
     /* Спецификация */
@@ -1377,6 +1423,7 @@ $('saveCSV').onclick=()=>{
   const sp=specForScope();
   const rows=[['Область',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По трассам':($('mat').value==='CU'?'Cu':'Al')],['Номинал, A',sp.routes?'По трассам':$('rating').value],['IP',sp.routes?'По трассам':$('ip').value],['Проводники',sp.routes?'По трассам':conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts]];
   if(sp.routes)rows.push([],['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows());
+  if(equipmentExportRows().length){rows.push([],['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows(),[],['Трасса','Начало','Конец'],...specificationRoutes().map(route=>[route.name,...routeEndpointNames(route)]));}
   rows.push([],['Трасса','Артикул','Длина сегмента (мм)','Кол-во, шт']);
   for(const route of specificationRoutes())withRoute(route,()=>{for(const [length,count]of [...computeSpec().parts].sort((a,b)=>b[0]-a[0]))rows.push([route.name,refFor('ST',Number($('rating').value)),length,count]);});
   const csv='\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\r\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
@@ -1403,10 +1450,11 @@ function syncModule(){const error=moduleError($('moduleLen').value);$('moduleHin
 $('moduleLen').addEventListener('input',()=>{syncModule();draw();renderSpec();saveState();});
 $('calc').onclick=()=>{if(!syncModule())return;state.calc=true;giz.style.display='none';tag.style.display='none';pop.style.display='none';draw();renderSpec();saveState();};
 $('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); saveState(); };
-$('undo').onclick=()=>{ state.segs.pop(); draw(); renderSpec(); saveState(); };
+$('undo').onclick=()=>{ state.segs.pop();state.routeRouting.mode='manual';updateEquipmentControls();draw(); renderSpec(); saveState(); };
 
 $('clear').onclick=()=>{
   if(!releaseRecoveryStorage())return;
+  if(state.routeBindings.start||state.routeBindings.end){state.segs=[];state.calc=false;state.routeRouting.mode='manual';state.annos=[];state.annoSeq=1;state.dimOffsets=Object.fromEntries(PROJECT_VIEWS.map(v=>[v,{}]));closeRouteEditors();updateRouteControls();renderSpec();saveState();fit();msg.textContent='Выбранная трасса очищена; оборудование сохранено.';return;}
   state.segs=[]; state.calc=false; state.module=3000;
   state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
   state.annos=[]; state.movingAnno={id:null,what:null,view:null};
@@ -1522,9 +1570,9 @@ $('metaSave').onclick=()=>{ if(readMetaInputs()){msg.textContent='Данные �
 function loadState(){
   let raw=null;
   try{
-    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
+    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_PREVIOUS);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
     const s=validateProjectSnapshot(JSON.parse(raw));
-    Object.assign(state,{routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
+    Object.assign(state,{equipment:s.equipment,routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
     installRoute(s.routes.find(route=>route.id===s.activeRouteId));
     $('endDims').classList.toggle('hid',$('endType').value!=='NKU');syncModule();fillMetaInputs();ensureAnnoNumbers();updateRouteControls();
     projectStorageBlocked=false;recoveryProjectRaw=null;$('storageStatus').textContent='';$('saveRecovery').classList.add('hid');
@@ -1539,7 +1587,7 @@ function initPriceUI(){initExcelTariffUI();const dlg=$('priceDlg'),ta=$('pricePa
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
-  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();draw();fit();renderSpec();
+  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();initEquipmentUI();draw();fit();renderSpec();
   ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
     $(id).addEventListener('input',()=>{ readMetaInputs(); });
   });
