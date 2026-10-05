@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
-const exporter = fs.readFileSync('cad-export.js', 'utf8')+'\n'+fs.readFileSync('tariff-import.js','utf8');
+const exporter = fs.readFileSync('cad-export.js', 'utf8')+'\n'+fs.readFileSync('tariff-import.js','utf8')+'\n'+fs.readFileSync('routes.js','utf8');
 const code = exporter + '\n' + html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const calls = [];
 const context2d = new Proxy({measureText: text => ({width:text.length*7}), setTransform:(...a)=>calls.push(a),moveTo:(...a)=>calls.push(['move',...a]),lineTo:(...a)=>calls.push(['line',...a]),fillRect:(...a)=>calls.push(['fill',context2d.fillStyle,...a])}, {get:(o,k)=>o[k]||(()=>{})});
@@ -198,9 +198,9 @@ check('changing maximum section length immediately updates cuts, BOM and saved l
  elements.get('moduleLen').listeners.input();
  assert.equal(run('state.module'),1000);assert.equal(run('computeSpec().module'),1000);assert.equal(run("$('spModule').textContent"),'1000 мм');
  assert.ok(Array.from(run('straightLayout(0).parts')).every(n=>n<=1000));
- const saved=JSON.parse(stored.get('BUS_STATE_V3'));assert.equal(saved.module,1000);assert.equal(saved.ui.moduleLen,1000);
- const raw=stored.get('BUS_STATE_V3');
- for(const value of ['',0,-1,Infinity,3100,1001]){elements.get('moduleLen').value=value;elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1000);assert.equal(stored.get('BUS_STATE_V3'),raw);assert.match(run("$('moduleHint').textContent"),/400.*3000/);}
+ const saved=JSON.parse(stored.get('BUS_PROJECT_V4'));assert.equal(saved.module,1000);assert.equal(saved.ui.moduleLen,1000);
+ const raw=stored.get('BUS_PROJECT_V4');
+ for(const value of ['',0,-1,Infinity,3100,1001]){elements.get('moduleLen').value=value;elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1000);assert.equal(stored.get('BUS_PROJECT_V4'),raw);assert.match(run("$('moduleHint').textContent"),/400.*3000/);}
  run("$('moduleLen').value=1250");elements.get('moduleLen').listeners.input();assert.equal(run('state.module'),1250);assert.equal(run("$('moduleHint').textContent"),'');
 }));
 check('invalid or stale segment edits explain the error and preserve geometry',()=>withProjectStorage(()=>{
@@ -219,31 +219,31 @@ check('old fractional lengths preserve coordinates and totals without integer tr
 });
 check('saved project round trip keeps conductor/IP, dimensions, metadata and independent callout points',()=>withProjectStorage(stored=>{
  run("$('mat').value='CU';$('rating').value='4000';$('conductors').value='7';$('orientation').value='EDGE';$('ip').value='IP65';$('moduleLen').value=1500;syncModule();state.segs=[{dir:'+Z',len:1500},{dir:'+X',len:6500}];state.calc=true;state.dimOffsets.ISO={'0':{dx:42,dy:-15}};state.annos=[{id:4,text:'Выводы ТР',pos:{ISO:{ax:17,ay:23,bx:-500,by:900},TOP:{ax:10,ay:20,bx:500,by:700}}}];state.meta.title='Проект проверки';saveState()");
- const original=JSON.parse(stored.get('BUS_STATE_V3'));
+ const original=JSON.parse(stored.get('BUS_PROJECT_V4'));
  run("state.segs=[];state.annos=[];$('conductors').value='5';$('ip').value='IP55';loadState()");
  assert.equal(run("$('conductors').value"),'7');assert.equal(run("$('ip').value"),'IP65');assert.equal(run("$('rating').value"),4000);assert.equal(run('state.module'),1500);
  assert.equal(run('state.meta.title'),'Проект проверки');assert.equal(run('state.annos[0].pos.ISO.ax'),17);assert.equal(run('state.annos[0].pos.ISO.bx'),-500);assert.equal(run('state.dimOffsets.ISO[0].dx'),42);
- run('saveState()');assert.deepEqual(JSON.parse(stored.get('BUS_STATE_V3')),original);
+ run('saveState()');assert.deepEqual(JSON.parse(stored.get('BUS_PROJECT_V4')),original);
  // Migration from the former stale-module bug follows the saved visible field.
- original.module=3000;stored.set('BUS_STATE_V3',JSON.stringify(original));run('loadState()');assert.equal(run('state.module'),1500);
+ original.module=3000;stored.set('BUS_PROJECT_V4',JSON.stringify(original));run('loadState()');assert.equal(run('state.module'),1500);
  // Older projects without new conductor/orientation/metadata fields still load.
- stored.set('BUS_STATE_V3',JSON.stringify({segs:[{dir:'+X',len:3000}],calc:true,module:3000}));run('loadState()');assert.equal(run("$('conductors').value"),'5');assert.equal(run('state.segs[0].len'),3000);
+ stored.set('BUS_PROJECT_V4',JSON.stringify({segs:[{dir:'+X',len:3000}],calc:true,module:3000}));run('loadState()');assert.equal(run("$('conductors').value"),'5');assert.equal(run('state.segs[0].len'),3000);
 }));
 check('corrupt project fails atomically and cannot be overwritten by subsequent autosave',()=>withProjectStorage(stored=>{
  const baseline=JSON.parse(run('JSON.stringify(projectSnapshot())'));
  const cases=[{...baseline,meta:'broken'},{...baseline,module:-1},{...baseline,dimOffsets:{ISO:{0:{dx:'bad',dy:0}}}},{...baseline,annos:[{text:'Bad',pos:{ISO:{ax:null,ay:0,bx:1,by:2}}}]},{...baseline,ui:{...baseline.ui,ip:'IP54'}},{...baseline,ui:{...baseline.ui,mat:'AL',rating:6300}},{...baseline,ui:{...baseline.ui,startW:0}}];
- for(const bad of cases){const before=run('JSON.stringify(projectSnapshot())'),raw=JSON.stringify({...bad,segs:[{dir:'+Y',len:9999}]});stored.set('BUS_STATE_V3',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_STATE_V3'),raw);assert.match(run("$('storageStatus').textContent"),/защищены/);}
- const raw=stored.get('BUS_STATE_V3');run("$('clear').onclick()");assert.equal(JSON.parse(stored.get('BUS_STATE_V3')).segs.length,0);assert.ok([...stored.entries()].some(([key,value])=>key.startsWith('BUS_STATE_V3.recovery.')&&value===raw));assert.equal(run('computeSpec().endCap'),0);
+ for(const bad of cases){const before=run('JSON.stringify(projectSnapshot())'),raw=JSON.stringify({...bad,segs:[{dir:'+Y',len:9999}]});stored.set('BUS_PROJECT_V4',raw);run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),raw);assert.match(run("$('storageStatus').textContent"),/защищены/);}
+ const raw=stored.get('BUS_PROJECT_V4');run("$('clear').onclick()");assert.equal(JSON.parse(stored.get('BUS_PROJECT_V4')).segs.length,0);assert.ok([...stored.entries()].some(([key,value])=>key.startsWith('BUS_PROJECT_V4.recovery.')&&value===raw));assert.equal(run('computeSpec().endCap'),0);
 }));
 check('storage write failure never reports a successful save or deletes recovery data',()=>withProjectStorage(stored=>{
  sandbox.localStorage.setItem=()=>{throw new Error('QuotaExceededError');};
  assert.equal(run('saveState()'),false);assert.match(run("$('storageStatus').textContent"),/QuotaExceededError/);
  run("$('metaSave').onclick()");assert.match(run("$('msg').textContent"),/не сохранены/);
- stored.set('BUS_STATE_V3','invalid-json');run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);assert.equal(stored.get('BUS_STATE_V3'),'invalid-json');assert.equal(run('projectStorageBlocked'),true);
+ stored.set('BUS_PROJECT_V4','invalid-json');run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),'invalid-json');assert.equal(run('projectStorageBlocked'),true);
 }));
 check('invalid equipment dimensions retain last valid geometry and prevent a corrupt saved project',()=>withProjectStorage(stored=>{
- run("$('startW').value=2000;P();saveState()");const previous=stored.get('BUS_STATE_V3');
- for(const value of ['',-100,Infinity]){elements.get('startW').value=value;assert.equal(run('P().startW'),2000);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_STATE_V3'),previous);}
+ run("$('startW').value=2000;P();saveState()");const previous=stored.get('BUS_PROJECT_V4');
+ for(const value of ['',-100,Infinity]){elements.get('startW').value=value;assert.equal(run('P().startW'),2000);assert.equal(run('saveState()'),false);assert.equal(stored.get('BUS_PROJECT_V4'),previous);}
  run("$('startW').value=600;P()");assert.equal(run('P().startW'),600);
 }));
 check('unavailable material rating is announced and notice clears after an explicit choice',()=>withProjectStorage(()=>{
@@ -252,5 +252,89 @@ check('unavailable material rating is announced and notice clears after an expli
 }));
 check('unreadable storage cannot be reset without protecting its original content',()=>withProjectStorage(()=>{
  const before=run('JSON.stringify(projectSnapshot())');sandbox.localStorage.getItem=()=>{throw new Error('SecurityError');};run('loadState()');assert.equal(run('releaseRecoveryStorage()'),false);run("$('clear').onclick()");assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('projectStorageBlocked'),true);
+}));
+function multipleRouteFixture(){
+ run("routesUIReady=false;Object.assign(state,{routes:[],activeRouteId:'r1',routeName:'ТР1 → НКУ1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,specScope:'active',segs:[{dir:'+Z',len:1500},{dir:'+X',len:3500},{dir:'+Y',len:3500},{dir:'-Z',len:1500}],calc:true,module:3000,annos:[],annoSeq:1,dimOffsets:Object.fromEntries(PROJECT_VIEWS.map(v=>[v,{}])),meta:{title:'Несколько трасс',object:'Контроль',addr:'Адрес',customer:'Заказчик',contractor:'Подрядчик',code:'ТП-01',date:'2026-10-05',notes:'Проверка'}});for(const [key,value]of Object.entries({mat:'CU',rating:3200,conductors:'5',ip:'IP55',orientation:'FLAT',startType:'TR',endType:'NKU',startW:2000,startD:1400,startH:1700,endW:600,endD:600,endH:2200,mountOn:'1',mountStep:1000,moduleLen:3000}))$(key).value=value;initRoutesUI()");
+}
+check('legacy single-route projects migrate without changing geometry or settings',()=>withProjectStorage(stored=>{
+ run('routesUIReady=false');stored.set('BUS_STATE_V3',JSON.stringify({segs:[{dir:'+X',len:3100}],calc:true,module:3000,ui:{mat:'CU',rating:3200,ip:'IP65',conductors:'7',orientation:'EDGE'}}));const legacy=stored.get('BUS_STATE_V3');run('loadState()');
+ assert.equal(run('state.routes.length'),1);assert.equal(run('state.routeOffset.x'),0);assert.equal(run('computeSpec().totalLen'),3100);assert.equal(run("$('conductors').value"),'7');assert.equal(run('saveState()'),true);assert.equal(JSON.parse(stored.get('BUS_PROJECT_V4')).version,4);assert.equal(stored.get('BUS_STATE_V3'),legacy);stored.set('BUS_STATE_V3','old tab overwrote the old key');run('loadState()');assert.equal(run('computeSpec().totalLen'),3100);
+}));
+check('route copies preserve geometry while parameters, annotations and offsets remain independent',()=>withProjectStorage(()=>{
+ multipleRouteFixture();run("state.annos=[{id:1,text:'ТР1',pos:{ISO:{ax:10,ay:20,bx:30,by:40}}}];addRoute('TR_NKU',true)");
+ assert.equal(run('state.routes.length'),2);assert.equal(run('state.routeOffset.y'),4000);assert.equal(run('state.annos.length'),0);
+ run("state.routeName='ТР2 → НКУ2';updateRouteControls();$('mat').value='AL';fillRatings(false);$('rating').value=2500;$('orientation').value='EDGE';$('conductors').value='7';$('ip').value='IP65';$('moduleLen').value=1000;syncModule();state.annos=[{id:1,text:'ТР2',pos:{ISO:{ax:50,ay:60,bx:70,by:80}}}];switchRoute('r1')");
+ assert.equal(run('state.module'),3000);assert.equal(run("$('ip').value"),'IP55');assert.equal(run("$('mat').value"),'CU');assert.equal(run('state.annos[0].text'),'ТР1');
+ run("switchRoute('r2')");assert.equal(run('state.module'),1000);assert.equal(run("$('conductors').value"),'7');assert.equal(run('state.annos[0].text'),'ТР2');assert.equal(run('state.routeOffset.y'),4000);
+}));
+check('NKU link starts and finishes exactly at existing equipment terminals',()=>withProjectStorage(()=>{
+ multipleRouteFixture();run("addRoute('TR_NKU',true);state.routeName='ТР2 → НКУ2';updateRouteControls();addRoute('NKU_NKU')");
+ assert.equal(run('state.routes.length'),3);assert.equal(run('computeSpec().nkuBlocks'),2);assert.equal(run('computeSpec().trBlocks'),0);
+ const a=run('withRoute(state.routes[0],endPoint)'),b=run('withRoute(state.routes[1],endPoint)');assert.deepEqual(Array.from(run('originTop()')),Array.from(a));assert.deepEqual(Array.from(run('endPoint()')),Array.from(b));
+ assert.equal(run('calculateAllRoutes()'),true);const spec=run('specForScope()');assert.equal(spec.totalLen,24000);assert.equal(spec.nkuBlocks,4);assert.equal(spec.trBlocks,2);
+ for(const key of ['straightLen','mounts','endCap'])assert.equal(spec[key],spec.routes.reduce((sum,s)=>sum+s[key],0));
+ assert.equal(spec.joints.total,spec.routes.reduce((sum,s)=>sum+s.joints.total,0));
+}));
+check('route context restores active state, input values and geometry cache even on failure',()=>withProjectStorage(stored=>{
+ const before=run('JSON.stringify(projectSnapshot())'),cache=run('JSON.stringify(equipmentDimensions)');const prior=stored.get('BUS_PROJECT_V4');
+ assert.throws(()=>run("withRoute(state.routes[0],()=>{P();saveState();throw new Error('injected route error')})"),/injected/);
+ assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('JSON.stringify(equipmentDimensions)'),cache);assert.equal(stored.get('BUS_PROJECT_V4'),prior);assert.equal(run('routeContextDepth'),0);
+}));
+check('common quotation merges exact references and units and preserves missing prices',()=>{
+ run("PRICE={version:5,entries:{}};globalThis.commonSpec=specForScope();globalThis.commonCost=costForScope(commonSpec);for(const line of commonCost.lines)PRICE.entries[line.ref]={price:123.45,unit:typeof line.qty==='string'?'m':'piece'};globalThis.commonCost=costForScope(commonSpec)");
+ const result=run('commonCost');assert.equal(result.missingPrices,0);assert.equal(new Set(result.lines.map(line=>line.ref+'|'+line.unit)).size,result.lines.length);
+ for(const line of result.lines)assert.equal(line.sum,Math.round(line.quantity*123.45*100)/100);
+ assert.equal(result.total,result.lines.reduce((sum,line)=>sum+Math.round(line.sum*100),0)/100);
+ const straight=result.lines.find(line=>line.unit==='м');assert.equal(straight.quantity,run('commonSpec.straightLen/1000'));assert.equal(straight.routes.length,3);
+ run('globalThis.multiTariff=JSON.parse(JSON.stringify(PRICE));delete PRICE.entries[commonCost.lines[0].ref]');assert.equal(run('costForScope(commonSpec).total'),null);assert.equal(run('costForScope(commonSpec).missingPrices'),1);run('PRICE=multiTariff');
+});
+check('mixed material, IP and conductors retain distinct articles in the common specification',()=>withProjectStorage(()=>{
+ run("switchRoute('r2');$('mat').value='AL';fillRatings(false);$('rating').value=2500;$('ip').value='IP65';$('conductors').value='7';$('orientation').value='EDGE';$('moduleLen').value=1000;syncModule();calculateAllRoutes()");
+ const cost=run('costForScope(specForScope())');assert.ok(cost.lines.some(line=>line.ref==='BDW4725GM65'));assert.ok(cost.lines.some(line=>line.ref==='DDW4532GM55'));assert.equal(cost.total,null);
+ assert.equal(run("$('mat').value"),'AL');assert.equal(run('state.module'),1000);assert.equal(run('state.routeOffset.y'),4000);
+}));
+check('common XLSX and printable project preserve route provenance and component totals',()=>{
+ const book=run('buildProjectWorkbook()'),x=sandbox.XLSX;
+ assert.deepEqual(Array.from(book.SheetNames),['Проект','Калькуляция','Трассы','Раскрой','Проверки']);
+ const routes=x.utils.sheet_to_json(book.Sheets['Трассы'],{header:1});assert.equal(routes.length,4);assert.equal(routes[2][1],'AL');assert.equal(routes[2][3],'IP65');assert.equal(routes[2][6],1000);
+ const cuts=x.utils.sheet_to_json(book.Sheets['Раскрой'],{header:1});assert.ok(cuts.slice(1).some(row=>row[1]==='BDW4725GM65'));assert.ok(cuts.slice(1).some(row=>row[1]==='DDW4532GM55'));
+ assert.equal(cuts.slice(1).reduce((sum,row)=>sum+row[2]*row[3],0),run('specForScope().straightLen'));
+ const metadata=x.utils.sheet_to_json(book.Sheets['Проект'],{header:1});assert.ok(metadata.some(row=>row[0]==='Заказчик'&&row[1]==='Заказчик'));
+ const print=run("buildPrintableProject(PROJECT_VIEWS.map(name=>({name,src:'data:image/png;base64,QA'})))");assert.match(print,/Все трассы/);assert.match(print,/НКУ1/);assert.match(print,/НКУ2/);assert.match(print,/BDW4725GM65/);assert.match(print,/Подключения к НКУ \/ ТР<\/td><td>4 \/ 2/);assert.equal((print.match(/<img src=/g)||[]).length,6);
+ fs.writeFileSync('evidence/multiroute-acceptance.xlsx',x.write(book,{type:'buffer',bookType:'xlsx'}));fs.writeFileSync('evidence/multiroute-print.html',print);
+});
+check('common CAD carries each route and its own electrical attributes without screen scaling',()=>{
+ run('state.showAllRoutes=true;draw=originalDraw;box=originalBox');const model=run('collectCadDrawing()');assert.equal(new Set(model.lines.filter(e=>e.layer==='BUS').map(e=>e.meta.route)).size,3);assert.equal(model.dimensions.length,9);
+ const second=model.lines.filter(e=>e.layer==='BUS'&&e.meta.route==='r2');assert.ok(second.length);assert.ok(second.every(e=>e.meta.material==='AL'&&e.meta.ip==='IP65'&&e.meta.reference==='BDW4725GM65'));
+ const output=run('buildCadDXF(collectCadDrawing())');assert.match(output,/ROUTE_NAME/);assert.match(output,/BDW4725GM65/);fs.writeFileSync('evidence/multiroute-cad.dxf',output);
+ run('scale*=2;panX+=67;panY-=123');assert.equal(run('buildCadDXF(collectCadDrawing())'),output);
+});
+check('moving a route moves its callout anchor and text together in every view',()=>withProjectStorage(()=>{
+ run("state.annos=[{id:1,text:'Выводы',pos:{ISO:{ax:10,ay:20,bx:30,by:40},TOP:{ax:50,ay:60,bx:70,by:80}}}];updateRouteControls();$('routeY').value=5000");
+ const before=run('state.routeOffset.y'),shift=run(`projectRouteDelta('ISO',[0,5000-${before},0])`);elements.get('routeY').listeners.input();assert.equal(run('state.routeOffset.y'),5000);assert.equal(run('state.annos[0].pos.ISO.ax'),10+shift[0]);assert.equal(run('state.annos[0].pos.ISO.bx'),30+shift[0]);assert.equal(run('state.annos[0].pos.TOP.ay'),60-(5000-before));
+}));
+check('all routes, common metadata, view scope and selected route survive reload atomically',()=>withProjectStorage(stored=>{
+ run('saveState()');const before=run('JSON.stringify(projectSnapshot())');run("state.routes=[];state.segs=[];state.showAllRoutes=false;loadState()");assert.equal(run('JSON.stringify(projectSnapshot())'),before);
+ const good=JSON.parse(before);for(const bad of [{...good,routes:good.routes.map((r,i)=>i===1?{...r,id:good.routes[0].id}:r)},{...good,routes:good.routes.map((r,i)=>i===1?{...r,offset:{x:null,y:0,z:0}}:r)},{...good,activeRouteId:'r99'}]){stored.set('BUS_PROJECT_V4',JSON.stringify(bad));run('loadState()');assert.equal(run('JSON.stringify(projectSnapshot())'),before);assert.equal(run('saveState()'),false);}
+}));
+check('invalid pending inputs block switching and exports without losing the active route',()=>withProjectStorage(stored=>{
+ run('saveState()');const saved=stored.get('BUS_PROJECT_V4'),id=run('state.activeRouteId');elements.get('moduleLen').value=1001;assert.equal(run("switchRoute('r1')"),false);assert.equal(run('state.activeRouteId'),id);assert.equal(stored.get('BUS_PROJECT_V4'),saved);assert.equal(run('exportScopeReady()'),false);
+ run("$('moduleLen').value=state.module;state.calc=false");assert.equal(run('exportScopeReady()'),false);assert.match(run("$('msg').textContent"),/Сначала рассчитайте/);run('state.calc=true');
+}));
+check('failed view capture restores camera, selected route and callout rendering',()=>{
+ const create=sandbox.document.createElement;let captures=0;sandbox.document.createElement=()=>({...element(),toDataURL(){if(++captures===2)throw new Error('injected encoding error');return 'data:image/png;base64,QA';}});
+ const before=run('JSON.stringify([viewMode,panX,panY,scale,state.activeRouteId,state.showAllRoutes,state.drawAnnoLines])');
+ try{assert.throws(()=>run('captureProjectViews(true)'),/injected encoding/);assert.equal(run('JSON.stringify([viewMode,panX,panY,scale,state.activeRouteId,state.showAllRoutes,state.drawAnnoLines])'),before);}finally{sandbox.document.createElement=create;}
+});
+check('clearing and deleting one route preserve other routes and project metadata',()=>withProjectStorage(()=>{
+ const name=run('state.meta.title'),other=run("JSON.stringify(state.routes.find(r=>r.id==='r1').segs)");run("$('clear').onclick()");assert.equal(run('state.segs.length'),0);assert.equal(run('state.meta.title'),name);assert.equal(run("JSON.stringify(state.routes.find(r=>r.id==='r1').segs)"),other);
+ const id=run('state.activeRouteId');assert.equal(run('removeActiveRoute()'),true);assert.ok(!run(`state.routes.some(r=>r.id==='${id}')`));assert.equal(run('state.meta.title'),name);assert.equal(run("JSON.stringify(state.routes.find(r=>r.id==='r1').segs)"),other);
+}));
+check('common view shows only selected dimensions by default and can show all explicitly',()=>{
+ const layer=elements.get('dimLayer');layer.children=[];run('state.showAllDimensions=false;draw()');const selected=layer.children.length;
+ layer.children=[];run('state.showAllDimensions=true;draw()');const all=layer.children.length;assert.ok(all>selected);assert.ok(layer.children.some(child=>child.textContent?.includes(' · ')));run('state.showAllDimensions=false');
+});
+check('out-of-bounds copies fail before adding an invalid route or corrupting saved data',()=>withProjectStorage(stored=>{
+ run('state.routeOffset.y=1000000;updateRouteControls();saveState()');const previous=stored.get('BUS_PROJECT_V4'),number=run('state.routes.length');assert.equal(run("addRoute('TR_NKU',true)"),null);assert.equal(run('state.routes.length'),number);assert.equal(stored.get('BUS_PROJECT_V4'),previous);assert.equal(run('saveState()'),true);
 }));
 console.log(`${count} targeted checks passed`);

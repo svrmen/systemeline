@@ -72,10 +72,13 @@
   .tabs{display:flex;gap:8px;margin-bottom:8px}
   .tab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer}
   .tab.active{background:#eef3ff;border-color:#bcd}
+  .route-card{border:1px solid #d5dfed;border-radius:10px;padding:10px;margin-bottom:12px;background:#f8faff}
+  .route-card h3{margin:0 0 6px;font-size:15px}.route-card .row{margin:6px 0}
+  .route-card .row-3 input{max-width:none;width:100%;height:34px}.route-card small{display:block;color:#526276}
 </style>
 </head>
 <body>
-<header><small style="display:block;color:#555">Проверочная версия · 2026-10-05 · проверка сценариев</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-05 · несколько трасс</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
@@ -86,6 +89,21 @@
 
     <!-- TAB: ТРАССА -->
     <div id="tab-route">
+      <div class="route-card">
+        <h3>Трассы проекта</h3>
+        <label for="routeSelect">Выбранная трасса</label><select id="routeSelect"></select>
+        <div class="row"><label for="routeName">Название</label><input id="routeName" type="text" maxlength="80"></div>
+        <div class="row"><select id="routeKind" aria-label="Тип новой трассы"><option value="TR_NKU">ТР → НКУ</option><option value="NKU_NKU">НКУ → НКУ</option></select><button class="btn" id="routeAdd">Добавить трассу</button></div>
+        <div class="row"><button class="btn" id="routeCopy">Копия трассы</button><button class="btn" id="routeRemove">Удалить трассу</button></div>
+        <label>Координаты начала оборудования: X / Y / Z, мм</label>
+        <div class="row-3"><input id="routeX" type="number" value="0" aria-label="Координата X"><input id="routeY" type="number" value="0" aria-label="Координата Y"><input id="routeZ" type="number" value="0" aria-label="Отметка Z"></div>
+        <label><input id="showAllRoutes" type="checkbox"> Показывать все трассы</label>
+        <label style="display:block"><input id="showAllDimensions" type="checkbox"> Размеры всех трасс</label>
+        <small id="routeHint"></small>
+        <div class="row"><label for="specScope">Спецификация</label><select id="specScope"><option value="active">Выбранная трасса</option><option value="all">Все трассы</option></select></div>
+        <button class="btn" id="calcAll">Рассчитать все трассы</button>
+        <div id="routeStatus" class="warn" role="status"></div>
+      </div>
       <div class="row"><label>Материал шин</label>
         <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
       </div>
@@ -127,7 +145,7 @@
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button class="btn" id="undo">Отменить участок</button>
-        <button class="btn" id="clear">Сброс</button>
+        <button class="btn" id="clear">Очистить трассу</button>
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button class="btn" id="fit">Подогнать</button>
@@ -141,7 +159,7 @@
       <div id="spec" style="display:none">
         <h3>Предварительная спецификация</h3><p class="warn">L/H — осевые размеры с плечами поворотов. Раскрой ниже — длины прямых деталей. Зелёные блоки — стыки; их размеры схематичны. Комплектность и стоимость требуют проверки.</p>
         <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
-        <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
+        <div class="spec-row"><div>Максимальная длина прямой секции</div><div id="spModule"></div></div>
         <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
         <div class="spec-row"><div>Горизонтальные участки</div><div id="spLenHoriz"></div></div>
         <div class="spec-row"><div>Вертикально вверх</div><div id="spLenUp"></div></div>
@@ -279,6 +297,7 @@
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="tariff-import.js"></script>
 <script src="cad-export.js"></script>
+<script src="routes.js"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -295,7 +314,8 @@ const MOUNT_ALONG=10, MOUNT_THICK=10;
 /* расстояния креплений вдоль сегмента */
 
 
-const STORAGE_STATE='BUS_STATE_V3';
+const STORAGE_STATE='BUS_PROJECT_V4';
+const STORAGE_STATE_OLD='BUS_STATE_V3';
 const STORAGE_PRICE='BUS_PRICE_V4';
 const STORAGE_PRICE_OLD='BUS_PRICE_V3';
 
@@ -383,6 +403,7 @@ document.querySelectorAll('.tab').forEach(t=>{
 
 /* ===== МОДЕЛЬ ===== */
 const state={
+  routes:[],activeRouteId:'r1',routeName:'Трасса 1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,showAllDimensions:false,specScope:'active',
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
   annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
@@ -403,7 +424,7 @@ function P(){
     busH:edge?width:BUS_H
   };
 }
-function originTop(){ const p=P(); return [p.startW/2,p.startD/2,p.startH]; }
+function originTop(){ const p=P(),o=state.routeOffset; return [o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
 const axis=d=>d[1];
 const sgn=d=>d[0]==='+'?1:-1;
 const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
@@ -413,7 +434,7 @@ function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const 
 let DXF_COLLECT=false, DXF_ENT=[],cadGroup=0,cadMeta={};
 function drawingStyle(){return false;}
 const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
-function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta}}); }
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:state.activeRouteId,routeName:state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),reference:type?refFor(type,Number($('rating').value)):undefined}}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
@@ -581,7 +602,7 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 }
 
 /* шкафы / заглушка */
-function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
+function drawStartCab(){ const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666'); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
   if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,P().busH); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
@@ -592,7 +613,7 @@ function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPo
 /* ===== ПОЛ ===== */
 function floorBoundsXY(){
   const p=P(); const bw=p.busW;
-  let minX=0, maxX=p.startW, minY=0, maxY=p.startD;
+  const o=state.routeOffset;let minX=o.x, maxX=o.x+p.startW, minY=o.y, maxY=o.y+p.startD;
   let [x,y,z]=originTop();
   function expand(px,py){ minX=Math.min(minX, px-bw/2); maxX=Math.max(maxX, px+bw/2); minY=Math.min(minY, py-bw/2); maxY=Math.max(maxY, py+bw/2); }
   expand(x,y);
@@ -603,10 +624,10 @@ function floorBoundsXY(){
 function drawFloorBounded(){
   if(drawingStyle())return;
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
-  const b=floorBoundsXY();
+  const b=sceneFloorBounds();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
   fillPoly3(poly,'#f1f3f5',1,'FLOOR');
-  const step=200;
+  const step=Math.max(200,Math.ceil(Math.max(b.maxX-b.minX,b.maxY-b.minY)/200/200)*200);
   for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   line3([b.minX,b.minY,0],[b.maxX,b.minY,0],'#c7c7c7',1/scale,'FLOOR');
@@ -618,7 +639,7 @@ function drawFloorBounded(){
 function drawFloorZeroLine(){
   if(drawingStyle())return;
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
-  const b=floorBoundsXY();
+  const b=sceneFloorBounds();
   if(viewMode==='FRONT' || viewMode==='BACK'){
     const a=[b.minX,b.minY,0], c=[b.maxX,b.minY,0];
     line3Dashed(a,c,'#a0a0a0',1.2/scale,[8/scale,6/scale],'FLOOR');
@@ -654,7 +675,7 @@ function renderDeltaH(){
   if($('endType').value!=='NKU') return;
   const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
   const delta=Math.abs(eBase-sBase);
-  const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+  const origin=originTop(),sPt=proj(origin[0],origin[1],sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
   const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
   const base=localToScreen(mid.u,mid.v);
   const placed=dimensionPosition('__deltaH',base,`ΔH = ${delta} мм`); const x=placed.x,y=placed.y;
@@ -670,7 +691,7 @@ function renderDeltaH(){
 /* трасса + размеры */
 function drawPath(){
   const prm=P(), bw=prm.busW, bh=prm.busH;
-  let pos=originTop(); dimLayer.innerHTML=''; dimensionBoxes=[];
+  let pos=originTop();
 
   for(let i=0;i<state.segs.length;i++){
     const cur=state.segs[i], L=Number(cur.len), prev=state.segs[i-1], next=state.segs[i+1];
@@ -683,18 +704,21 @@ function drawPath(){
       if(state.calc){
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
+      if(routeInteractive||state.showAllDimensions){
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-      const label=(axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм';
+      const label=routeDimensionLabel((axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм');
       const key=i; const placed=dimensionPosition(key,base,label); const x=placed.x,y=placed.y;
       const off={dx:x-base.x,dy:y-base.y};
       if(state.calc){
         const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
         let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
+        if(!routeInteractive)el.style.pointerEvents='none';
         el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
         el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
         el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key,dx,dy); });
         el.addEventListener('dblclick',ev=>{ ev.stopPropagation(); openEdit(i); });
         dimLayer.appendChild(el);
+      }
       }
     }
     if(ec>0 && next){
@@ -705,7 +729,7 @@ function drawPath(){
     pos=adv(pos,cur.dir,L);
   }
   if(state.calc)for(const joint of connectionLayout()){drawConnection(joint,bw);cadMeta={};}
-  renderDeltaH();
+  if(routeInteractive)renderDeltaH();
 }
 
 /* джойстик направления */
@@ -735,7 +759,7 @@ function commitLength(){
   if(last&&last.dir===state.lastDir&&!Number.isSafeInteger(last.len+L)){hint.textContent='Суммарная длина участка слишком велика.';return;}
   window.__lastLen=L;
   if(last&&last.dir===state.lastDir)last.len+=L;else state.segs.push({dir:state.lastDir,len:L});
-  hideLenPopup();fit();if(state.calc)renderSpec();saveState();
+  hideLenPopup();fit();renderSpec();saveState();
 }
 
 function openEdit(i){ if(!Number.isInteger(i)||!state.segs[i])return;state.editingIdx=i;editInput.value=state.segs[i].len;$('editHint').textContent='';epop.style.display='block';updatePopups();setTimeout(()=>editInput.focus({preventScroll:true}),0); }
@@ -745,7 +769,7 @@ function applyEdit(){
   const i=state.editingIdx,error=lengthError(editInput.value);
   if(!Number.isInteger(i)||!state.segs[i]){$('editHint').textContent='Участок уже удалён. Закройте окно и выберите другой.';updatePopups();return;}
   if(error){$('editHint').textContent=error;updatePopups();return;}
-  state.segs[i].len=Number(editInput.value);epop.style.display='none';draw();if(state.calc)renderSpec();saveState();
+  state.segs[i].len=Number(editInput.value);epop.style.display='none';draw();renderSpec();saveState();
 }
 function placeLengthPopup(el,p){
   const w=el.offsetWidth||Math.min(330,wrap.clientWidth-24),h=el.offsetHeight||150;
@@ -898,10 +922,7 @@ function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
   apply();
   drawFloorBounded();
-  drawStartCab();
-  drawPath();
-  drawEndCab();
-  drawEndCap(P().busW);
+  drawSceneRoutes();
   drawFloorZeroLine();
   if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
   renderAnnos(); updatePopups(); updateGeometryStatus();
@@ -942,13 +963,14 @@ function updateGeometryStatus(){
   }
   $('geometryStatus').textContent=warnings.join(' ');
 }
-function boundsProjected(){
-  const p=P(); const pts=[[0,0,0],[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
+function routeBoundsProjected(){
+  const p=P(),o=state.routeOffset; const pts=[[o.x,o.y,o.z],[o.x,o.y,originTop()[2]-p.startH],[o.x+p.startW,o.y+p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
   for(const s of state.segs){ pos=adv(pos,s.dir,Number(s.len)); pts.push(pos); }
   if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
   const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
   return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
 }
+function boundsProjected(){return sceneProjectedBounds();}
 function fit(){
   const ext=boundsProjected();
   const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
@@ -1012,23 +1034,24 @@ function computeSpec(){
   return {module:m,totalLen:total,straightLen,parts:map,joints:{total:connectionLayout().length,mod:jointsMod,corners:connectionLayout().filter(j=>j.kind==='corner').length,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:horizontalMountPlan([],target,$('orientation').value).step,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
-  if(!state.calc){ $('spec').style.display='none';$('costTable').classList.add('hid');$('toggleCost').textContent='Показать калькуляцию'; return; }
-  const sp=computeSpec(); $('spec').style.display='block';
-  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
-  $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
+  if(!specificationRoutes().some(route=>route.calc&&route.segs.length)){ $('spec').style.display='none';$('costTable').classList.add('hid');$('toggleCost').textContent='Показать калькуляцию'; return; }
+  const sp=specForScope(); $('spec').style.display='block';
+  const pending=specificationRoutes().filter(route=>route.segs.length&&!route.calc);
+  $('spHeader').textContent=sp.routes?`Все трассы (${sp.routes.length})${pending.length?' · разбиение не рассчитано: '+pending.map(route=>route.name).join(', '):''}`:`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
+  $('spModule').textContent=sp.routes?'По параметрам трасс':sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
   $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
-  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
+  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap||'—';
   $('spJointsTotal').textContent=sp.joints.total; $('spJointsMod').textContent=sp.joints.mod; $('spJointsCorners').textContent=sp.joints.corners; $('spJointsNku').textContent=sp.joints.nku; $('spJointsTr').textContent=sp.joints.tr;
-  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—';
+  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=sp.routes?`${sp.mounts} шт (шаг по трассам)`:(($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—');
 
   const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
 
-  const calcData=computeCost(sp);
-  $('spTotalCost').textContent = calcData.missingPrices?'Не определена: нет подтверждённого тарифа':money(calcData.total);
+  const calcData=costForScope(sp);
+  $('spTotalCost').textContent = pending.length?'Не определена: рассчитайте все трассы':calcData.missingPrices?'Не определена: нет подтверждённого тарифа':money(calcData.total);
   const cb=$('costBody'); cb.innerHTML='';
   calcData.lines.forEach(L=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${L.title}</td><td><code>${L.ref||'—'}</code></td><td>${L.qty}</td><td class="money">${money(L.price)}</td><td class="money">${money(L.sum)}</td>`;
+    tr.innerHTML=`<td>${escapeHtml(L.title)}${L.routes?'<br><small>'+escapeHtml(L.routes.join('; '))+'</small>':''}</td><td><code>${escapeHtml(L.ref||'—')}</code></td><td>${L.qty}</td><td class="money">${money(L.price)}</td><td class="money">${money(L.sum)}</td>`;
     cb.appendChild(tr);
   });
 }
@@ -1063,7 +1086,7 @@ function computeCost(sp){
 
   const missing=lines.filter(line=>line.price==null||!Number.isFinite(Number(line.price)));missing.forEach(line=>line.sum=null);
   // Сумма счёта совпадает с суммой строк, округлённых до копейки.
-  lines.forEach(line=>{if(line.sum!=null)line.sum=Math.round(line.sum*100)/100;});
+  lines.forEach(line=>{line.quantity=typeof line.qty==='string'?meters:Number(line.qty);if(line.sum!=null)line.sum=Math.round(line.sum*100)/100;});
   total=lines.reduce((sum,line)=>sum+Math.round((line.sum??0)*100),0)/100;
   return {total:missing.length?null:total,lines,missingPrices:missing.length};
 }
@@ -1128,11 +1151,10 @@ function drawCalloutLabel(context,layout,text){
   context.fillStyle='#17212b';context.textAlign='left';context.textBaseline='top';
   lines.forEach((line,index)=>context.fillText(line,left+10,top+8+index*18));context.restore();
 }
-function drawOverlayToCanvas(ctx2){
+function drawRouteOverlayToCanvas(ctx2){
   ensureAnnoNumbers();
-  dimensionBoxes=[];
 
-  if(state.calc){
+  if(state.calc&&(routeInteractive||state.showAllDimensions)){
     let pos=originTop();
     for(let i=0;i<state.segs.length;i++){
       const cur=state.segs[i], L=Number(cur.len), prev=state.segs[i-1], next=state.segs[i+1];
@@ -1141,7 +1163,7 @@ function drawOverlayToCanvas(ctx2){
       if(Ldraw>0){
         const mid=adv(start,cur.dir,Ldraw/2);
         const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-        const text=(axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм';
+        const text=routeDimensionLabel((axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм');
         const placed=dimensionPosition(i,base,text);
         drawLabel(ctx2, placed.x, placed.y, text);
       }
@@ -1150,28 +1172,32 @@ function drawOverlayToCanvas(ctx2){
     if(['FRONT','BACK','LEFT','RIGHT'].includes(viewMode) && $('endType').value==='NKU'){
       const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
       const delta=Math.abs(eBase-sBase);
-      const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+      const origin=originTop(),sPt=proj(origin[0],origin[1],sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
       const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base=localToScreen(mid.u,mid.v);
       const text=`ΔH = ${delta} мм`, placed=dimensionPosition('__deltaH',base,text); drawLabel(ctx2, placed.x, placed.y, text);
     }
   }
+  drawRouteAnnotations(ctx2);
+}
+function drawRouteAnnotations(ctx2){
   // выноски
   state.annos.forEach(a=>{
     const layout=annotationLayout(a);if(!layout)return;const aScr=layout.anchor,bScr={x:layout.x,y:layout.y};
-    const label=`A${a.num}. ${a.text}`;
+    const label=routeDimensionLabel(`A${a.num}. ${a.text}`);
     drawCalloutLabel(ctx2,layout,label);
     // точка-якорь
     ctx2.fillStyle='#2d6cdf'; ctx2.beginPath(); ctx2.arc(aScr.x,aScr.y,5,0,Math.PI*2); ctx2.fill();
   });
 }
 function captureWithOverlay(){
-  const prev=state.drawAnnoLines; state.drawAnnoLines=false; draw();
-  const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const c2=off.getContext('2d');
-  c2.fillStyle='#fff'; c2.fillRect(0,0,off.width,off.height);
-  c2.drawImage(cvs,0,0);
-  c2.save(); c2.setTransform(DPR,0,0,DPR,0,0); drawOverlayToCanvas(c2); c2.restore();
-  state.drawAnnoLines=prev; draw();
-  return off;
+  const prev=state.drawAnnoLines;
+  try{
+    state.drawAnnoLines=false;draw();
+    const off=document.createElement('canvas');off.width=cvs.width;off.height=cvs.height;const c2=off.getContext('2d');
+    if(!c2)throw new Error('Не удалось подготовить изображение.');
+    c2.fillStyle='#fff';c2.fillRect(0,0,off.width,off.height);c2.drawImage(cvs,0,0);
+    c2.save();c2.setTransform(DPR,0,0,DPR,0,0);drawOverlayToCanvas(c2);c2.restore();return off;
+  }finally{state.drawAnnoLines=prev;draw();}
 }
 
 /* ===== ЭКСПОРТ (PNG/PDF/XLS/DXF/CSV) ===== */
@@ -1183,79 +1209,71 @@ $('exportPreview').addEventListener('keydown',event=>{if(event.key==='Escape')$(
 $('savePNG').onclick=()=>{ const off=captureWithOverlay(); const url=off.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.png`; a.click(); };
 
 $('savePNGAll').onclick=()=>{
-  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT']; const zscale=scale, zpanX=panX, zpanY=panY, zview=viewMode;
-  const files=[]; (async ()=>{
-    for(const v of views){
-      setProjection(v); fit();
-      const off=captureWithOverlay();
-      files.push({name:`bus_${v.toLowerCase()}.png`,data:off.toDataURL('image/png')});
-    }
-    setProjection(zview); panX=zpanX; panY=zpanY; scale=zscale; draw();
-    showExportPreview('PNG — все виды');files.forEach(file=>{const figure=document.createElement('figure'),link=document.createElement('a'),image=document.createElement('img');link.download=file.name;link.href=file.data;link.textContent='Скачать '+file.name;image.src=file.data;image.alt=file.name;figure.appendChild(link);figure.appendChild(image);$('exportContent').appendChild(figure);});
-  })();
+  try{
+    const files=captureProjectViews();showExportPreview('PNG — все виды');
+    files.forEach(file=>{const figure=document.createElement('figure'),link=document.createElement('a'),image=document.createElement('img');link.download=`bus_${file.name.toLowerCase()}.png`;link.href=file.src;link.textContent='Скачать '+link.download;image.src=file.src;image.alt=link.download;figure.appendChild(link);figure.appendChild(image);$('exportContent').appendChild(figure);});
+  }catch(error){msg.textContent='Не удалось подготовить PNG: '+error.message;}
 };
 
 function collectCadDrawing(){
   DXF_ENT.length=0;cadGroup=0;cadMeta={};DXF_COLLECT=true;
   try{draw();}finally{DXF_COLLECT=false;}
-  const annotations=state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]}));
-  let pos=originTop();const dimensions=[];
-  for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
+  const annotations=[],dimensions=[];
+  for(const route of visibleRoutes())withRoute(route,()=>{
+    ensureAnnoNumbers();
+    annotations.push(...state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`${state.routeName} / A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]})));
+    let pos=originTop();
+    for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
+  });
   return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
 }
 $('saveDXF').onclick=()=>{
-  if(!state.calc){msg.textContent='Сначала рассчитайте разбиение для экспорта отдельных деталей.';return;}
+  if(visibleRoutes().some(route=>route.segs.length&&!route.calc)){msg.textContent='Сначала рассчитайте все показанные трассы для экспорта деталей.';return;}
   const data=buildCadDXF(collectCadDrawing());
   const blob=new Blob([data],{type:'application/dxf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`bus_${viewMode.toLowerCase()}_mm.dxf`;a.click();URL.revokeObjectURL(url);
 };
 
 function buildProjectWorkbook(){
-  const sp=computeSpec(),cost=computeCost(sp),book=XLSX.utils.book_new();
+  const sp=specForScope(),cost=costForScope(sp),book=XLSX.utils.book_new();
   const append=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows);sheet['!cols']=widths.map(wch=>({wch}));XLSX.utils.book_append_sheet(book,sheet,name);return sheet;};
   const source=PRICE.source||{};
   append('Проект',[
     ['Параметр','Значение'],['Статус','Предварительная спецификация; монтажная комплектность требует проверки'],
-    ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Материал',$('mat').value==='CU'?'Медь':'Алюминий'],
-    ['Номинальный ток, А',Number($('rating').value)],['Проводники',conductorLabel()],['Степень защиты',$('ip').value],
-    ['Положение',$('orientation').value==='EDGE'?'На ребро':'На плоскость'],['Осевая длина, мм',sp.totalLen],['Длина прямых деталей, мм',sp.straightLen],
+    ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Адрес',state.meta?.addr||''],['Заказчик',state.meta?.customer||''],['Подрядчик',state.meta?.contractor||''],['Шифр',state.meta?.code||''],['Дата',state.meta?.date||''],['Примечания',state.meta?.notes||''],['Область спецификации',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По листу «Трассы»':($('mat').value==='CU'?'Медь':'Алюминий')],
+    ['Номинальный ток, А',sp.routes?'По трассам':Number($('rating').value)],['Проводники',sp.routes?'По трассам':conductorLabel()],['Степень защиты',sp.routes?'По трассам':$('ip').value],
+    ['Положение',sp.routes?'По трассам':($('orientation').value==='EDGE'?'На ребро':'На плоскость')],['Осевая длина, мм',sp.totalLen],['Длина прямых деталей, мм',sp.straightLen],
     ['Горизонтальные крепления, шт',sp.mounts],['Тариф',source.filename||'Источник не подтверждён'],['Лист тарифа',source.sheet||''],['Дата тарифа',source.date||''],['Валюта / НДС','RUB / без НДС']
   ],[32,90]);
   const rows=[['№','Позиция','Артикул','Количество','Единица','Цена без НДС, ₽','Сумма без НДС, ₽']];
-  cost.lines.forEach((line,index)=>rows.push([index+1,line.title,line.ref,parseFloat(line.qty),typeof line.qty==='string'&&line.qty.endsWith(' м')?'м':'шт',line.price??null,line.sum??null]));
+  cost.lines.forEach((line,index)=>rows.push([index+1,line.title,line.ref,line.quantity??parseFloat(line.qty),typeof line.qty==='string'&&line.qty.endsWith(' м')?'м':'шт',line.price??null,line.sum??null]));
   rows.push(['','Итого','','','','',cost.total??'Не определено: есть позиции без цены']);
   const sheet=append('Калькуляция',rows,[6,58,24,14,10,20,22]);
   cost.lines.forEach((line,index)=>{const row=index+2;if(line.sum!=null)sheet['G'+row]={t:'n',f:`ROUND(D${row}*F${row},2)`,v:line.sum,z:'#,##0.00'};if(sheet['F'+row])sheet['F'+row].z='#,##0.00';});
   const last=cost.lines.length+2;if(cost.total!=null&&cost.lines.length)sheet['G'+last]={t:'n',f:`SUM(G2:G${last-1})`,v:cost.total,z:'#,##0.00'};
   sheet['!autofilter']={ref:`A1:G${cost.lines.length+1}`};
-  append('Раскрой',[['Длина прямой детали, мм','Количество, шт'],...[...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).map(([length,quantity])=>[length,quantity])],[30,20]);
+  if(sp.routes){
+    append('Трассы',[['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows()],[28,12,12,10,24,18,20,20,20,12,12,20,20,22]);
+    const cutRows=[['Трасса','Артикул прямой секции','Длина прямой детали, мм','Количество, шт']];
+    for(const routeSpec of sp.routes)withRoute(routeSpec.route,()=>{for(const [length,quantity]of [...routeSpec.parts].sort((a,b)=>b[0]-a[0]))cutRows.push([routeSpec.route.name,refFor('ST',Number($('rating').value)),length,quantity]);});
+    append('Раскрой',cutRows,[28,28,30,20]);
+  }else append('Раскрой',[['Длина прямой детали, мм','Количество, шт'],...[...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).map(([length,quantity])=>[length,quantity])],[30,20]);
   append('Проверки',[
     ['Проверка','Статус'],['Позиции без цены',cost.missingPrices],...cost.lines.filter(line=>line.price==null).map(line=>[line.ref,'Цена отсутствует или не совпадает единица тарифа']),
     ['Подключения FE/FET','Геометрия условная, заказные размеры не учтены в раскрое'],['Вертикальные опоры и подвесы углов','Не рассчитаны'],
-    ['IP','Полная монтажная комплектность не подтверждена'],['Геометрия и монтаж',$('geometryStatus').textContent||'См. проект монтажа']
+    ['IP','Полная монтажная комплектность не подтверждена'],...specificationRoutes().map(route=>withRoute(route,()=>{updateGeometryStatus();return [route.name+' — геометрия и монтаж',$('geometryStatus').textContent||'См. проект монтажа'];}))
   ],[36,110]);
-  return book;
+  updateGeometryStatus();return book;
 }
 $('saveXLS').onclick=()=>{
-  if(!state.calc){alert('Сначала рассчитайте разбиение.');return;}
+  if(!exportScopeReady())return;
   XLSX.writeFile(buildProjectWorkbook(),'busway_spec.xlsx',{bookType:'xlsx'});
 };
 
-$('savePDF').onclick=()=>{
-  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
-  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
-  const z={view:viewMode,panX:panX,panY:panY,scale:scale};
-  const images=[];
-  (async ()=>{
-    for(const v of views){
-      setProjection(v); fit();
-      const off=captureWithOverlay();
-      images.push({name:v,src:off.toDataURL('image/png')});
-    }
-    setProjection(z.view); panX=z.panX; panY=z.panY; scale=z.scale; draw();
-
-    const sp=computeSpec(), calcData=computeCost(sp);
+function buildPrintableProject(images){
+    const sp=specForScope(), calcData=costForScope(sp);
     const m=Object.fromEntries(Object.entries(state.meta).map(([key,value])=>[key,escapeHtml(value)]));
+    const scopeLabel=sp.routes?'Все трассы':escapeHtml(state.routeName);
     const css=`<style>
       @page{size:A4;margin:10mm}
       body{font:12px Arial,Helvetica,sans-serif;color:#111}
@@ -1280,7 +1298,7 @@ $('savePDF').onclick=()=>{
     /* Титул */
     html+=`<div class="page">
       <div class="frame"></div>
-      <div class="title">Проект шинопровода · ${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'} · ${$('rating').value} A · ${$('ip').value} · ${conductorLabel()}</div>
+      <div class="title">Проект шинопровода · ${scopeLabel}</div>
       <h1>${m.title||'Проект шинопровода'}</h1>
       <div class="muted">${m.object||'Объект не указан'} · ${m.addr||'Адрес не указан'}</div>
       <p>Итого длина трассы: <b>${sp.totalLen} мм</b>; повороты — горизонтальные: ${sp.horiz}, вертикальные: ${sp.vert}; соединители: ${sp.joints.total}; крепления: ${sp.mounts}.</p>
@@ -1306,76 +1324,92 @@ $('savePDF').onclick=()=>{
       </table>
     </div>`;
 
+    if(sp.routes){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Трассы проекта</div><h2>Трассы проекта</h2><table><thead><tr><th>Трасса</th><th>Исполнение</th><th>Секция, мм</th><th>Ось, мм</th><th>Прямые, мм</th></tr></thead><tbody>`;
+      routeSummaryRows().forEach(row=>{html+=`<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(`${row[1]} / ${row[2]} А / ${row[3]} / ${row[4]} / ${row[5]}`)}</td><td>${row[6]}</td><td>${row[7]}</td><td>${row[8]}</td></tr>`;});
+      html+='</tbody></table></div>';
+    }
     /* Виды */
     images.forEach(img=>{ html+=`<div class="page"><div class="frame"></div><div class="title">Вид: ${img.name}</div><h2>Вид: ${img.name}</h2><img src="${img.src}"></div>`; });
 
     /* Спецификация */
     html+=`<div class="page"><div class="frame"></div><div class="title">Спецификация</div><h2>Спецификация</h2>
       <table>
-        <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()}</td></tr>
+        <tr><td>Материал / номинал / IP</td><td>${sp.routes?'По таблице трасс':($('mat').value==='CU'?'Cu':'Al')+' / '+$('rating').value+' A / '+$('ip').value+' / '+conductorLabel()}</td></tr>
         <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
         <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
         <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
         <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
         <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
         <tr><td>Соединители</td><td>${sp.joints.total}</td></tr>
+        <tr><td>Подключения к НКУ / ТР</td><td>${sp.nkuBlocks} / ${sp.trBlocks}</td></tr>
+        <tr><td>Концевые заглушки</td><td>${sp.endCap}</td></tr>
         <tr><td>Горизонтальные крепления</td><td>${sp.mounts}</td></tr>
       </table>
       <h3>Прямые детали по заказным длинам</h3>
-      <table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
-    const sp2=computeSpec();
-    [...sp2.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
+      <table><tr><th>Трасса / артикул</th><th>Длина, мм</th><th>Кол-во</th></tr>`;
+    for(const route of specificationRoutes())withRoute(route,()=>{
+      const routeSpec=computeSpec(),ref=refFor('ST',Number($('rating').value));
+      for(const [length,count]of [...routeSpec.parts].sort((a,b)=>b[0]-a[0]))html+=`<tr><td>${escapeHtml(route.name)} / ${escapeHtml(ref)}</td><td>${length}</td><td class="r">${count}</td></tr>`;
+    });
     html+=`</table></div>`;
 
     /* Калькуляция */
     html+=`<div class="page"><div class="frame"></div><div class="title">Калькуляция</div><h2>Калькуляция</h2>
       <table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
-    const calcData2=computeCost(sp2);
-    calcData2.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
+    const calcData2=calcData;
+    calcData2.lines.forEach(L=>{ html+=`<tr><td>${escapeHtml(L.title)}</td><td>${escapeHtml(L.ref||'')}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
     html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${calcData2.missingPrices?'Не определено: есть позиции без цены':money(calcData2.total)}</th></tr></table></div>`;
 
     html+='</body></html>';
+    return html;
+}
+$('savePDF').onclick=()=>{
+  if(!exportScopeReady())return;
+  try{
+    const html=buildPrintableProject(captureProjectViews(state.specScope==='all'));
     showExportPreview('Проект — печать / PDF');const frame=document.createElement('iframe');frame.title='Печатный проект';frame.srcdoc=html;$('exportContent').appendChild(frame);
-  })();
+  }catch(error){msg.textContent='Не удалось подготовить проект: '+error.message;}
 };
 
 $('saveCSV').onclick=()=>{
-  if(!state.calc) return;
-  const sp=computeSpec();
-  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Проводники',conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts],[],['Длина сегмента (мм)','Кол-во, шт']];
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt]));
-  const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
+  if(!exportScopeReady())return;
+  const sp=specForScope();
+  const rows=[['Область',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По трассам':($('mat').value==='CU'?'Cu':'Al')],['Номинал, A',sp.routes?'По трассам':$('rating').value],['IP',sp.routes?'По трассам':$('ip').value],['Проводники',sp.routes?'По трассам':conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts]];
+  if(sp.routes)rows.push([],['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows());
+  rows.push([],['Трасса','Артикул','Длина сегмента (мм)','Кол-во, шт']);
+  for(const route of specificationRoutes())withRoute(route,()=>{for(const [length,count]of [...computeSpec().parts].sort((a,b)=>b[0]-a[0]))rows.push([route.name,refFor('ST',Number($('rating').value)),length,count]);});
+  const csv='\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\r\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
 };
 
 /* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
-function fillRatings(persist=true){ const previous=$('rating').value; const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list.includes(+previous)?previous:list[0]; if(persist){if(previous&&!list.includes(+previous))msg.textContent=`${previous} А недоступно для выбранного материала. Выбрано ${sel.value} А; проверьте номинал.`;draw();if(state.calc)renderSpec();saveState();} }
+function fillRatings(persist=true){ const previous=$('rating').value; const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list.includes(+previous)?previous:list[0]; if(persist){if(previous&&!list.includes(+previous))msg.textContent=`${previous} А недоступно для выбранного материала. Выбрано ${sel.value} А; проверьте номинал.`;draw();renderSpec();saveState();} }
 $('mat').addEventListener('change',()=>fillRatings());
-$('conductors').addEventListener('change',()=>{draw();if(state.calc)renderSpec();saveState();});
-$('orientation').addEventListener('change',()=>{fit();if(state.calc)renderSpec();saveState();});
-$('rating').addEventListener('change',()=>{if(msg.textContent.includes('недоступно для выбранного материала.'))msg.textContent='';draw();if(state.calc)renderSpec();saveState();});
+$('conductors').addEventListener('change',()=>{draw();renderSpec();saveState();});
+$('orientation').addEventListener('change',()=>{fit();renderSpec();saveState();});
+$('rating').addEventListener('change',()=>{if(msg.textContent.includes('недоступно для выбранного материала.'))msg.textContent='';draw();renderSpec();saveState();});
 $('startType').addEventListener('change',()=>{
   const v=$('startType').value;
   if(v==='NKU'){ $('startW').value=600; $('startD').value=600; $('startH').value=2200; }
   else { $('startW').value=2000; $('startD').value=1400; $('startH').value=1700; }
-  draw(); if(state.calc) renderSpec(); saveState();
+  draw(); renderSpec(); saveState();
 });
-$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); if(state.calc) renderSpec(); saveState(); });
+$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); renderSpec(); saveState(); });
 ['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep'].forEach(id=>{
-  $(id).addEventListener('input',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
+  $(id).addEventListener('input',()=>{ draw(); renderSpec(); saveState(); });
 });
 function moduleError(value){const m=Number(value);return !Number.isFinite(m)||m<400||m>3000||m%10!==0?'Введите максимальную длину от 400 до 3000 мм с шагом 10 мм. Минимальная заказная длина детали проверяется отдельно.':'';}
 function syncModule(){const error=moduleError($('moduleLen').value);$('moduleHint').textContent=error;$('moduleLen').setAttribute('aria-invalid',error?'true':'false');if(error)return false;state.module=Number($('moduleLen').value);return true;}
-$('moduleLen').addEventListener('input',()=>{syncModule();draw();if(state.calc)renderSpec();saveState();});
+$('moduleLen').addEventListener('input',()=>{syncModule();draw();renderSpec();saveState();});
 $('calc').onclick=()=>{if(!syncModule())return;state.calc=true;giz.style.display='none';tag.style.display='none';pop.style.display='none';draw();renderSpec();saveState();};
 $('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); saveState(); };
-$('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); saveState(); };
+$('undo').onclick=()=>{ state.segs.pop(); draw(); renderSpec(); saveState(); };
 
 $('clear').onclick=()=>{
   if(!releaseRecoveryStorage())return;
   state.segs=[]; state.calc=false; state.module=3000;
   state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
   state.annos=[]; state.movingAnno={id:null,what:null,view:null};
-  state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
   state.annoSeq=1;
   $('mat').value='AL'; fillRatings(false); $('rating').value=R_AL[0];
   $('ip').value='IP55';$('conductors').value='5'; $('orientation').value='FLAT'; $('startType').value='NKU'; $('endType').value='ENDCAP';
@@ -1385,7 +1419,7 @@ $('clear').onclick=()=>{
   syncModule();renderSpec();
   fillMetaInputs();
   saveState(); fit();
-  msg.textContent='Проект сброшен (прайс не тронут)'; setTimeout(()=>msg.textContent='',1800);
+  updateRouteControls();msg.textContent='Выбранная трасса очищена'; setTimeout(()=>msg.textContent='',1800);
 };
 $('fit').onclick=()=>fit();
 
@@ -1427,8 +1461,8 @@ let projectStorageBlocked=false,recoveryProjectRaw=null;
 const PROJECT_VIEWS=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
 const PROJECT_UI_KEYS=['conductors','mat','rating','ip','orientation','startType','endType','startW','startD','startH','endW','endD','endH','mountOn','mountStep','moduleLen'];
 const PROJECT_UI_LABELS={mat:'материал шин',conductors:'защитный проводник',ip:'степень защиты',orientation:'положение шинопровода',startType:'начало трассы',endType:'конец трассы',mountOn:'крепления',rating:'номинальный ток',startW:'ширина оборудования в начале трассы',startD:'глубина оборудования в начале трассы',startH:'высота оборудования в начале трассы',endW:'ширина оборудования в конце трассы',endD:'глубина оборудования в конце трассы',endH:'высота оборудования в конце трассы',mountStep:'шаг креплений',moduleLen:'максимальная длина секции'};
-function projectSnapshot(){return {segs:state.segs,calc:state.calc,module:state.module,dimOffsets:state.dimOffsets,annos:state.annos,meta:state.meta,annoSeq:state.annoSeq,ui:Object.fromEntries(PROJECT_UI_KEYS.map(key=>[key,$(key).value]))};}
-function validateProjectSnapshot(s){
+function singleProjectSnapshot(){return {segs:state.segs,calc:state.calc,module:state.module,dimOffsets:state.dimOffsets,annos:state.annos,meta:state.meta,annoSeq:state.annoSeq,ui:Object.fromEntries(PROJECT_UI_KEYS.map(key=>[key,$(key).value]))};}
+function validateSingleProjectSnapshot(s){
   const record=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
   if(!record(s)||!Array.isArray(s.segs)||!s.segs.every(p=>record(p)&&['+X','-X','+Y','-Y','+Z','-Z'].includes(p.dir)&&Number.isFinite(p.len)&&p.len>0))throw new Error('Некорректные участки трассы.');
   if(s.calc!==undefined&&typeof s.calc!=='boolean')throw new Error('Некорректный режим расчёта.');
@@ -1470,7 +1504,8 @@ function validateProjectSnapshot(s){
   return {segs:s.segs.map(p=>({dir:p.dir,len:p.len})),calc:s.calc??false,module:ui.moduleLen,dimOffsets,annos:cleanAnnos,meta,annoSeq:cleanAnnos.length+1,ui};
 }
 function saveState(){
-  if(projectStorageBlocked){$('storageStatus').textContent='Автосохранение отключено: исходные данные защищены. Скачайте их; «Сброс» создаст новый проект с резервной копией исходных данных.';return false;}
+  if(routeContextDepth)return false;
+  if(projectStorageBlocked){$('storageStatus').textContent='Автосохранение отключено: исходные данные защищены. Скачайте их; очистка выбранной трассы сохранит отдельную резервную копию исходных данных.';return false;}
   try{const snapshot=validateProjectSnapshot(projectSnapshot());localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';return true;}
   catch(error){$('storageStatus').textContent='Изменения не сохранены: '+error.message;return false;}
 }
@@ -1487,11 +1522,11 @@ $('metaSave').onclick=()=>{ if(readMetaInputs()){msg.textContent='Данные �
 function loadState(){
   let raw=null;
   try{
-    raw=localStorage.getItem(STORAGE_STATE);if(!raw){fillMetaInputs();return;}
+    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
     const s=validateProjectSnapshot(JSON.parse(raw));
-    Object.assign(state,{segs:s.segs,calc:s.calc,module:s.module,dimOffsets:s.dimOffsets,annos:s.annos,meta:s.meta,annoSeq:s.annoSeq});
-    $('mat').value=s.ui.mat;fillRatings(false);for(const key of PROJECT_UI_KEYS)$(key).value=s.ui[key];
-    $('endDims').classList.toggle('hid',s.ui.endType!=='NKU');syncModule();fillMetaInputs();ensureAnnoNumbers();
+    Object.assign(state,{routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
+    installRoute(s.routes.find(route=>route.id===s.activeRouteId));
+    $('endDims').classList.toggle('hid',$('endType').value!=='NKU');syncModule();fillMetaInputs();ensureAnnoNumbers();updateRouteControls();
     projectStorageBlocked=false;recoveryProjectRaw=null;$('storageStatus').textContent='';$('saveRecovery').classList.add('hid');
   }catch(error){projectStorageBlocked=true;recoveryProjectRaw=raw;$('saveRecovery').classList.toggle('hid',raw===null);$('storageStatus').textContent='Не удалось восстановить проект: '+error.message+' Исходные данные не перезаписаны; автосохранение отключено.';}
 }
@@ -1504,7 +1539,7 @@ function initPriceUI(){initExcelTariffUI();const dlg=$('priceDlg'),ta=$('pricePa
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
-  resize(); setProjection('ISO'); initPriceUI(); loadState(); draw(); fit(); if(state.calc) renderSpec();
+  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();draw();fit();renderSpec();
   ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
     $(id).addEventListener('input',()=>{ readMetaInputs(); });
   });

@@ -9,7 +9,7 @@ function buildCadDXF(model){
   const layers=['BUS','ELBOW','JOINT','MOUNT','CAB','ENDCAP','ANNOT','DIMENSIONS'];
   const groups=new Map();
   for(const e of model.lines){
-    const key=`${e.layer}_${e.group}`;
+    const key=`${e.meta?.route||'T1'}_${e.layer}_${e.group}`;
     if(!groups.has(key))groups.set(key,{layer:e.layer,meta:e.meta||{},lines:[],seen:new Set()});
     const g=groups.get(key),snap=n=>Math.round(n*1e6)/1e6;
     let a=[snap(e.a[0]),snap(-e.a[1])],b=[snap(e.b[0]),snap(-e.b[1])];
@@ -27,8 +27,8 @@ function buildCadDXF(model){
     const local=p=>[p[0]-base[0],p[1]-base[1]];
     for(const e of g.lines)blocks+=line(local(e.a),local(e.b),'0');
     const type=g.meta.type||(g.layer==='ENDCAP'?'EC':g.layer==='MOUNT'?'MOUNT':g.layer);
-    const reference=['ST','EL','JPK','EC'].includes(type)?model.ref(type):'';
-    const attributes={POSITION:`P${number}`,ROUTE:'T1',TYPE:type,REFERENCE:reference,LENGTH_MM:g.meta.length??'',RATING_A:model.rating,IP:model.ip,MATERIAL:model.material,CONDUCTORS:model.conductors||'3L+N+PE (корпус)'};
+    const reference=g.meta.reference??(['ST','EL','JPK','EC'].includes(type)?model.ref(type):'');
+    const attributes={POSITION:`P${number}`,ROUTE:g.meta.route||'T1',ROUTE_NAME:g.meta.routeName||'Трасса 1',TYPE:type,REFERENCE:reference,LENGTH_MM:g.meta.length??'',RATING_A:g.meta.rating??model.rating,IP:g.meta.ip??model.ip,MATERIAL:g.meta.material??model.material,CONDUCTORS:g.meta.conductors??model.conductors??'3L+N+PE (корпус)'};
     for(const [tag,value]of Object.entries(attributes))blocks+=pair(0,'ATTDEF')+pair(8,'0')+point([0,0])+pair(40,50)+pair(1,text(value))+pair(3,tag)+pair(2,tag)+pair(70,1)+pair(7,'STANDARD');
     blocks+=pair(0,'ENDBLK')+pair(8,g.layer);
     entities+=pair(0,'INSERT')+pair(8,g.layer)+pair(2,name)+pair(66,1)+point(base);
