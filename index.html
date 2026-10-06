@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Шинопровод SystemeLineB</title>
+<title>Шинопровод SystemeLineB · проверка 2026-10-06</title>
 <style>
+  [hidden]{display:none!important}
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
   html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
   header{max-width:1160px;margin:12px auto 8px;padding:0 16px}
-  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:16px}
+  .wrap{max-width:1160px;margin:0 auto 20px;padding:0 16px;display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px}
+  input,textarea,select{box-sizing:border-box}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:760px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:10px 0}
   .row-3{display:grid;grid-template-columns:repeat(3,minmax(56px,1fr));gap:8px;margin:6px 0}
@@ -16,23 +18,31 @@
   input[type=number],input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #cfcfcf;border-radius:10px;background:#fafafa}
   textarea{min-height:84px;resize:vertical}
   .btn{display:inline-block;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
-  .viewer{position:relative;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden}
+  .viewer{position:relative;min-width:0;background:#fff;border:1px solid var(--border);border-radius:12px;height:760px;overflow:hidden;touch-action:none;overscroll-behavior:contain}
+  @media(min-width:921px){.viewer{position:sticky;top:12px;height:min(760px,calc(100dvh - 24px))}}
+  @media(max-width:920px){.wrap{grid-template-columns:minmax(0,1fr);padding:0 10px}.viewer{order:-1;height:680px}.panel{min-height:0;min-width:0}.row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.viewbtn{padding:5px 7px;font-size:12px}}
   .viewbar-top{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
   .viewbtn.active{background:#eef3ff;border-color:#bcd}
+  .visual-style-switch{display:flex;justify-content:center;gap:6px;flex-basis:100%}
   #view{width:100%;height:100%;display:block;background:#fff}
   #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
   #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
   .prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:10px;display:none;z-index:15}
+  #lenPopup,#editPopup,#annoPopup{box-sizing:border-box;transform:none;width:min(330px,calc(100% - 24px));padding:12px}
+  #lenPopup .row,#editPopup .row,#annoPopup .row{grid-template-columns:minmax(0,1fr)!important;margin:0;gap:10px}
+  #lenPopup input,#editPopup input,#annoPopup input{min-width:0;font-size:16px;height:44px}
+  #lenPopup .row>div,#editPopup .row>div,#annoPopup .row>div{display:flex;gap:8px}
   .warn{color:#c43;font-size:12px}
-  .dim{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:10}
+  .dim{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;background:#fff;color:#17212b;border:1px solid #9ba8b5;border-radius:6px;padding:5px 10px;font:600 13px/18px system-ui;white-space:nowrap;box-shadow:var(--shadow);cursor:grab;user-select:none;touch-action:none;z-index:10}
   .dim.dragging{cursor:grabbing;opacity:.96}
   #dimLayer,#annoLayer{position:absolute;inset:0;pointer-events:none;z-index:9}
-  .anno{position:absolute;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno{position:absolute;box-sizing:border-box;transform:translate(-50%,-50%);max-width:260px;touch-action:none;pointer-events:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:6px 10px;font-size:12px;box-shadow:var(--shadow);cursor:grab;user-select:none;z-index:11;display:flex;align-items:center;gap:6px}
+  .anno-text{flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}.anno-edit{border:0;background:transparent;color:#365a83;cursor:pointer;padding:4px;font-size:16px}.anno:focus-visible,.anchor-dot:focus-visible{outline:2px solid #2d6cdf;outline-offset:2px}
   .anno .badge{display:inline-block;min-width:18px;height:18px;line-height:16px;padding:0 6px;border-radius:999px;background:#eef3ff;border:1px solid #bcd;font-weight:600;font-size:11px;text-align:center}
   .anno .x{position:absolute;right:-8px;top:-8px;width:18px;height:18px;border:1px solid #bbb;border-radius:999px;background:#fff;line-height:16px;text-align:center;font-size:12px;cursor:pointer;box-shadow:var(--shadow)}
-  .anchor-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:pointer;z-index:12}
+  .anchor-dot{pointer-events:auto;position:absolute;box-sizing:border-box;padding:0;width:18px;height:18px;touch-action:none;border-radius:50%;background:#2d6cdf;border:2px solid #fff;box-shadow:var(--shadow);cursor:grab;z-index:12}
   .hid{display:none}
   #spec{margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}
   #spec h3{margin:0 0 6px;font-size:15px}
@@ -41,6 +51,20 @@
   table{width:100%;border-collapse:collapse;margin-top:6px}
   th,td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left}
   .money{font-variant-numeric:tabular-nums}
+  #costTable{max-width:1134px;margin:0 auto 24px;padding:16px;background:#fff;border:1px solid var(--border);border-radius:12px}
+  #costTable h3{margin:0 0 6px}#costTable p{color:#555;margin:0 0 12px}
+  .cost-scroll{overflow-x:auto}#costTable table{min-width:760px}
+  #costTable th,#costTable td{vertical-align:top;padding:12px}
+  #costTable th:first-child{width:40%}#costTable th:nth-child(2){width:21%}
+  #costTable td:not(:first-child),#costTable th:not(:first-child){white-space:nowrap}
+  #costTable td:nth-child(n+3),#costTable th:nth-child(n+3){text-align:right}
+  #costTable tbody tr:nth-child(even){background:#f8fafc}
+  @media(max-width:920px){#costTable{margin:0 10px 20px;padding:12px}}
+
+  #exportPreview{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
+  #exportCard{box-sizing:border-box;width:min(1100px,96vw);max-height:94vh;background:#fff;border-radius:12px;padding:12px;overflow:auto}
+  #exportContent iframe{display:block;width:100%;height:78vh;border:1px solid #ddd}
+  #exportContent img{display:block;max-width:100%;max-height:70vh;margin:8px auto;object-fit:contain}
   /* Прайс-редактор */
   #priceDlg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center}
   #priceCard{width:min(980px,90vw);max-height:88vh;overflow:auto;background:#fff;border-radius:14px;border:1px solid #ddd;box-shadow:var(--shadow);padding:14px}
@@ -49,28 +73,72 @@
   .tabs{display:flex;gap:8px;margin-bottom:8px}
   .tab{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer}
   .tab.active{background:#eef3ff;border-color:#bcd}
+  .route-card{border:1px solid #d5dfed;border-radius:10px;padding:10px;margin-bottom:12px;background:#f8faff}
+  .route-card h3{margin:0 0 6px;font-size:15px}.route-card .row{margin:6px 0}
+  .route-card .row-3 input{max-width:none;width:100%;height:34px}.route-card small{display:block;color:#526276}
+  .column-row{display:grid;grid-template-columns:22px minmax(0,1fr) 88px 32px;gap:6px;align-items:center;margin:6px 0}
+  .column-row input{min-width:0;width:100%;height:34px;padding:5px 7px}.column-row .btn{padding:4px}.column-row span{font-size:13px;color:#526276}
 </style>
 </head>
 <body>
-<header><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-06 · ориентация видов</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
     <div class="tabs">
       <button class="tab active" data-tab="route">Трасса</button>
+      <button class="tab" data-tab="equipment">Оборудование</button>
       <button class="tab" data-tab="meta">Данные проекта</button>
     </div>
 
     <!-- TAB: ТРАССА -->
     <div id="tab-route">
+      <div class="route-card">
+        <h3>Трассы проекта</h3>
+        <label for="routeSelect">Выбранная трасса</label><select id="routeSelect"></select>
+        <div class="row"><label for="routeName">Название</label><input id="routeName" type="text" maxlength="80"></div>
+        <div class="row"><select id="routeKind" aria-label="Тип новой трассы"><option value="TR_NKU">ТР → НКУ</option><option value="NKU_NKU">НКУ → НКУ</option></select><button class="btn" id="routeAdd">Добавить трассу</button></div>
+        <div class="row"><button class="btn" id="routeCopy">Копия трассы</button><button class="btn" id="routeRemove">Удалить трассу</button></div>
+        <label id="routeOriginLabel">Координаты начала оборудования: X / Y / Z, мм</label>
+        <div class="row-3"><input id="routeX" type="number" value="0" aria-label="Координата X"><input id="routeY" type="number" value="0" aria-label="Координата Y"><input id="routeZ" type="number" value="0" aria-label="Отметка Z"></div>
+        <label><input id="showAllRoutes" type="checkbox"> Показывать все трассы</label>
+        <label style="display:block"><input id="showAllDimensions" type="checkbox"> Размеры всех трасс</label>
+        <small id="routeHint"></small>
+        <div class="row"><label for="specScope">Спецификация</label><select id="specScope"><option value="active">Выбранная трасса</option><option value="all">Все трассы</option></select></div>
+        <button class="btn" id="calcAll">Рассчитать все трассы</button>
+        <div id="routeStatus" class="warn" role="status"></div>
+      </div>
+      <div class="route-card">
+        <h3>Подключённое оборудование</h3>
+        <div class="row"><label for="routeStartEquipment">Начало</label><select id="routeStartEquipment"></select></div>
+        <div class="row"><label for="routeStartColumn">Из колонны</label><select id="routeStartColumn"></select></div>
+        <div class="row"><label for="routeEndEquipment">Конец — НКУ</label><select id="routeEndEquipment"></select></div>
+        <div class="row"><label for="routeEndColumn">В колонну</label><select id="routeEndColumn"></select></div>
+        <small id="routeModeStatus"></small>
+        <p><small id="routingHint"></small></p>
+        <div class="row"><button class="btn" id="routeBuild">Подключить мой путь</button><button class="btn" id="routeDetach">Снять привязки</button></div>
+        <details id="routeAutomaticSettings"><summary>Автоматический путь между оборудованием</summary>
+          <div class="row"><label for="routePath">Путь</label><select id="routePath"><option value="OVERHEAD">Через заданную высоту</option><option value="DIRECT">Напрямую по осям</option></select></div>
+          <div class="row"><label for="routeLevel">Отметка трассы Z, мм</label><input id="routeLevel" type="number" value="3700"></div>
+          <div class="row"><label for="routeOrder">Порядок поворотов</label><select id="routeOrder"><option value="XY">Сначала X, затем Y</option><option value="YX">Сначала Y, затем X</option></select></div>
+          <p><small>Отметка Z и порядок поворотов используются только для нового автоматического пути. Сначала посмотрите его длины, затем примените замену.</small></p>
+          <button class="btn" id="routeAuto">Рассчитать новый путь</button>
+          <div id="routeAutoPreview" class="hid"><p id="routeAutoSummary"></p><div class="row"><button class="btn" id="routeAutoApply">Заменить мой путь</button><button class="btn" id="routeAutoCancel">Оставить мой путь</button></div></div>
+        </details>
+        <p><button class="btn" id="routeBuildUndo" disabled>Отменить последнее действие</button></p>
+        <small>Объекты размещаются на вкладке «Оборудование». Подключение НКУ — условно в центре верха выбранной колонны, ТР — корпуса. Реальные FE/FET требуют заказных чертежей.</small>
+      </div>
       <div class="row"><label>Материал шин</label>
         <select id="mat"><option value="AL" selected>Алюминий (Al)</option><option value="CU">Медь (Cu)</option></select>
       </div>
+      <div class="row"><label for="conductors">Защитный проводник</label><select id="conductors"><option value="5">PE — корпус (3L+N+PE)</option><option value="7">PER — отдельная шина полного сечения (3L+N+PER)</option></select></div>
       <div class="row"><label>Номинальный ток, A</label><select id="rating"></select></div>
       <div class="row"><label>Степень защиты</label><select id="ip"><option>IP55</option><option>IP65</option></select></div>
+      <div class="row"><label for="orientation">Положение шинопровода</label><select id="orientation"><option value="FLAT">На плоскость</option><option value="EDGE">На ребро</option></select></div>
+      <div id="geometryStatus" class="warn" role="status"></div>
 
       <div class="row"><label>Начало трассы</label>
-        <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option></select>
+        <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option><option value="NONE">Без оборудования</option></select>
       </div>
       <div class="row-3">
         <input id="startW" type="number" value="600"  title="Начало W" placeholder="W">
@@ -79,7 +147,7 @@
       </div>
 
       <div class="row"><label>Конец трассы</label>
-        <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option></select>
+        <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option><option value="NONE">Без подключения</option></select>
       </div>
       <div id="endDims" class="row-3 hid">
         <input id="endW" type="number" value="600"  title="Конец W" placeholder="W">
@@ -87,12 +155,13 @@
         <input id="endH" type="number" value="2200" title="Конец H" placeholder="H">
       </div>
 
-      <div class="row"><label><b>Длина сегмента (модуль), мм</b></label><input id="moduleLen" type="number" value="3000"></div>
+      <div class="row"><label for="moduleLen"><b>Максимальная длина прямой секции, мм</b></label><input id="moduleLen" type="number" min="400" max="3000" step="10" value="3000" aria-describedby="moduleHint"></div>
+      <div id="moduleHint" class="warn" role="status"></div>
 
       <div class="row"><label>Крепления</label>
         <select id="mountOn"><option value="1" selected>есть</option><option value="0">нет</option></select>
       </div>
-      <div class="row"><label>Целевой шаг крепления, мм</label><input id="mountStep" type="number" value="1000"></div>
+      <div class="row"><label>Целевой шаг горизонтальных креплений, мм</label><input id="mountStep" type="number" min="1" value="1000"></div>
 
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button class="btn" id="calc">Рассчитать разбиение</button>
@@ -100,7 +169,7 @@
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button class="btn" id="undo">Отменить участок</button>
-        <button class="btn" id="clear">Сброс</button>
+        <button class="btn" id="clear">Очистить трассу</button>
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button class="btn" id="fit">Подогнать</button>
@@ -108,11 +177,13 @@
       </div>
 
       <div id="msg" class="warn"></div>
+      <div id="storageStatus" class="warn" role="status"></div>
+      <button class="btn hid" id="saveRecovery">Скачать сохранённые данные</button>
 
       <div id="spec" style="display:none">
-        <h3>Спецификация</h3>
+        <h3>Предварительная спецификация</h3><p class="warn">L/H — осевые размеры с плечами поворотов. Раскрой ниже — длины прямых деталей. Зелёные блоки — стыки; их размеры схематичны. Комплектность и стоимость требуют проверки.</p>
         <div class="spec-row"><div>Материал / номинал / IP</div><div id="spHeader"></div></div>
-        <div class="spec-row"><div>Модуль (стандартная длина)</div><div id="spModule"></div></div>
+        <div class="spec-row"><div>Максимальная длина прямой секции</div><div id="spModule"></div></div>
         <div class="spec-row"><div>Итого длина трассы</div><div id="spTotalLen"></div></div>
         <div class="spec-row"><div>Горизонтальные участки</div><div id="spLenHoriz"></div></div>
         <div class="spec-row"><div>Вертикально вверх</div><div id="spLenUp"></div></div>
@@ -127,21 +198,48 @@
         <div class="spec-row sub"><div>— у подключения к ТР (по 1)</div><div id="spJointsTr"></div></div>
         <div class="spec-row"><div>Повороты: вертикальные</div><div id="spVert"></div></div>
         <div class="spec-row"><div>Повороты: горизонтальные</div><div id="spHoriz"></div></div>
-        <div class="spec-row"><div>Крепления, шт</div><div id="spMounts"></div></div>
+        <div class="spec-row"><div>Горизонтальные крепления, шт</div><div id="spMounts"></div></div>
 
-        <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость</b></div><div class="money" id="spTotalCost">—</div></div>
+        <div class="spec-row" style="margin-top:6px"><div><b>Итого стоимость без НДС</b></div><div class="money" id="spTotalCost">—</div></div>
         <div style="margin:4px 0 2px"><button class="btn" id="toggleCost">Показать калькуляцию</button></div>
-        <div id="costTable" class="hid">
-          <table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table>
-        </div>
 
-        <div style="margin:10px 0 2px;font-weight:600">Сегменты по длинам</div>
+
+        <div style="margin:10px 0 2px;font-weight:600">Прямые детали по заказным длинам</div>
         <table id="spTable"><thead><tr><th>Длина, мм</th><th>Кол-во, шт</th></tr></thead><tbody></tbody></table>
         <div style="margin-top:8px"><button class="btn" id="saveCSV">Сохранить CSV</button></div>
       </div>
     </div>
 
     <!-- TAB: ДАННЫЕ ПРОЕКТА -->
+    <div id="tab-equipment" class="hid">
+      <div class="route-card">
+        <h3>Размещение оборудования</h3>
+        <small>Координаты нижнего угла, мм. В виде сверху перетаскивайте корпус мышью или задайте координаты ниже. Боковины НКУ примагничиваются при сближении; Alt — без привязки. Синим выделен выбранный объект.</small>
+        <button class="btn" id="equipmentRouteNKU">Колонны НКУ этой трассы</button>
+        <button class="btn" id="equipmentImport">Взять оборудование из трасс</button>
+        <div class="row"><button class="btn" id="equipmentAddTR">Добавить ТР</button><button class="btn" id="equipmentAddNKU">Добавить НКУ</button></div>
+        <label for="equipmentSelect">Оборудование проекта</label><select id="equipmentSelect"></select>
+        <div id="equipmentFields" class="hid">
+          <div class="row"><label for="equipmentName">Название</label><input id="equipmentName" type="text" maxlength="80"></div>
+          <label>Координаты X / Y / Z, мм</label>
+          <div class="row-3"><input id="equipmentX" type="number" aria-label="Оборудование X"><input id="equipmentY" type="number" aria-label="Оборудование Y"><input id="equipmentZ" type="number" aria-label="Оборудование Z"></div>
+          <label>Габариты W / D / H, мм</label>
+          <div class="row-3"><input id="equipmentW" type="number" min="1" aria-label="Оборудование ширина"><input id="equipmentD" type="number" min="1" aria-label="Оборудование глубина"><input id="equipmentH" type="number" min="1" aria-label="Оборудование высота"></div>
+          <div id="equipmentColumnsCard" class="hid">
+            <h3>Колонны НКУ</h3>
+            <small>Слева направо по X: номер, название, ширина в мм. Глубина и высота общие. Ширина НКУ — сумма колонн.</small>
+            <div id="equipmentColumns"></div>
+            <button class="btn" id="equipmentColumnAdd">Добавить колонну</button>
+            <small id="equipmentColumnTotal"></small>
+          </div>
+          <button class="btn" id="equipmentApply">Применить координаты и габариты</button>
+          <div class="row"><button class="btn" id="equipmentPlace">Поставить на плане</button><button class="btn" id="equipmentRemove">Удалить объект</button></div>
+          <small>Удаление снимает привязки к этому объекту. Пути связанных трасс сохраняются.</small>
+        </div>
+        <div id="equipmentStatus" class="warn" role="status"></div>
+        <button class="btn" id="equipmentUndo" disabled>Отменить последнее действие</button>
+      </div>
+    </div>
     <div id="tab-meta" class="hid">
       <div class="row"><label>Название проекта</label><input id="metaTitle" type="text" placeholder="Проект шинопровода"></div>
       <div class="row"><label>Объект / площадка</label><input id="metaObject" type="text" placeholder="Цех №..."></div>
@@ -160,6 +258,10 @@
 
   <div class="viewer" id="wrap">
     <div class="viewbar-top">
+      <div class="visual-style-switch" role="group" aria-label="Визуализация">
+        <button class="viewbtn" id="styleBeautiful" aria-pressed="false">Красивый</button>
+        <button class="viewbtn active" id="styleTechnical" aria-pressed="true">Чертёжный</button>
+      </div>
       <button class="viewbtn active" data-view="ISO">Изометрия</button>
       <button class="viewbtn" data-view="TOP">Сверху</button>
       <button class="viewbtn" data-view="FRONT">Спереди</button>
@@ -169,11 +271,12 @@
     </div>
 
     <div class="viewbar-bottom">
+
       <button class="viewbtn" id="btnFS" title="Во весь экран">⛶</button>
       <button class="viewbtn" id="savePNG">PNG</button>
       <button class="viewbtn" id="savePNGAll">PNG все</button>
-      <button class="viewbtn" id="saveDXF">DXF</button>
-      <button class="viewbtn" id="saveXLS">XLS</button>
+      <button class="viewbtn" id="saveDXF" title="Редактируемые блоки текущего вида, 1:1 мм">DXF · CAD</button>
+      <button class="viewbtn" id="saveXLS">Excel</button>
       <button class="viewbtn" id="savePDF">Проект (PDF)</button>
       <button class="viewbtn" id="btnPrice">₽ Прайс</button>
     </div>
@@ -185,7 +288,8 @@
     <!-- ввод длины нового участка -->
     <div id="lenPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr 1fr">
-        <input id="lenInput" type="number" min="1" step="100" placeholder="длина, мм (≥400)">
+        <label for="lenInput">Длина нового участка, мм</label>
+        <input id="lenInput" type="number" min="400" step="1" placeholder="длина, мм (≥400)" aria-describedby="hint">
         <div><button class="btn" id="ok">OK</button> <button class="btn" id="cancel">Отмена</button></div>
       </div>
       <div class="warn" id="hint" style="margin-top:6px"></div>
@@ -194,15 +298,17 @@
     <!-- правка длины -->
     <div id="editPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr 1fr">
-        <input id="editInput" type="number" min="1" step="100" placeholder="новая длина, мм (≥400)">
+        <label for="editInput">Длина участка, мм</label>
+        <input id="editInput" type="number" min="400" step="1" placeholder="новая длина, мм (≥400)" aria-describedby="editHint">
         <div><button class="btn" id="editOk">OK</button> <button class="btn" id="editCancel">Отмена</button></div>
       </div>
+      <div class="warn" id="editHint" role="status" style="margin-top:6px"></div>
     </div>
 
     <!-- ввод/правка текста выноски -->
     <div id="annoPopup" class="prompt">
       <div class="row" style="grid-template-columns:1fr auto">
-        <input id="annoInput" type="text" placeholder="текст выноски">
+        <input id="annoInput" aria-label="Текст выноски" type="text" placeholder="текст выноски">
         <div style="display:flex;gap:6px">
           <button class="btn" id="annoOk">OK</button>
           <button class="btn" id="annoDel">Удалить</button>
@@ -216,42 +322,64 @@
   </div>
 </div>
 
+        <div id="costTable" class="hid" aria-label="Калькуляция">
+          <h3>Калькуляция без НДС</h3><p>Цена и сумма приведены в рублях. Отсутствующая цена не считается нулевой. На узком экране прокрутите таблицу вправо.</p><div class="cost-scroll"><table><thead><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody id="costBody"></tbody></table></div>
+        </div>
+<div id="exportPreview" role="dialog" aria-modal="true" aria-label="Предпросмотр экспорта"><div id="exportCard"><div style="display:flex;justify-content:space-between;align-items:center"><h3 id="exportTitle">Экспорт</h3><button class="btn" id="exportClose">Закрыть</button></div><div id="exportContent"></div></div></div>
 <!-- Прайс-редактор -->
 <div id="priceDlg">
   <div id="priceCard">
     <h3>Прайс</h3>
-    <div style="font-size:12px;color:#666">Вставляй строки как прислал. <b>GM55</b> — цена за метр. <b>ECM55</b> привязана к <u>току</u> в описании («400А» → шаг 1).</div>
-    <textarea id="pricePaste" placeholder="Вставь сюда строки цен (можно с табами/пробелами)"></textarea>
+    <p>Выберите новый Excel. Проверьте лист и дату, затем примените тариф. Файл обрабатывается в браузере.</p>
+    <textarea id="pricePaste" hidden></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="priceParse">Разобрать и обновить</button>
+      <button class="btn" id="priceParse" hidden>Разобрать и обновить</button>
       <button class="btn" id="priceReset">Сбросить прайс</button>
       <button class="btn" id="priceExport">Выгрузить JSON</button>
       <input type="file" id="priceImport" accept="application/json" style="display:none">
       <button class="btn" id="priceImportBtn">Загрузить JSON</button>
+<input type="file" id="tariffExcel" accept=".xlsx" hidden>
+<button class="btn" id="tariffExcelBtn">Загрузить тариф Excel</button>
+<button class="btn" id="tariffApply" disabled>Применить новый тариф</button>
+<p id="tariffStatus" role="status"></p>
       <button class="btn" id="priceClose">Закрыть</button>
     </div>
     <div style="margin-top:8px">
-      <div style="font-size:12px;color:#666">Текущее хранилище цен (localStorage):</div>
-      <textarea id="priceJSON" readonly></textarea>
+      <details><summary>Резервная копия тарифа</summary>
+      <textarea id="priceJSON" readonly></textarea></details>
     </div>
   </div>
 </div>
 
+<!-- Bump every local asset revision together when the HTML/module contract changes. -->
+<script src="vendor/xlsx.full.min.js?v=20261006-two-styles-1"></script>
+<script src="tariff-import.js?v=20261006-two-styles-1"></script>
+<script src="cad-export.js?v=20261006-two-styles-1"></script>
+<script src="routes.js?v=20261006-two-styles-1"></script>
+<script src="equipment.js?v=20261006-two-styles-1"></script>
+<script src="nku-columns.js?v=20261006-two-styles-1"></script>
+<script src="visual-style.js?v=20261006-two-styles-1"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
 const R_CU=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000,6300];
 const WIDTH_AL={400:78,500:78,630:78,800:78,1000:100,1200:128,1250:128,1600:166,2000:205,2500:292,3200:368,4000:476,5000:560};
-const WIDTH_CU={400:82,500:82,630:82,800:82,1000:120,1200:120,1250:120,1600:160,2000:220,2500:290,3200:360,4000:570,5000:570,6300:570};
+const WIDTH_CU={400:82,500:82,630:82,800:82,1000:100,1200:120,1250:120,1600:160,2000:200,2500:290,3200:360,4000:470,5000:570,6300:570};
 const VERT_ELBOW={a:320,b:320};
-const H_ELBOW_BY_R={400:[260,260],500:[260,260],630:[260,260],800:[260,260],1000:[270,270],1200:[290,290],1250:[290,290],1600:[310,310],2000:[220,220],2500:[370,370],3200:[410,410],4000:[460,450],5000:[500,500],6300:[500,500]};
+// Catalogue pp.27/44: LF bends in the 118-mm plane; LE in the W plane.
+const LF_MIN_AL={400:260,500:260,630:260,800:260,1000:270,1250:290,1600:310,2000:330,2500:370,3200:410,4000:460,5000:500};
+const LF_MIN_CU={400:260,500:260,630:260,800:260,1000:270,1250:280,1600:300,2000:320,2500:360,3200:400,4000:450,5000:500,6300:500};
 const BUS_H=118, MIN_LEN=400;
 const JOINT_LEN=100;
 const MOUNT_ALONG=10, MOUNT_THICK=10;
 /* расстояния креплений вдоль сегмента */
-const SP_MIN=800, SP_MAX=1100;
 
-const STORAGE_STATE='BUS_STATE_V3';
+
+const STORAGE_STATE='BUS_PROJECT_V7';
+const STORAGE_STATE_V6='BUS_PROJECT_V6';
+const STORAGE_STATE_PREVIOUS='BUS_PROJECT_V5';
+const STORAGE_STATE_MULTI='BUS_PROJECT_V4';
+const STORAGE_STATE_OLD='BUS_STATE_V3';
 const STORAGE_PRICE='BUS_PRICE_V4';
 const STORAGE_PRICE_OLD='BUS_PRICE_V3';
 
@@ -272,7 +400,7 @@ let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
 function setProjection(mode){
   viewMode=mode;
   if(mode==='ISO') proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
-  if(mode==='TOP') proj=(x,y,z)=>[ x, -y ];
+  if(mode==='TOP') proj=(x,y,z)=>[ x, y ];
   if(mode==='FRONT') proj=(x,y,z)=>[ x, -z ];
   if(mode==='BACK') proj=(x,y,z)=>[ -x, -z ];
   if(mode==='LEFT') proj=(x,y,z)=>[ y, -z ];
@@ -288,23 +416,40 @@ function resize(){ cvs.width=Math.floor(wrap.clientWidth*DPR); cvs.height=Math.f
 addEventListener('resize',resize);
 
 /* panning/zoom */
-let dragging=false, sx=0, sy=0;
+let dragging=false, sx=0, sy=0, pointerMoved=false, dragDistance=0;
+function constrainView(){
+  const ext=boundsProjected(), margin=80;
+  const cx=(ext.minX+ext.maxX)/2,cy=(ext.minY+ext.maxY)/2;
+  panX=Math.max(margin-scale*cx,Math.min(wrap.clientWidth-margin-scale*cx,panX));
+  panY=Math.max(margin-scale*cy,Math.min(wrap.clientHeight-margin-scale*cy,panY));
+}
+function zoomAt(mx,my,delta){
+  const ext=boundsProjected();
+  const fitted=Math.min((wrap.clientWidth-120)/Math.max(ext.maxX-ext.minX,900),(wrap.clientHeight-120)/Math.max(ext.maxY-ext.minY,640));
+  const next=Math.max(fitted*.25,Math.min(fitted*12,scale*Math.exp(-Math.max(-160,Math.min(160,delta))*.001)));
+  const zx=(mx-panX)/scale,zy=(my-panY)/scale;
+  scale=next;panX=mx-zx*scale;panY=my-zy*scale;constrainView();
+}
 wrap.addEventListener('pointerdown',e=>{
+  if(e.button!==0 || state.addAnno) return;
   if(e.target.closest('#gizmo,.viewbar-top,.viewbar-bottom,.prompt,.anno,.dim,.anchor-dot')) return;
+  pointerMoved=false;dragDistance=0;
   dragging=true; sx=e.clientX; sy=e.clientY; wrap.setPointerCapture(e.pointerId);
 });
 wrap.addEventListener('pointermove',e=>{
   if(!dragging) return;
-  panX+=e.clientX-sx; panY+=e.clientY-sy; sx=e.clientX; sy=e.clientY; draw(); updatePopups();
+  const dx=e.clientX-sx,dy=e.clientY-sy;dragDistance+=Math.hypot(dx,dy);pointerMoved=dragDistance>4;
+  panX+=dx; panY+=dy; sx=e.clientX; sy=e.clientY; constrainView();draw();
 });
 wrap.addEventListener('pointerup',()=>dragging=false);
+wrap.addEventListener('pointercancel',()=>dragging=false);
+wrap.addEventListener('lostpointercapture',()=>dragging=false);
 wrap.addEventListener('wheel',e=>{
-  e.preventDefault();
-  const k=Math.exp(-e.deltaY*0.001), r=wrap.getBoundingClientRect();
+  e.preventDefault();e.stopPropagation();
+  if(e.target.closest('.prompt,input,select,textarea')) return;
+  const r=wrap.getBoundingClientRect();
   const mx=e.clientX-r.left, my=e.clientY-r.top;
-  const zx=(mx-panX)/scale, zy=(my-panY)/scale;
-  scale*=k; panX=mx-zx*scale; panY=my-zy*scale;
-  draw(); updatePopups();
+  zoomAt(mx,my,e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?wrap.clientHeight:1));draw();
 },{passive:false});
 function localToScreen(u,v){ return {x:panX+scale*u, y:panY+scale*v}; }
 function screenToLocal(e){ const r=wrap.getBoundingClientRect(); return {x:(e.clientX-r.left-panX)/scale, y:(e.clientY-r.top-panY)/scale}; }
@@ -317,11 +462,15 @@ document.querySelectorAll('.tab').forEach(t=>{
     const tab=t.dataset.tab;
     $('tab-route').classList.toggle('hid',tab!=='route');
     $('tab-meta').classList.toggle('hid',tab!=='meta');
+    $('tab-equipment').classList.toggle('hid',tab!=='equipment');
+    setEquipmentEditing(tab==='equipment');
   });
 });
 
 /* ===== МОДЕЛЬ ===== */
 const state={
+  routes:[],activeRouteId:'r1',routeName:'Трасса 1',routeOffset:{x:0,y:0,z:0},showAllRoutes:false,showAllDimensions:false,specScope:'active',
+  equipment:[],selectedEquipmentId:null,equipmentEditMode:false,placingEquipment:false,routeBindings:{start:null,end:null},routePorts:{start:null,end:null},routeRouting:{mode:'manual',level:3700,order:'XY',path:'OVERHEAD'},
   segs:[], lastDir:'+Z', calc:false, module:3000,
   dimOffsets:{ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}},
   annos:[], movingAnno:{id:null,what:null,view:null}, editingIdx:null,
@@ -329,30 +478,35 @@ const state={
   annoSeq:1,
   drawAnnoLines:true
 };
+const equipmentDimensions={startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200};
+function equipmentDimension(key){const value=Number($(key).value);if(Number.isFinite(value)&&value>0)equipmentDimensions[key]=value;return equipmentDimensions[key];}
 function P(){
+  const width=($('mat').value==='CU'?WIDTH_CU:WIDTH_AL)[+$('rating').value]||78;
+  const edge=$('orientation').value==='EDGE';
   return {
     startType:$('startType').value, endType:$('endType').value,
-    startW:+$('startW').value, startD:+$('startD').value, startH:+$('startH').value,
-    endW:+$('endW').value, endD:+$('endD').value, endH:+$('endH').value,
-    busW:( $('mat').value==='CU'?WIDTH_CU:WIDTH_AL )[+$('rating').value]||78,
-    busH:BUS_H
+    startW:equipmentDimension('startW'), startD:equipmentDimension('startD'), startH:equipmentDimension('startH'),
+    endW:equipmentDimension('endW'), endD:equipmentDimension('endD'), endH:equipmentDimension('endH'),
+    busW:edge?BUS_H:width,
+    busH:edge?width:BUS_H
   };
 }
-function originTop(){ const p=P(); return [p.startW/2,p.startD/2,p.startH]; }
+function originTop(){ const item=equipmentById(state.routeBindings.start);if(item)return equipmentTerminal(item,state.routePorts.start);const p=P(),o=state.routeOffset; return p.startType==='NONE'?[o.x,o.y,o.z]:[o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
 const axis=d=>d[1];
 const sgn=d=>d[0]==='+'?1:-1;
 const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
-function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L; } return [x,y,z]; }
+function endPoint(){ let [x,y,z]=originTop(); for(const s of state.segs){ const L=Number(s.len); if(s.dir==='+X')x+=L; else if(s.dir==='-X')x-=L; if(s.dir==='+Y')y+=L; else if(s.dir==='-Y')y-=L; if(s.dir==='+Z')z+=L; else if(s.dir==='-Z')z-=L; } return [x,y,z]; }
 
 /* ===== DXF сборщик ===== */
-let DXF_COLLECT=false, DXF_ENT=[];
+let DXF_COLLECT=false, DXF_ENT=[],cadGroup=0,cadMeta={};
+function drawingStyle(){return false;}
 const DXF_COLORS={BUS:3,ELBOW:5,JOINT:2,MOUNT:1,CAB:8,ENDCAP:6,ANNOT:7,FLOOR:9};
-function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; DXF_ENT.push({a,b,layer}); }
+function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DXF_ENT.push({a,b,layer,group:cadGroup,meta:{...cadMeta,route:cadMeta.equipmentId?'PROJECT':state.activeRouteId,routeName:cadMeta.equipmentId?'Оборудование проекта':state.routeName,material:$('mat').value,rating:Number($('rating').value),ip:$('ip').value,conductors:conductorLabel(),bindings:{...state.routeBindings},ports:{...state.routePorts},reference:['ST','EL','JPK','FE','FET','GETB','EC','HF','HE'].includes(type)?refFor(type,Number($('rating').value)):undefined}}); }
 
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
   const p=proj(...a), q=proj(...b);
-  ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  if(!hideTechnicalPrimitive(layer)&&!(layer==='ANNOT'&&queueVisualOverlay(p,q,col,lw))){ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();}
   pushDXF(p,q,layer);
 }
 function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLOOR'){
@@ -362,8 +516,9 @@ function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLO
 }
 function fillPoly3(pts, fill, alpha,layer='BUS'){
   const p=pts.map(v=>proj(...v));
+  if(layer==='FLOOR'&&drawingStyle())return;
   ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
-  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); if(!drawingStyle()&&!hideTechnicalPrimitive(layer))ctx.fill(); ctx.restore();
   for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
 }
 function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
@@ -373,14 +528,18 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.fillText(text, s[0], s[1]+dy);
   ctx.restore();
 }
-function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+function box(x,y,z,w,d,h,layer='BUS',edge='#111',appearance){
+  cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  queueVisualBox(v,layer,appearance);
   line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
   line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
   line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
 }
 function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
+  cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  queueVisualBox(v,layer);
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
   f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
   [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
@@ -391,13 +550,26 @@ function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]
 function madd3(o,u,su,v,sv,n,sn){ return [ o[0]+u[0]*su+v[0]*sv+n[0]*sn, o[1]+u[1]*su+v[1]*sv+n[1]*sn ]; }
 function LpolyCornerSolid(lenA,lenB,half){ return [[-lenA,-half],[+half,-half],[+half,+lenB],[-half,+lenB],[-half,+half],[-lenA,+half]]; }
 function extrudeSolid(poly, thick, O, U, V, N,layer){
+  cadGroup++;
   const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
+  queueVisualExtrusion(up,dn,layer);
   const color='rgba(60,110,220,.6)';
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
   for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
 }
-function elbowCuts(d1,d2){ const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0}; if(a1==='Z'||a2==='Z') return {...VERT_ELBOW}; const r=+$('rating').value, pair=H_ELBOW_BY_R[r]||[260,260]; return {a:pair[0], b:pair[1]}; }
+function elbowCuts(d1,d2){
+  const a1=axis(d1), a2=axis(d2); if(a1===a2) return {a:0,b:0};
+  const vertical=a1==='Z'||a2==='Z',edge=$('orientation').value==='EDGE';
+  if(vertical===edge) return {...VERT_ELBOW};
+  const table=$('mat').value==='CU'?LF_MIN_CU:LF_MIN_AL;
+  const r=+$('rating').value, length=table[r] || table[1250];
+  return {a:length,b:length};
+}
+function verticalProfile(i,bw,bh){
+  const adjacent=[state.segs[i-1],state.segs[i+1]].find(s=>s && axis(s.dir)!=='Z');
+  return adjacent && axis(adjacent.dir)==='Y' ? {w:bw,d:bh} : {w:bh,d:bw};
+}
 function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const U=dirVec(fromDir), V=dirVec(toDir), N=cross(U,V);
   const vertical=(axis(fromDir)==='Z'||axis(toDir)==='Z');
@@ -406,65 +578,93 @@ function elbowSolidAtVertex(vertex, fromDir, toDir, aLen, bLen, bw, bh){
   const poly  = LpolyCornerSolid(aLen,bLen,half);
   extrudeSolid(poly, thick, vertex, U, V, N,'ELBOW');
 }
-function segBox(start,dir,L,bw,bh){
+function segBox(start,dir,L,bw,bh,profile={w:bh,d:bw}){
   const s=sgn(dir), a=axis(dir);
-  if(a==='Z'){ const x=start[0]-bw/2, y=start[1]-bw/2, z=s>0?start[2]:start[2]-L; box(x,y,z,bw,bw,L,'BUS'); }
+  if(a==='Z'){ const x=start[0]-profile.w/2, y=start[1]-profile.d/2, z=s>0?start[2]:start[2]-L; box(x,y,z,profile.w,profile.d,L,'BUS'); }
   if(a==='X'){ const x=s>0?start[0]:start[0]-L, y=start[1]-bw/2, z=start[2]-bh/2; box(x,y,z,L,bw,bh,'BUS'); }
   if(a==='Y'){ const x=start[0]-bw/2, y=s>0?start[1]:start[1]-L, z=start[2]-bh/2; box(x,y,z,bw,L,bh,'BUS'); }
 }
 
-/* соединители по модулю */
-function drawJointBlocksByModule(startPos, cur, Ldraw, startOffset, bw){
-  const m=state.module|0; if(!(m>0)) return;
-  const full=Math.floor((cur.len|0)/m);
-  for(let k=1;k<=full;k++){
-    const d=k*m - startOffset; if(d<=0 || d>=Ldraw) continue;
-    const p=adv(startPos,cur.dir,d); const a=axis(cur.dir);
-    if(a==='Z') solidBox(p[0]-bw/2,p[1]-bw/2,p[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='X') solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
-    if(a==='Y') solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(52,168,83,.55)',1,'JOINT');
+/* Единый раскрой прямого корпуса: размеры трассы остаются осевыми. */
+function straightLayout(index){
+  const cur=state.segs[index],prev=state.segs[index-1],next=state.segs[index+1];
+  const startCut=prev?elbowCuts(prev.dir,cur.dir).b:0;
+  const endCut=next?elbowCuts(cur.dir,next.dir).a:0;
+  const length=Math.max(0,Number(cur.len)-startCut-endCut),module=Number(state.module);
+  const parts=[],joints=[];
+  if(Number.isFinite(module)&&module>0){
+    const full=Math.floor(length/module),remainder=length-full*module;
+    for(let i=0;i<full;i++)parts.push(module);
+    if(remainder>1e-7)parts.push(remainder);
+    // 450 мм — консервативный предел; противоречие Cu400/450 не снято.
+    // Перераспределяем только допустимые кратные10 длины, без округления трассы.
+    if(module<=3000&&module>=450&&module%10===0&&length%10===0&&parts.length>1&&parts[parts.length-1]<450){
+      const needed=450-parts[parts.length-1];
+      const available=parts.slice(0,-1).reduce((sum,n)=>sum+Math.max(0,n-450),0);
+      if(available>=needed){
+        let remaining=needed;
+        for(let i=parts.length-2;i>=0&&remaining>0;i--){const transfer=Math.min(remaining,parts[i]-450);parts[i]-=transfer;parts[parts.length-1]+=transfer;remaining-=transfer;}
+      }
+    }
+    let offset=0;for(let i=0;i<parts.length-1;i++){offset+=parts[i];joints.push(offset);}
   }
+  return {startCut,endCut,length,parts,joints};
 }
 
-/* крепления — умный расчёт */
-function intervalFill(a,b, hasA, hasB, target){
-  const L=b-a, out=[]; if(L<=0) return out;
-  function spread(n){ const step=L/(n+1); for(let i=1;i<=n;i++) out.push(a+i*step); }
-  if(hasA&&hasB){ if(L<=SP_MAX) return out; let n=Math.ceil(L/SP_MAX)-1; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out; }
-  if(!hasA&&!hasB){ if(L<SP_MIN) return out; let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out; }
-  let n=Math.round(L/Math.max(SP_MIN,Math.min(SP_MAX,target)))-1; if(n<0)n=0; while(L/(n+1)>SP_MAX)n++; while(L/(n+1)<SP_MIN&&n>0)n--; spread(n); return out;
+/* Все стыки одной модели: прямые, углы и подключения. Размер блока схематичный. */
+function connectionLayout(){
+  const joints=[];let pos=originTop();
+  for(let i=0;i<state.segs.length;i++){
+    const cur=state.segs[i],layout=straightLayout(i),start=adv(pos,cur.dir,layout.startCut);
+    for(const offset of layout.joints)joints.push({point:adv(start,cur.dir,offset),dir:cur.dir,index:i,kind:'module'});
+    if(layout.startCut>0)joints.push({point:start,dir:cur.dir,index:i,kind:'corner'});
+    if(layout.endCut>0)joints.push({point:adv(start,cur.dir,layout.length),dir:cur.dir,index:i,kind:'corner'});
+    if(i===0&&$('startType').value!=='NONE')joints.push({point:pos,dir:cur.dir,index:i,kind:$('startType').value==='TR'?'transformer':'nku'});
+    if(i===state.segs.length-1&&$('endType').value==='NKU')joints.push({point:adv(pos,cur.dir,cur.len),dir:cur.dir,index:i,kind:'nku'});
+    pos=adv(pos,cur.dir,cur.len);
+  }return joints;
 }
-function mountPositionsForSegment(startPos, cur, Ldraw, startCut, endCut, prev, next, target){
-  const res=[]; if(axis(cur.dir)==='Z') return res;
-  const hasA = !!(prev && axis(prev.dir)!==axis(cur.dir));
-  const hasB = !!(next && axis(next.dir)!==axis(cur.dir));
-  const anchors=[];
-  if(hasA && Ldraw>=200) anchors.push(200);
-  if(hasB && Ldraw>=200) anchors.push(Ldraw-200);
-  anchors.sort((a,b)=>a-b);
-  if(anchors.length===0){ res.push(...intervalFill(0,Ldraw,false,false,target)); }
-  else{
-    res.push(...intervalFill(0,anchors[0],false,true,target));
-    for(let i=0;i<anchors.length-1;i++){
-      res.push(anchors[i], ...intervalFill(anchors[i],anchors[i+1],true,true,target));
-    }
-    const last=anchors[anchors.length-1];
-    res.push(last, ...intervalFill(last,Ldraw,true,false,target));
-  }
-  const uniq=[], seen=new Set();
-  for(const d of res){ const v=Math.max(0,Math.min(Ldraw,d)); const k=v.toFixed(2); if(!seen.has(k)){ seen.add(k); uniq.push(v); } }
-  return uniq;
+function drawConnection(joint,bw){
+  cadMeta={type:'JPK',segment:joint.index+1,kind:joint.kind};
+  const p=joint.point,a=axis(joint.dir),bh=P().busH;
+  if(a==='Z'){const pr=verticalProfile(joint.index,bw,bh);solidBox(p[0]-pr.w/2,p[1]-pr.d/2,p[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(52,168,83,.55)',1,'JOINT');}
+  if(a==='X')solidBox(p[0]-JOINT_LEN/2,p[1]-bw/2,p[2]-bh/2,JOINT_LEN,bw,bh,'rgba(52,168,83,.55)',1,'JOINT');
+  if(a==='Y')solidBox(p[0]-bw/2,p[1]-JOINT_LEN/2,p[2]-bh/2,bw,JOINT_LEN,bh,'rgba(52,168,83,.55)',1,'JOINT');
+}
+
+/* Крепления прямых деталей: каталог B78; несущая конструкция требует проекта. */
+function horizontalMountPlan(parts,target,orientation){
+  const limit=orientation==='EDGE'?3000:2000;
+  const requested=Number(target),step=Number.isFinite(requested)&&requested>0?Math.min(requested,limit):limit;
+  const positions=[],unsupported=[];let offset=0;
+  parts.forEach((length,index)=>{
+    if(orientation==='EDGE'){
+      const count=Math.max(1,Math.ceil(length/step));
+      for(let n=0;n<count;n++)positions.push(offset+length*(n+.5)/count);
+    }else if(length>=600){
+      const span=length-600,count=Math.max(1,Math.ceil(span/step));
+      if(span===0)positions.push(offset+300);
+      else for(let n=0;n<=count;n++)positions.push(offset+300+span*n/count);
+    }else unsupported.push(index+1);
+    offset+=length;
+  });
+  return {positions,unsupported,step,limit};
+}
+function mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,target){
+  if(axis(cur.dir)==='Z')return [];
+  const index=state.segs.indexOf(cur),parts=index>=0?straightLayout(index).parts:[Ldraw];
+  return horizontalMountPlan(parts,target,$('orientation').value).positions;
 }
 function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw){
   if($('mountOn').value!=='1') return 0;
-  const arr=mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,+$('mountStep').value||1000);
+  const arr=mountPositionsForSegment(startPos,cur,Ldraw,startCut,endCut,prev,next,+$('mountStep').value);
   for(const d of arr){
     const C=adv(startPos,cur.dir,d);
     if(axis(cur.dir)==='X'){
-      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      const x0=C[0]-MOUNT_ALONG/2, y0=C[1]-bw/2, z0=C[2]-P().busH/2-MOUNT_THICK;
       solidBox(x0,y0,z0,MOUNT_ALONG,bw,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
     }else if(axis(cur.dir)==='Y'){
-      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-BUS_H/2-MOUNT_THICK;
+      const y0=C[1]-MOUNT_ALONG/2, x0=C[0]-bw/2, z0=C[2]-P().busH/2-MOUNT_THICK;
       solidBox(x0,y0,z0,bw,MOUNT_ALONG,MOUNT_THICK,'rgba(255,140,0,.55)',1,'MOUNT');
     }
   }
@@ -472,31 +672,32 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 }
 
 /* шкафы / заглушка */
-function drawStartCab(){ const p=P(); const top=originTop()[2], base=top-p.startH; box(0,0,base,p.startW,p.startD,p.startH,'CAB','#666'); box(p.startW/2-60,p.startD/2-60,top,120,120,8,'CAB','#999'); }
-function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
+function drawStartCab(){ if($('startType').value==='NONE')return;const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666',p.startType); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
+function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666','NKU'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
-  if(a==='Z') solidBox(e[0]-bw/2,e[1]-bw/2,e[2]-JOINT_LEN/2,bw,bw,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP');
-  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-BUS_H/2,JOINT_LEN,bw,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
-  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-BUS_H/2,bw,JOINT_LEN,BUS_H,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,P().busH); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
+  if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(220,0,0,.55)',1,'ENDCAP');
+  if(a==='Y') solidBox(e[0]-bw/2,e[1]-JOINT_LEN/2,e[2]-P().busH/2,bw,JOINT_LEN,P().busH,'rgba(220,0,0,.55)',1,'ENDCAP');
 }
 
 /* ===== ПОЛ ===== */
 function floorBoundsXY(){
   const p=P(); const bw=p.busW;
-  let minX=0, maxX=p.startW, minY=0, maxY=p.startD;
+  const o=state.routeOffset,hasStart=p.startType!=='NONE';let minX=o.x, maxX=o.x+(hasStart?p.startW:0), minY=o.y, maxY=o.y+(hasStart?p.startD:0);
   let [x,y,z]=originTop();
   function expand(px,py){ minX=Math.min(minX, px-bw/2); maxX=Math.max(maxX, px+bw/2); minY=Math.min(minY, py-bw/2); maxY=Math.max(maxY, py+bw/2); }
   expand(x,y);
-  for(const s of state.segs){ const L=s.len|0; if(s.dir==='+X') x+=L; else if(s.dir==='-X') x-=L; if(s.dir==='+Y') y+=L; else if(s.dir==='-Y') y-=L; expand(x,y); }
-  if($('endType').value==='NKU'){ const e=endPoint(); minX=Math.min(minX, e[0]-p.endW/2); maxX=Math.max(maxX, e[0]+p.endW/2); minY=Math.min(minY, e[1]-p.endD/2); maxY=Math.max(maxY, e[1]+p.endD/2); }
+  for(const s of state.segs){ const L=Number(s.len); if(s.dir==='+X') x+=L; else if(s.dir==='-X') x-=L; if(s.dir==='+Y') y+=L; else if(s.dir==='-Y') y-=L; expand(x,y); }
+  if($('endType').value==='NKU'){const item=equipmentById(state.routeBindings.end),e=endPoint(),x=item?.position.x??e[0]-p.endW/2,y=item?.position.y??e[1]-p.endD/2;minX=Math.min(minX,x);maxX=Math.max(maxX,x+p.endW);minY=Math.min(minY,y);maxY=Math.max(maxY,y+p.endD);}
   return {minX, maxX, minY, maxY};
 }
 function drawFloorBounded(){
+  if(drawingStyle())return;
   if(!(viewMode==='ISO' || viewMode==='TOP')) return;
-  const b=floorBoundsXY();
+  const b=sceneFloorBounds();
   const poly=[[b.minX,b.minY,0],[b.maxX,b.minY,0],[b.maxX,b.maxY,0],[b.minX,b.maxY,0]];
   fillPoly3(poly,'#f1f3f5',1,'FLOOR');
-  const step=200;
+  const step=Math.max(200,Math.ceil(Math.max(b.maxX-b.minX,b.maxY-b.minY)/200/200)*200);
   for(let x=Math.ceil(b.minX/step)*step; x<=b.maxX; x+=step) line3([x,b.minY,0],[x,b.maxY,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   for(let y=Math.ceil(b.minY/step)*step; y<=b.maxY; y+=step) line3([b.minX,y,0],[b.maxX,y,0],'rgba(120,120,120,.18)',1/scale,'FLOOR');
   line3([b.minX,b.minY,0],[b.maxX,b.minY,0],'#c7c7c7',1/scale,'FLOOR');
@@ -506,8 +707,9 @@ function drawFloorBounded(){
 }
 /* уровень 0.000 для фронт/боков */
 function drawFloorZeroLine(){
+  if(drawingStyle())return;
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
-  const b=floorBoundsXY();
+  const b=sceneFloorBounds();
   if(viewMode==='FRONT' || viewMode==='BACK'){
     const a=[b.minX,b.minY,0], c=[b.maxX,b.minY,0];
     line3Dashed(a,c,'#a0a0a0',1.2/scale,[8/scale,6/scale],'FLOOR');
@@ -522,15 +724,32 @@ function drawFloorZeroLine(){
 /* размеры */
 function getDimOffset(key){ return state.dimOffsets[viewMode][key]||{dx:0,dy:0}; }
 function setDimOffset(key,dx,dy){ state.dimOffsets[viewMode][key]={dx,dy}; saveState(); }
+let dimensionBoxes=[];
+function dimensionPosition(key,base,text){
+  const off=getDimOffset(key), size=measureBubble(ctx,text);
+  let x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const automatic=!(key in state.dimOffsets[viewMode]);
+  if(automatic){
+    y-=24;
+    for(let attempt=0;attempt<12;attempt++){
+      if(!dimensionBoxes.some(b=>Math.abs(x-b.x)<(size.w+b.w)/2+8 && Math.abs(y-b.y)<(size.h+b.h)/2+6)) break;
+      y+=size.h+8;
+    }
+  }
+  x=Math.max(size.w/2+6,Math.min(wrap.clientWidth-size.w/2-6,x));
+  y=Math.max(size.h/2+viewerTopInset(),Math.min(wrap.clientHeight-size.h/2-48,y));
+  dimensionBoxes.push({x,y,...size}); return {x,y};
+}
 function renderDeltaH(){
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
-  if($('endType').value!=='NKU') return;
+  if($('endType').value!=='NKU'||$('startType').value==='NONE') return;
   const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
-  const delta=Math.abs(eBase-sBase)|0;
-  const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+  const delta=Math.abs(eBase-sBase);
+  const origin=originTop(),sPt=proj(origin[0],origin[1],sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
   const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2};
   const base=localToScreen(mid.u,mid.v);
-  const off=getDimOffset('__deltaH'); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+  const placed=dimensionPosition('__deltaH',base,`ΔH = ${delta} мм`); const x=placed.x,y=placed.y;
+  const off={dx:x-base.x,dy:y-base.y};
   const el=document.createElement('div'); el.className='dim'; el.textContent=`ΔH = ${delta} мм`; el.style.left=x+'px'; el.style.top=y+'px';
   let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
   el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
@@ -542,46 +761,51 @@ function renderDeltaH(){
 /* трасса + размеры */
 function drawPath(){
   const prm=P(), bw=prm.busW, bh=prm.busH;
-  let pos=originTop(); dimLayer.innerHTML='';
+  let pos=originTop();
 
   for(let i=0;i<state.segs.length;i++){
-    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const sc=prev?elbowCuts(prev.dir,cur.dir).b:0; const ec=next?elbowCuts(cur.dir,next.dir).a:0;
-    const startPos=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
+    const cur=state.segs[i], L=Number(cur.len), prev=state.segs[i-1], next=state.segs[i+1];
+    const layout=straightLayout(i),sc=layout.startCut,ec=layout.endCut;
+    const startPos=adv(pos,cur.dir,sc); const Ldraw=layout.length;
 
     if(Ldraw>0){
-      segBox(startPos,cur.dir,Ldraw,bw,bh);
+      const parts=state.calc?layout.parts:[Ldraw];let partOffset=0;
+      for(const part of parts){cadMeta={type:'ST',length:part,segment:i+1};segBox(adv(startPos,cur.dir,partOffset),cur.dir,part,bw,bh,verticalProfile(i,bw,bh));partOffset+=part;}cadMeta={};
       if(state.calc){
-        drawJointBlocksByModule(startPos,cur,Ldraw,sc,bw);
         drawMountsSmart(startPos,cur,Ldraw,sc,ec,prev,next,bw);
       }
+      if(routeInteractive||state.showAllDimensions){
       const mid=adv(startPos,cur.dir,Ldraw/2); const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-      const label=(axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм';
-      const key=i; const off=getDimOffset(key); const x=base.x+(off.dx||0), y=base.y+(off.dy||0);
+      const label=routeDimensionLabel((axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм');
+      const key=i; const placed=dimensionPosition(key,base,label); const x=placed.x,y=placed.y;
+      const off={dx:x-base.x,dy:y-base.y};
       if(state.calc){
         const el=document.createElement('div'); el.className='dim'; el.textContent=label; el.dataset.idx=i; el.style.left=x+'px'; el.style.top=y+'px';
         let drag=false, _sx=0, _sy=0, dx0=off.dx||0, dy0=off.dy||0;
+        if(!routeInteractive)el.style.pointerEvents='none';
         el.addEventListener('pointerdown',e=>{ drag=true; el.classList.add('dragging'); _sx=e.clientX; _sy=e.clientY; el.setPointerCapture(e.pointerId); });
         el.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-_sx, dy=e.clientY-_sy; el.style.left=(base.x+dx0+dx)+'px'; el.style.top=(base.y+dy0+dy)+'px'; });
         el.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; el.classList.remove('dragging'); const dx=parseFloat(el.style.left)-base.x; const dy=parseFloat(el.style.top)-base.y; setDimOffset(key,dx,dy); });
         el.addEventListener('dblclick',ev=>{ ev.stopPropagation(); openEdit(i); });
         dimLayer.appendChild(el);
       }
+      }
     }
     if(ec>0 && next){
       const cuts=elbowCuts(cur.dir,next.dir);
       const vertex=adv(pos,cur.dir,L);
-      elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);
+      cadMeta={type:'EL',segment:i+1};elbowSolidAtVertex(vertex,cur.dir,next.dir,cuts.a,cuts.b,bw,bh);cadMeta={};
     }
     pos=adv(pos,cur.dir,L);
   }
-  renderDeltaH();
+  if(state.calc)for(const joint of connectionLayout()){drawConnection(joint,bw);cadMeta={};}
+  if(routeInteractive)renderDeltaH();
 }
 
 /* джойстик направления */
 const AXES=[{dir:'+Z',label:'+Z ↑',color:'#2aa14a',vec:[0,0,1]},{dir:'-Z',label:'-Z ↓',color:'#2aa14a',vec:[0,0,-1]},{dir:'+X',label:'+X →',color:'#e4463c',vec:[1,0,0]},{dir:'-X',label:'-X ←',color:'#e4463c',vec:[-1,0,0]},{dir:'+Y',label:'+Y ↗',color:'#2d6cdf',vec:[0,1,0]},{dir:'-Y',label:'-Y ↙',color:'#2d6cdf',vec:[0,-1,0]}];
 let hit=null, rays=[];
-function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); giz.style.left=s.x+'px'; giz.style.top=s.y+'px'; tag.style.left=s.x+'px'; tag.style.top=s.y+'px'; pop.style.left=s.x+'px'; pop.style.top=s.y+'px'; }
+function placeGizmo(){ const [x,y]=proj(...endPoint()); const s=localToScreen(x,y); const cx=Math.max(112,Math.min(wrap.clientWidth-112,s.x)),cy=Math.max(184,Math.min(wrap.clientHeight-164,s.y)); giz.style.left=cx+'px'; giz.style.top=cy+'px'; tag.style.left=cx+'px'; tag.style.top=cy+'px'; }
 function drawArrow2D(p,q,color,thick,alpha,text){ const [x1,y1]=p,[x2,y2]=q,a=Math.atan2(y2-y1,x2-x1),head=14; gz.strokeStyle=color; gz.globalAlpha=alpha; gz.lineWidth=thick; gz.lineCap='round'; gz.beginPath(); gz.moveTo(x1,y1); gz.lineTo(x2-Math.cos(a)*head*0.92,y2-Math.sin(a)*head*0.92); gz.stroke(); gz.beginPath(); gz.moveTo(x2,y2); gz.lineTo(x2-head*Math.cos(a-Math.PI/6),y2-head*Math.sin(a-Math.PI/6)); gz.lineTo(x2-head*Math.cos(a+Math.PI/6),y2-head*Math.sin(a+Math.PI/6)); gz.closePath(); gz.fillStyle=color; gz.fill(); gz.globalAlpha=1; gz.font='12px system-ui'; gz.fillStyle='#222'; gz.textAlign='center'; gz.fillText(text,x2,y2-6); }
 function angleOf(vx,vy){return Math.atan2(vy,vx)}; function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?2*Math.PI-d:d;}
 function drawGizmo(){ const size=giz.width,cx=size/2,cy=size/2; gz.clearRect(0,0,size,size); const base=endPoint(); rays=AXES.map(a=>{ const tip=[base[0]+a.vec[0]*380,base[1]+a.vec[1]*380,base[2]+a.vec[2]*380]; const O=proj(...base),T=proj(...tip); const v=[T[0]-O[0],T[1]-O[1]],len=Math.hypot(...v)||1,L=94; const to=[cx+v[0]/len*L, cy+v[1]/len*L]; return {dir:a.dir,color:a.color,label:a.label,from:[cx,cy],to,phi:angleOf(to[0]-cx,to[1]-cy)}; }); gz.setLineDash([4,4]); gz.strokeStyle='#bdbdbd'; gz.beginPath(); gz.arc(cx,cy,100,0,Math.PI*2); gz.stroke(); gz.setLineDash([]); rays.forEach(r=>{ const active=hit&&hit.dir===r.dir; drawArrow2D(r.from,r.to,r.color,active?7:4,active?1:.95,r.label); }); gz.fillStyle='#000'; gz.beginPath(); gz.arc(cx,cy,3.6,0,Math.PI*2); gz.fill(); }
@@ -589,19 +813,47 @@ giz.addEventListener('pointermove',e=>{ const rect=giz.getBoundingClientRect(), 
 giz.addEventListener('pointerleave',()=>{ hit=null; tag.textContent='направление: —'; drawGizmo(); });
 giz.addEventListener('click',()=>{ if(viewMode!=='ISO'||!hit||state.calc) return; if(state.segs.length){ const last=state.segs[state.segs.length-1]; if(axis(last.dir)===axis(hit.dir)&&(sgn(last.dir)!==sgn(hit.dir))){ msg.textContent='Нельзя идти назад по той же оси'; setTimeout(()=>msg.textContent='',1500); return; } } state.lastDir=hit.dir; showLenPopup(); });
 
-function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block'; setTimeout(()=>$('lenInput').focus(),0); }
+function showLenPopup(){ $('hint').textContent=''; $('lenInput').value=window.__lastLen||''; pop.style.display='block';updatePopups(); setTimeout(()=>$('lenInput').focus({preventScroll:true}),0); }
 function hideLenPopup(){ pop.style.display='none'; }
 $('ok').onclick=commitLength; $('cancel').onclick=hideLenPopup;
 lenInput.addEventListener('keydown',e=>{ if(e.key==='Enter')commitLength(); if(e.key==='Escape')hideLenPopup(); });
-function commitLength(){ let L=+$('lenInput').value; if(!(L>0)){ hint.textContent='Введите длину'; return; } if(L<MIN_LEN){ hint.textContent=`Мин. длина ${MIN_LEN} мм`; return; } window.__lastLen=L; if(state.segs.length&&state.segs[state.segs.length-1].dir===state.lastDir) state.segs[state.segs.length-1].len+=L; else state.segs.push({dir:state.lastDir,len:L}); hideLenPopup(); draw(); saveState(); }
+function lengthError(value){
+  const length=Number(value);
+  if(!Number.isSafeInteger(length))return 'Введите целую длину в миллиметрах.';
+  return length<MIN_LEN?`Минимальная осевая длина ${MIN_LEN} мм. Заказная длина прямой детали проверяется отдельно.`:'';
+}
+function commitLength(){
+  const L=Number(lenInput.value),error=lengthError(lenInput.value);
+  if(error){hint.textContent=error;updatePopups();return;}
+  const last=state.segs[state.segs.length-1];
+  if(last&&last.dir===state.lastDir&&!Number.isSafeInteger(last.len+L)){hint.textContent='Суммарная длина участка слишком велика.';return;}
+  window.__lastLen=L;
+  if(last&&last.dir===state.lastDir)last.len+=L;else state.segs.push({dir:state.lastDir,len:L});
+  state.routeRouting.mode='manual';updateEquipmentControls();hideLenPopup();fit();renderSpec();saveState();
+}
 
-function openEdit(i){ state.editingIdx=i; const mid=segMid(i,true); epop.style.left=mid.x+'px'; epop.style.top=mid.y+'px'; $('editInput').value=state.segs[i].len|0; epop.style.display='block'; setTimeout(()=>$('editInput').focus(),0); }
+function openEdit(i){ if(!Number.isInteger(i)||!state.segs[i])return;state.editingIdx=i;editInput.value=state.segs[i].len;$('editHint').textContent='';epop.style.display='block';updatePopups();setTimeout(()=>editInput.focus({preventScroll:true}),0); }
 $('editOk').onclick=applyEdit; $('editCancel').onclick=()=>epop.style.display='none';
 editInput.addEventListener('keydown',e=>{ if(e.key==='Enter')applyEdit(); if(e.key==='Escape')epop.style.display='none'; });
-function applyEdit(){ const i=+(state.editingIdx==null?-1:state.editingIdx), v=+$('editInput').value; if(i<0||!(v>0)) return; if(v<MIN_LEN) return; state.segs[i].len=v; epop.style.display='none'; draw(); if(state.calc) renderSpec(); saveState(); }
-function updatePopups(){ if(epop.style.display==='block' && state.editingIdx!=null){ const p=segMid(state.editingIdx,true); epop.style.left=p.x+'px'; epop.style.top=p.y+'px'; } }
+function applyEdit(){
+  const i=state.editingIdx,error=lengthError(editInput.value);
+  if(!Number.isInteger(i)||!state.segs[i]){$('editHint').textContent='Участок уже удалён. Закройте окно и выберите другой.';updatePopups();return;}
+  if(error){$('editHint').textContent=error;updatePopups();return;}
+  state.segs[i].len=Number(editInput.value);state.routeRouting.mode='manual';updateEquipmentControls();epop.style.display='none';draw();renderSpec();saveState();
+}
+function placeLengthPopup(el,p){
+  const w=el.offsetWidth||Math.min(330,wrap.clientWidth-24),h=el.offsetHeight||150;
+  const x=Math.max(12,Math.min(wrap.clientWidth-w-12,p.x-w/2));
+  const y=Math.max(84,Math.min(wrap.clientHeight-h-100,p.y+20));
+  el.style.left=x+'px';el.style.top=y+'px';
+}
+function updatePopups(){
+  if(epop.style.display==='block' && state.editingIdx!=null) placeLengthPopup(epop,segMid(state.editingIdx,true));
+  if(pop.style.display==='block'){const p=proj(...endPoint());placeLengthPopup(pop,localToScreen(...p));}
+}
 
 cvs.addEventListener('click',e=>{
+  if(pointerMoved){pointerMoved=false;return;} if(apop.style.display==='block'||state.addAnno)return;
   const pick=pickSegByPoint(e,false);
   if(pick.idx<0) return;
   openEdit(pick.idx);
@@ -611,7 +863,7 @@ function pickSegByPoint(e,useCuts){
   const r=wrap.getBoundingClientRect(); const lx=(e.clientX-r.left-panX)/scale, ly=(e.clientY-r.top-panY)/scale;
   let pos=originTop(), idx=-1, best=1e9, bestT=0;
   for(let i=0;i<state.segs.length;i++){
-    const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+    const cur=state.segs[i], L=Number(cur.len), prev=state.segs[i-1], next=state.segs[i+1];
     const sc=useCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=useCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
     const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
     const p1=proj(...start), p2=proj(...adv(start,cur.dir,Ldraw));
@@ -624,7 +876,7 @@ function pickSegByPoint(e,useCuts){
 function segMid(i,withCuts){
   let pos=originTop();
   for(let k=0;k<state.segs.length;k++){
-    const cur=state.segs[k], L=cur.len|0, prev=state.segs[k-1], next=state.segs[k+1];
+    const cur=state.segs[k], L=Number(cur.len), prev=state.segs[k-1], next=state.segs[k+1];
     const sc=withCuts&&prev?elbowCuts(prev.dir,cur.dir).b:0, ec=withCuts&&next?elbowCuts(cur.dir,next.dir).a:0;
     const start=adv(pos,cur.dir,sc), Ldraw=Math.max(0,L-sc-ec);
     if(k===i){ const mid=adv(start,cur.dir,Ldraw/2); const p2=proj(...mid); return localToScreen(p2[0],p2[1]); }
@@ -633,151 +885,170 @@ function segMid(i,withCuts){
   return {x:panX,y:panY};
 }
 
-/* ===== ВЫНОСКИ ===== */
+/* ===== ВЫНОСКИ: обычное перетаскивание, позиции отдельно для каждого вида ===== */
 let annoId=1;
-function newPos(){ return {ax:0,ay:0,bx:0,by:0}; }
-function ensurePos(anno,view){ if(!anno.pos[view]){ const src=anno.pos[viewMode]||anno.pos.ISO||newPos(); anno.pos[view]={...src}; } return anno.pos[view]; }
-
-/* авто-нумерация/ремонт старых данных */
+function newPos(){return {ax:0,ay:0,bx:0,by:0};}
+function ensurePos(a,view){return a.pos[view] || null;}
 function ensureAnnoNumbers(){
-  let k=1;
-  for(const a of state.annos){
-    if(typeof a.num!=='number' || !(a.num>0)){ a.num=k; }
-    k++;
-  }
-  state.annoSeq=k;
+  const ids=new Set();let next=Math.max(0,...state.annos.map(a=>Number(a.id)||0))+1;
+  state.annos.forEach((a,i)=>{
+    if(!Number.isSafeInteger(a.id)||a.id<1||ids.has(a.id)) a.id=next++;
+    ids.add(a.id);a.num=i+1;a.pos=a.pos||{};
+    for(const [view,p] of Object.entries(a.pos)){
+      if(!p || !['ax','ay','bx','by'].every(k=>Number.isFinite(p[k]))) delete a.pos[view];
+      else if(p.ax===0&&p.ay===0&&p.bx===0&&p.by===0) delete a.pos[view];
+    }
+  });annoId=Math.max(0,...ids)+1;state.annoSeq=state.annos.length+1;
 }
-
-$('addAnno').addEventListener('click',()=>{ state.addAnno=true; msg.textContent='Кликни место якоря выноски'; setTimeout(()=>msg.textContent='',1500); });
+function annotationLayout(a,view=viewMode){
+  const p=ensurePos(a,view);if(!p)return null;
+  const anchor=localToScreen(p.ax,p.ay),center=localToScreen(p.bx,p.by);
+  const w=Math.min(Math.max(130,a.text.length*7+64),Math.min(260,wrap.clientWidth-24));
+  const lines=Math.max(1,Math.ceil(a.text.length/Math.max(8,(w-58)/7))),h=lines*18+20;
+  const x=Math.max(w/2+12,Math.min(wrap.clientWidth-w/2-12,center.x));
+  const y=Math.max(90+h/2,Math.min(wrap.clientHeight-100-h/2,center.y));
+  return {anchor,x,y,w,h};
+}
+function openAnnoEditor(a,point){
+  ainput.value=a?a.text:'';apop.dataset.mode=a?'edit':'create';apop.dataset.id=a?a.id:'';
+  $('annoDel').style.display=a?'':'none';apop.style.display='block';placeLengthPopup(apop,point);
+  setTimeout(()=>ainput.focus({preventScroll:true}),0);
+}
+$('addAnno').addEventListener('click',()=>{
+  state.addAnno=true;wrap.style.cursor='crosshair';msg.textContent='Выберите точку на рисунке. Затем введите текст.';
+});
 wrap.addEventListener('pointerdown',e=>{
-  if(!state.addAnno) return;
-  const {x:ux,y:uy}=screenToLocal(e); const scr=localToScreen(ux,uy);
-  apop.style.left=scr.x+'px'; apop.style.top=(scr.y-24)+'px'; apop.style.display='block';
-  ainput.value=''; apop.dataset.mode='create'; apop.dataset.id='';
-  apop.dataset.ux=ux; apop.dataset.uy=uy; apop.dataset.view=viewMode; state.addAnno=false;
+  if(!state.addAnno || e.target.closest('.viewbar-top,.viewbar-bottom,.prompt,#gizmo,.anno,.anchor-dot'))return;
+  e.preventDefault();const p=screenToLocal(e),scr=localToScreen(p.x,p.y);
+  apop.dataset.ux=p.x;apop.dataset.uy=p.y;apop.dataset.view=viewMode;
+  state.addAnno=false;wrap.style.cursor='';msg.textContent='';openAnnoEditor(null,scr);
 });
 $('annoOk').onclick=()=>{
-  const mode=apop.dataset.mode||'create';
-  if(mode==='create'){
-    const text=(ainput.value.trim()||'Примечание');
-    const ux=+apop.dataset.ux, uy=+apop.dataset.uy, vw=apop.dataset.view;
-    const bx=ux+60/scale, by=uy-20/scale; const id=annoId++;
-    const base={ISO:newPos(),TOP:newPos(),FRONT:newPos(),BACK:newPos(),LEFT:newPos(),RIGHT:newPos()};
-    base[vw]={ax:ux,ay:uy,bx,by};
-    const num=state.annoSeq++;
-    state.annos.push({id,num,text,pos:base,movingBox:false,movingAnchor:false});
-  }else{
-    const id=+apop.dataset.id; const a=state.annos.find(x=>x.id===id); if(a) a.text=(ainput.value.trim()||'Примечание');
-  }
-  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
+  const text=ainput.value.trim();if(!text){ainput.focus({preventScroll:true});return;}
+  if(apop.dataset.mode==='create'){
+    const x=+apop.dataset.ux,y=+apop.dataset.uy,view=apop.dataset.view;ensureAnnoNumbers();
+    state.annos.push({id:annoId++,num:state.annos.length+1,text,pos:{[view]:{ax:x,ay:y,bx:x+120/scale,by:y-45/scale}}});
+  }else{const a=state.annos.find(x=>x.id===+apop.dataset.id);if(a)a.text=text;}
+  apop.style.display='none';draw();saveState();
 };
-$('annoCancel').onclick=()=>apop.style.display='none';
-$('annoDel').onclick=()=>{
-  const id=+apop.dataset.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); }
-  apop.style.display='none'; ensureAnnoNumbers(); draw(); saveState();
-};
-
-function renderAnnos(){
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); annoLayer.innerHTML='';
-  ensureAnnoNumbers();
-  state.annos.forEach(a=>{
-    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
-    const anchor=document.createElement('div'); anchor.className='anchor-dot'; anchor.style.left=(aScr.x-6)+'px'; anchor.style.top=(aScr.y-6)+'px'; anchor.dataset.id=a.id;
-    const box=document.createElement('div'); box.className='anno'; box.style.left=bScr.x+'px'; box.style.top=bScr.y+'px'; box.dataset.id=a.id;
-    const badge=document.createElement('span'); badge.className='badge'; badge.textContent='A'+a.num;
-    box.appendChild(badge); box.appendChild(document.createTextNode(' '+a.text));
-
-    if(a.movingBox){
-      const x=document.createElement('div'); x.className='x'; x.textContent='×';
-      x.title='Удалить выноску'; x.onclick=(ev)=>{ ev.stopPropagation(); const i=state.annos.findIndex(t=>t.id===a.id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } };
-      box.appendChild(x);
-    }
-
-    annoLayer.appendChild(anchor); annoLayer.appendChild(box);
-
-    if(state.drawAnnoLines){
-      // линия к ближайшей точке прямоугольника
-      const rect=box.getBoundingClientRect(), host=wrap.getBoundingClientRect();
-      const cx=(rect.left-host.left)+rect.width/2, cy=(rect.top-host.top)+rect.height/2;
-      const tx=Math.max(cx-rect.width/2, Math.min(cx+rect.width/2, aScr.x));
-      const ty=Math.max(cy-rect.height/2, Math.min(cy+rect.height/2, aScr.y));
-      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(aScr.x,aScr.y); ctx.lineTo(tx,ty); ctx.stroke();
-    }
-
-    box.addEventListener('click',ev=>{
-      ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingBox){
-        a.movingBox=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingBox=true; a.movingAnchor=false; state.movingAnno={id:a.id,what:'box',view:viewMode}; draw();
-      }
-    });
-    box.addEventListener('dblclick',ev=>{
-      ev.stopPropagation();
-      ainput.value=a.text;
-      const p=localToScreen(pv.bx,pv.by);
-      apop.style.left=p.x+'px'; apop.style.top=(p.y-26)+'px'; apop.style.display='block';
-      apop.dataset.mode='edit'; apop.dataset.id=a.id;
-    });
-    anchor.addEventListener('click',ev=>{
-      ev.stopPropagation();
-      if(state.movingAnno.id===a.id && a.movingAnchor){
-        a.movingAnchor=false; state.movingAnno={id:null,what:null,view:null}; draw(); saveState();
-      }else{
-        a.movingAnchor=true; a.movingBox=false; state.movingAnno={id:a.id,what:'anchor',view:viewMode}; draw();
-      }
-    });
-  }); 
-  ctx.restore();
+$('annoCancel').onclick=()=>{apop.style.display='none';state.addAnno=false;wrap.style.cursor='';};
+function deleteAnnotation(id){state.annos=state.annos.filter(a=>a.id!==id);state.movingAnno={id:null,what:null,view:null};draw();saveState();}
+$('annoDel').onclick=()=>{apop.style.display='none';deleteAnnotation(+apop.dataset.id);};
+ainput.addEventListener('keydown',e=>{if(e.key==='Enter')$('annoOk').onclick();if(e.key==='Escape')$('annoCancel').onclick();});
+function beginAnnotationDrag(e,a,what){
+  if(e.button!==0)return;e.preventDefault();e.stopPropagation();
+  const p=ensurePos(a,viewMode),local=screenToLocal(e);
+  state.movingAnno={id:a.id,what,view:viewMode,pointerId:e.pointerId,dx:p[what==='box'?'bx':'ax']-local.x,dy:p[what==='box'?'by':'ay']-local.y};
+  wrap.setPointerCapture(e.pointerId);
 }
-wrap.addEventListener('click',e=>{
-  const mv=state.movingAnno;
-  if(mv.id){
-    const a=state.annos.find(t=>t.id===mv.id);
-    if(a){ a.movingBox=false; a.movingAnchor=false; }
-    state.movingAnno={id:null,what:null,view:null};
-    draw(); saveState();
-  }
-});
+function renderAnnos(){
+  ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);annoLayer.innerHTML='';ensureAnnoNumbers();
+  state.annos.forEach(a=>{
+    const layout=annotationLayout(a);if(!layout)return;
+    const {anchor:point,x,y,w}=layout;
+    const anchor=document.createElement('button');anchor.type='button';anchor.className='anchor-dot';anchor.dataset.id=a.id;
+    anchor.style.left=(point.x-9)+'px';anchor.style.top=(point.y-9)+'px';anchor.setAttribute('aria-label',`Точка выноски A${a.num}: перетащить`);
+    const box=document.createElement('div');box.className='anno';box.dataset.id=a.id;box.tabIndex=0;
+    box.style.left=x+'px';box.style.top=y+'px';box.style.width=w+'px';box.title='Перетащите текст. Двойной щелчок — редактировать.';
+    const badge=document.createElement('span');badge.className='badge';badge.textContent='A'+a.num;
+    const text=document.createElement('span');text.className='anno-text';text.textContent=a.text;
+    const edit=document.createElement('button');edit.type='button';edit.className='anno-edit';edit.textContent='✎';edit.setAttribute('aria-label',`Редактировать выноску A${a.num}`);
+    edit.addEventListener('pointerdown',e=>e.stopPropagation());edit.onclick=e=>{e.stopPropagation();openAnnoEditor(a,{x,y});};
+    box.appendChild(badge);box.appendChild(text);box.appendChild(edit);annoLayer.appendChild(anchor);annoLayer.appendChild(box);
+    const rect=box.getBoundingClientRect(),host=wrap.getBoundingClientRect();
+    const left=rect.left-host.left,top=rect.top-host.top;
+    const target={x:Math.max(left,Math.min(left+rect.width,point.x)),y:Math.max(top,Math.min(top+rect.height,point.y))};
+    if(state.drawAnnoLines){ctx.strokeStyle='#365a83';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(point.x,point.y);ctx.lineTo(target.x,target.y);ctx.stroke();}
+    box.addEventListener('pointerdown',e=>beginAnnotationDrag(e,a,'box'));
+    anchor.addEventListener('pointerdown',e=>beginAnnotationDrag(e,a,'anchor'));
+    box.addEventListener('dblclick',e=>{e.stopPropagation();openAnnoEditor(a,{x,y});});
+    box.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();openAnnoEditor(a,{x,y});}
+      if(e.key==='Delete'){e.preventDefault();deleteAnnotation(a.id);}
+    });
+  });ctx.restore();
+}
 wrap.addEventListener('pointermove',e=>{
-  const mv=state.movingAnno; if(!mv.id||!mv.what) return;
-  const a=state.annos.find(x=>x.id===mv.id); if(!a) return;
-  const pv=ensurePos(a,mv.view||viewMode); const {x,y}=screenToLocal(e);
-  if(mv.what==='box'){ pv.bx=x; pv.by=y; } else { pv.ax=x; pv.ay=y; }
+  const mv=state.movingAnno;if(!mv.id||e.pointerId!==mv.pointerId)return;
+  const a=state.annos.find(a=>a.id===mv.id);if(!a)return;
+  const p=ensurePos(a,mv.view),local=screenToLocal(e);
+  if(mv.what==='box'){
+    p.bx=local.x+mv.dx;p.by=local.y+mv.dy;
+    const layout=annotationLayout(a,mv.view);p.bx=(layout.x-panX)/scale;p.by=(layout.y-panY)/scale;
+  }else{p.ax=local.x+mv.dx;p.ay=local.y+mv.dy;}
   draw();
 });
+function endAnnotationDrag(e){
+  const mv=state.movingAnno;if(!mv.id||e.pointerId!==mv.pointerId)return;
+  state.movingAnno={id:null,what:null,view:null};saveState();
+}
+wrap.addEventListener('pointerup',endAnnotationDrag);wrap.addEventListener('pointercancel',endAnnotationDrag);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Delete'){ const id=state.movingAnno.id; if(!id) return; const i=state.annos.findIndex(a=>a.id===id); if(i>=0){ state.annos.splice(i,1); state.movingAnno={id:null,what:null,view:null}; ensureAnnoNumbers(); draw(); saveState(); } }
-  if(e.key==='Escape'){ const mv=state.movingAnno; if(mv.id){ const a=state.annos.find(t=>t.id===mv.id); if(a){ a.movingBox=false; a.movingAnchor=false; } state.movingAnno={id:null,what:null,view:null}; draw(); saveState(); } }
+  if(e.key==='Escape'){state.addAnno=false;state.movingAnno={id:null,what:null,view:null};wrap.style.cursor='';apop.style.display='none';msg.textContent='';draw();}
 });
 
 /* ===== кадр/подгон ===== */
 function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cvs.width,cvs.height); ctx.restore();
-  apply(); 
-  drawFloorBounded(); 
-  drawStartCab(); 
-  drawPath(); 
-  drawEndCab(); 
-  drawEndCap(P().busW);
-  drawFloorZeroLine(); 
-  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; pop.style.display='none'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
-  renderAnnos(); updatePopups();
+  apply();
+  drawFloorBounded();
+  drawSceneRoutes();
+  drawFloorZeroLine();
+  if(viewMode==='ISO' && !state.calc){ placeGizmo(); drawGizmo(); giz.style.display='block'; tag.style.display='block'; } else { giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; }
+  renderAnnos(); updatePopups(); updateGeometryStatus();
 }
-function boundsProjected(){
-  const p=P(); const pts=[[0,0,0],[0,0,originTop()[2]-p.startH],[p.startW,p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
-  for(const s of state.segs){ pos=adv(pos,s.dir,s.len|0); pts.push(pos); }
-  if($('endType').value==='NKU'){ const e=endPoint(); pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]); pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]); }
+function updateGeometryStatus(){
+  const warnings=[];
+  const gap=boundRouteGap();if(gap)warnings.push(`Ручная трасса не достигает выбранного НКУ: разница X/Y/Z ${gap.map(n=>Math.round(n*100)/100).join(' / ')} мм. Скорректируйте путь или нажмите «Построить».`);
+  if(moduleError($('moduleLen').value))warnings.push(`Максимальная длина секции введена неверно. Раскрой использует последнее корректное значение ${state.module} мм.`);
+  if(Object.keys(equipmentDimensions).some(key=>!Number.isFinite(Number($(key).value))||Number($(key).value)<=0))warnings.push('Габариты оборудования должны быть положительными числами. Схема использует последние корректные габариты; изменения не сохраняются до исправления ввода.');
+  if(conductorCode()==='7')warnings.push('PER: выбраны отдельная защитная шина полного сечения и соответствующие артикулы; внутренние проводники на схеме не показаны.');
+  if(state.segs.length)warnings.push('IP55/IP65 — выбранное исполнение, степень защиты обеспечивается после полного монтажа; проходы, уплотнения и специальные детали требуют проверки.');
+  if(state.segs.length&&($('startType').value!=='NONE'||$('endType').value==='NKU')){warnings.push('Подключения FE/FET показаны условно: пластина на оборудовании не является монтажным чертежом.');if($('startType').value==='TR')warnings.push('FET: длина и расположение контактов по заказу — требуется чертёж выводов трансформатора.');}
+  if(+$('rating').value===1200) warnings.push('1200 А отсутствует в таблицах каталога: габариты и артикулы не подтверждены.');
+  for(let i=0;i<state.segs.length;i++){
+    const s=state.segs[i],prev=state.segs[i-1],next=state.segs[i+1];
+    const cuts=(prev?elbowCuts(prev.dir,s.dir).b:0)+(next?elbowCuts(s.dir,next.dir).a:0);
+    if(s.len<cuts) warnings.push(`Участок ${i+1}: длины недостаточно для плеч углов (${cuts} мм).`);
+    if(axis(s.dir)==='Z' && prev && next && axis(prev.dir)!=='Z' && axis(next.dir)!=='Z' && axis(prev.dir)!==axis(next.dir)) warnings.push(`Участок ${i+1}: требуется секция изменения ориентации; обычных углов недостаточно.`);
+  }
+  if($('mountOn').value==='1'){
+    const limit=$('orientation').value==='EDGE'?3000:2000,requested=Number($('mountStep').value);
+    if(!Number.isFinite(requested)||requested<=0||requested>limit)warnings.push(`Горизонтальные крепления: расчётный шаг ограничен ${limit} мм; проверьте введённое значение.`);
+    state.segs.forEach((segment,index)=>{
+      if(axis(segment.dir)==='Z'){warnings.push(`Участок ${index+1}: вертикальные опоры не рассчитаны; нужны отметки пола/перекрытий и тип V или VS.`);return;}
+      const plan=horizontalMountPlan(straightLayout(index).parts,requested,$('orientation').value);
+      if(plan.unsupported.length)warnings.push(`Участок ${index+1}: детали ${plan.unsupported.join(', ')} короче600 мм — стандартное расположение креплений в300 мм от стыков невозможно, требуется монтажное решение.`);
+    });
+    warnings.push('Подвесы углов и подключений, шпильки и строительные опоры в количестве горизонтального крепежа не учтены.');
+  }
+  const m=Number(state.module);
+  if(!Number.isFinite(m)||m<=0||m>3000||m%10!==0)warnings.push('Прямой модуль: положительная длина до3000 мм с шагом10 мм.');
+  for(let i=0;i<state.segs.length;i++){
+    const layout=straightLayout(i);
+    if(layout.length===0)warnings.push(`Участок ${i+1}: отсутствует прямая секция между деталями.`);
+    for(const part of layout.parts){
+      if(part<450)warnings.push(`Участок ${i+1}: прямая деталь ${part} мм требует проверки минимальной длины (каталог450; для Cu есть противоречие400/450).`);
+      if(part%10!==0)warnings.push(`Участок ${i+1}: заказная длина ${part} мм не кратна10 мм.`);
+    }
+  }
+  $('geometryStatus').textContent=warnings.join(' ');
+}
+function routeBoundsProjected(){
+  const p=P(),o=state.routeOffset; const pts=p.startType==='NONE'?[]:[[o.x,o.y,o.z],[o.x,o.y,originTop()[2]-p.startH],[o.x+p.startW,o.y+p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
+  for(const s of state.segs){ pos=adv(pos,s.dir,Number(s.len)); pts.push(pos); }
+  if($('endType').value==='NKU'){const item=equipmentById(state.routeBindings.end);if(item)pts.push(...equipmentCorners(item));else{const e=endPoint();pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]);pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]);}}
   const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
   return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
 }
+function boundsProjected(){return sceneProjectedBounds();}
 function fit(){
   const ext=boundsProjected();
-  const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
+  const m=60, top=viewerTopInset(), availableHeight=Math.max(120,wrap.clientHeight-top-m), bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
   const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
-  scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
+  scale=Math.min((wrap.clientWidth-2*m)/baseW,availableHeight/baseH);
   const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
-  panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
+  panX=wrap.clientWidth/2 - scale*cx; panY=top+availableHeight/2 - scale*cy;
   draw();
 }
 
@@ -789,63 +1060,73 @@ function fit(){
 
 const RATE_CODE={400:'04',500:'05',630:'06',800:'08',1000:'10',1200:'12',1250:'12',1600:'16',2000:'20',2500:'25',3200:'32',4000:'40',5000:'50',6300:'63'};
 function ipSuffix(){ return 'M'+$('ip').value.replace('IP',''); }
+function conductorCode(){return $('conductors').value==='7'?'7':'5';}
+function conductorLabel(){return conductorCode()==='7'?'3L+N+PER':'3L+N+PE (корпус)';}
 function refBase(){ return ($('mat').value==='CU'?'DDW4':'BDW4'); }
 function heStep(r){ if(r<=800) return 1; if(r<=1000) return 2; if(r<=1250) return 3; if(r<=1600) return 4; if(r<=2000) return 5; if(r<=2500) return 6; if(r<=3200) return 7; if(r<=4000) return 8; return 9; }
 function refFor(type, rating){
+  if(rating===1200) return 'Уточнить номинал 1200 А';
   const base=refBase();
-  if(type==='EC'){ const step=heStep(rating); return `${base}50${step}EC${ipSuffix()}`; }
-  if(type==='HE'){ const step=heStep(rating); return `${base}50${step}HE`; }
+  if(type==='EC'){
+    const cuCodes={400:'501',500:'511',630:'509',800:'510',1000:'502',1250:'503',1600:'504',2000:'505',2500:'506',3200:'507',4000:'508',5000:'512',6300:'513'};
+    const code=$('mat').value==='CU'?cuCodes[rating]:'50'+heStep(rating);
+    return `${$('mat').value==='CU'?'DDW':'BDW'}${code}EC${ipSuffix()}`;
+  }
+  if(type==='HE' || type==='HF'){ const step=heStep(rating); return `${$('mat').value==='CU'?'DDW':'BDW'}50${step}${type}`; }
   const code=RATE_CODE[rating]||'04';
-  const tmap={ST:'GM55',EL:'GELM55',JPK:'GJPKM55',FE:'GFEM55',FET:'GFETM55',GETB:'GETBM55'};
-  return `${base}5${code}${tmap[type]||'GM55'}`;
+  const ip=$('ip').value.replace('IP','');
+  const tmap={ST:'GM'+ip,EL:'GELM'+ip,JPK:'GJPKM'+ip,FE:'GFEM'+ip,FET:'GFETM'+ip,GETB:'GETBM'+ip};
+  const protection=conductorCode()==='7'&&type==='FE'&&$('mat').value==='CU'?'6':conductorCode();
+  return `${base}${protection}${code}${tmap[type]||'GM'+ip}`;
 }
 
 /* ===== ЦЕНЫ (как раньше) ===== */
-function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{}}}; }
+function emptyPrice(){ return {AL:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}, CU:{ST:{},EL:{},JPK:{},FE:{},FET:{},GETB:{},EC:{},HE:{},HF:{}}}; }
 let PRICE = loadPrice() || emptyPrice();
-function loadPrice(){ try{ const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
-function savePrice(){ localStorage.setItem(STORAGE_PRICE,JSON.stringify(PRICE)); }
-function money(x){ const n=Math.round(+x||0); return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₽'; }
-function priceOf(type, mat, rating){ const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE'){ const key='50'+heStep(rating); return +P[key]||0; } let val=P[rating]; if(val==null && rating===1200) val=P[1250]; return +val||0; }
+function loadPrice(){ try{ const exact=localStorage.getItem('BUS_TARIFF_V5');if(exact)return validateReferenceTariff(JSON.parse(exact)); const v4=localStorage.getItem(STORAGE_PRICE); if(v4) return JSON.parse(v4); const old=localStorage.getItem(STORAGE_PRICE_OLD); if(old){ localStorage.setItem(STORAGE_PRICE, old); return JSON.parse(old); } return null; }catch(e){ return null; } }
+function savePrice(){ localStorage.setItem(PRICE.version===5?'BUS_TARIFF_V5':STORAGE_PRICE,JSON.stringify(PRICE));if(PRICE.version!==5)localStorage.removeItem('BUS_TARIFF_V5'); }
+function money(x){ if(x==null||!Number.isFinite(Number(x)))return '—';const n=Math.round(Number(x)*100)/100;return n.toLocaleString('ru-RU',{minimumFractionDigits:Number.isInteger(n)?0:2,maximumFractionDigits:2})+' ₽'; }
+function priceOf(type, mat, rating){ if(PRICE.version===5){const entry=PRICE.entries[refFor(type,rating)];return entry&&entry.unit===(type==='ST'?'m':'piece')?entry.price:null;} if((conductorCode()==='7'&&!['HE','HF','EC'].includes(type))||rating===1200 || ($('ip').value==='IP65' && !['HE','HF'].includes(type))) return null; const P=(PRICE[mat]||{})[type]||{}; if(type==='EC' || type==='HE' || type==='HF'){ const key=refFor(type,rating).match(/(?:BDW|DDW)(\d+)\w/)[1]; return P[key]==null?null:+P[key]; } return P[rating]==null?null:+P[rating]; }
 function computeSpec(){
-  const m=state.module|0, map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
-  let lenH=0,lenUp=0,lenDown=0; let pos=originTop(); const target=+$('mountStep').value||1000;
+  const m=Number(state.module), map=new Map(); let total=0, jointsMod=0, corners=0, vert=0, horiz=0, mounts=0;
+  let lenH=0,lenUp=0,lenDown=0,straightLen=0; let pos=originTop(); const target=+$('mountStep').value;
   for(let i=0;i<state.segs.length;i++){
-    const s=state.segs[i], L=s.len|0, prev=state.segs[i-1], next=state.segs[i+1];
-    const sc=prev?elbowCuts(prev.dir,s.dir).b:0, ec=next?elbowCuts(s.dir,next.dir).a:0; const Ldraw=Math.max(0,L-sc-ec);
+    const s=state.segs[i], L=Number(s.len), prev=state.segs[i-1], next=state.segs[i+1];
+    const layout=straightLayout(i),sc=layout.startCut,ec=layout.endCut,Ldraw=layout.length;
     total+=L; if(axis(s.dir)==='Z'){ if(sgn(s.dir)>0) lenUp+=L; else lenDown+=L; } else lenH+=L;
-    if(m>0){ const full=Math.floor(L/m), rem=L%m; if(full>0) map.set(m,(map.get(m)||0)+full); if(rem>0) map.set(rem,(map.get(rem)||0)+1); const parts=full+(rem>0?1:0); jointsMod+=Math.max(0,parts-1); }
-    if(axis(s.dir)!=='Z') mounts+=mountPositionsForSegment(adv(pos,s.dir,sc),s,Ldraw,sc,ec,prev,next,target).length;
+    straightLen+=Ldraw; for(const part of layout.parts)map.set(part,(map.get(part)||0)+1); jointsMod+=layout.joints.length;
+    if($('mountOn').value==='1'&&axis(s.dir)!=='Z') mounts+=mountPositionsForSegment(adv(pos,s.dir,sc),s,Ldraw,sc,ec,prev,next,target).length;
     if(next && axis(s.dir)!==axis(next.dir)){ corners++; if(axis(s.dir)==='Z'||axis(next.dir)==='Z') vert++; else horiz++; }
     pos=adv(pos,s.dir,L);
   }
-  const nku=( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 );
-  const tr =( $('startType').value==='TR'?1:0 );
-  const endcap=($('endType').value==='ENDCAP'?1:0);
-  return {module:m,totalLen:total,parts:map,joints:{total:jointsMod+corners*2+nku+tr,mod:jointsMod,corners:corners*2,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:target,lenHoriz:lenH,lenUp,lenDown};
+  const nku=state.segs.length?(( $('startType').value==='NKU'?1:0 ) + ( $('endType').value==='NKU'?1:0 )):0;
+  const tr =state.segs.length&&$('startType').value==='TR'?1:0;
+  const endcap=(state.segs.length&&$('endType').value==='ENDCAP'?1:0);
+  return {module:m,totalLen:total,straightLen,parts:map,joints:{total:connectionLayout().length,mod:jointsMod,corners:connectionLayout().filter(j=>j.kind==='corner').length,nku,tr},vert,horiz,nkuBlocks:nku,trBlocks:tr,endCap:endcap,mounts,mountStep:horizontalMountPlan([],target,$('orientation').value).step,lenHoriz:lenH,lenUp,lenDown};
 }
 function renderSpec(){
-  if(!state.calc){ $('spec').style.display='none'; return; }
-  const sp=computeSpec(); $('spec').style.display='block';
-  $('spHeader').textContent=`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}`;
-  $('spModule').textContent=sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
+  if(!specificationRoutes().some(route=>route.calc&&route.segs.length)){ $('spec').style.display='none';$('costTable').classList.add('hid');$('toggleCost').textContent='Показать калькуляцию'; return; }
+  const sp=specForScope(); $('spec').style.display='block';
+  const pending=specificationRoutes().filter(route=>route.segs.length&&!route.calc);
+  $('spHeader').textContent=sp.routes?`Все трассы (${sp.routes.length})${pending.length?' · разбиение не рассчитано: '+pending.map(route=>route.name).join(', '):''}`:`${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value} / ${conductorLabel()} / ${$('orientation').value==='EDGE'?'на ребро':'на плоскость'}`;
+  $('spModule').textContent=sp.routes?'По параметрам трасс':sp.module+' мм'; $('spTotalLen').textContent=sp.totalLen+' мм';
   $('spLenHoriz').textContent=sp.lenHoriz+' мм'; $('spLenUp').textContent=sp.lenUp+' мм'; $('spLenDown').textContent=sp.lenDown+' мм';
-  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap?'1':'—';
+  $('spNkuBlocks').textContent=sp.nkuBlocks; $('spTrBlocks').textContent=sp.trBlocks; $('spEndCap').textContent=sp.endCap||'—';
   $('spJointsTotal').textContent=sp.joints.total; $('spJointsMod').textContent=sp.joints.mod; $('spJointsCorners').textContent=sp.joints.corners; $('spJointsNku').textContent=sp.joints.nku; $('spJointsTr').textContent=sp.joints.tr;
-  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—';
+  $('spVert').textContent=sp.vert; $('spHoriz').textContent=sp.horiz; $('spMounts').textContent=sp.routes?`${sp.mounts} шт (шаг по трассам)`:(($('mountOn').value==='1')?`${sp.mounts} шт (шаг ~${sp.mountStep} мм)`:'—');
 
   const tbody=$('spTable').querySelector('tbody'); tbody.innerHTML=''; [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${len}</td><td>${cnt}</td>`; tbody.appendChild(tr); });
 
-  const calcData=computeCost(sp);
-  $('spTotalCost').textContent = money(calcData.total);
+  const calcData=costForScope(sp);
+  $('spTotalCost').textContent = pending.length?'Не определена: рассчитайте все трассы':calcData.missingPrices?'Не определена: нет подтверждённого тарифа':money(calcData.total);
   const cb=$('costBody'); cb.innerHTML='';
   calcData.lines.forEach(L=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${L.title}</td><td><code>${L.ref||'—'}</code></td><td>${L.qty}</td><td class="money">${money(L.price)}</td><td class="money">${money(L.sum)}</td>`;
+    tr.innerHTML=`<td>${escapeHtml(L.title)}${L.routes?'<br><small>'+escapeHtml(L.routes.join('; '))+'</small>':''}</td><td><code>${escapeHtml(L.ref||'—')}</code></td><td>${L.qty}</td><td class="money">${money(L.price)}</td><td class="money">${money(L.sum)}</td>`;
     cb.appendChild(tr);
   });
 }
-$('toggleCost').onclick=()=>$('costTable').classList.toggle('hid');
+$('toggleCost').onclick=()=>{const open=$('costTable').classList.toggle('hid')===false;$('toggleCost').textContent=open?'Скрыть калькуляцию':'Показать калькуляцию';if(open)$('costTable').scrollIntoView({behavior:'smooth',block:'start'});};
 
 /* ===== КАЛЬКУЛЯЦИЯ ===== */
 function computeCost(sp){
@@ -853,10 +1134,10 @@ function computeCost(sp){
   const lines=[]; let total=0;
 
   const stPricePerM = priceOf('ST',mat,r);
-  const meters = (sp.lenHoriz + sp.lenUp + sp.lenDown)/1000;
+  const meters = (sp.straightLen??(sp.lenHoriz + sp.lenUp + sp.lenDown))/1000;
   if(meters>0){
     const sum=meters*stPricePerM;
-    lines.push({title:'Горизонтальный шинопровод (суммарный метраж)',ref:refFor('ST',r),qty:meters.toFixed(3)+' м',price:stPricePerM,sum});
+    lines.push({title:'Прямые секции (метраж без плеч поворотов)',ref:refFor('ST',r),qty:meters.toFixed(3)+' м',price:stPricePerM,sum});
     total+=sum;
   }
 
@@ -872,9 +1153,13 @@ function computeCost(sp){
 
   if(sp.endCap){ const p=priceOf('EC',mat,r), ref=refFor('EC',r), sum=p; lines.push({title:'Концевая заглушка',ref,qty:1,price:p,sum}); total+=sum; }
 
-  if(($('mountOn').value==='1') && sp.mounts>0){ const p=priceOf('HE',mat,r), ref=refFor('HE',r), sum=p*sp.mounts; lines.push({title:'Горизонтальный крепёж (HE)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
+  if(($('mountOn').value==='1') && sp.mounts>0){ const kind=$('orientation').value==='EDGE'?'HE':'HF'; const p=priceOf(kind,mat,r), ref=refFor(kind,r), sum=p*sp.mounts; lines.push({title:kind==='HE'?'Горизонтальный крепёж на ребро (HE)':'Горизонтальный крепёж на плоскость (HF)',ref,qty:sp.mounts,price:p,sum}); total+=sum; }
 
-  return {total,lines};
+  const missing=lines.filter(line=>line.price==null||!Number.isFinite(Number(line.price)));missing.forEach(line=>line.sum=null);
+  // Сумма счёта совпадает с суммой строк, округлённых до копейки.
+  lines.forEach(line=>{line.quantity=typeof line.qty==='string'?meters:Number(line.qty);if(line.sum!=null)line.sum=Math.round(line.sum*100)/100;});
+  total=lines.reduce((sum,line)=>sum+Math.round((line.sum??0)*100),0)/100;
+  return {total:missing.length?null:total,lines,missingPrices:missing.length};
 }
 
 /* ===== БУФЕР ДЛЯ PNG/PDF: аккуратные пузырьки ===== */
@@ -892,7 +1177,7 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arc(x+rr, y+rr, rr, Math.PI, -Math.PI/2);
   ctx.closePath();
 }
-function measureBubble(ctx2,text){ ctx2.save(); ctx2.font='12px system-ui'; const w=Math.max(64,ctx2.measureText(text).width+18), h=24; ctx2.restore(); return {w,h}; }
+function measureBubble(ctx2,text){ ctx2.save(); ctx2.font='600 13px system-ui'; const w=Math.max(64,ctx2.measureText(text).width+20), h=28; ctx2.restore(); return {w,h}; }
 function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр коробки
   const m=measureBubble(ctx2,text);
   const rx=cx-m.w/2, ry=cy-m.h/2;
@@ -908,169 +1193,178 @@ function drawLabel(ctx2, cx, cy, text, anchor){ // cx, cy — центр кор�
   }
 
   ctx2.fillStyle='#fff'; ctx2.strokeStyle='rgba(0,0,0,.25)'; ctx2.lineWidth=1;
-  roundRect(ctx2, rx, ry, m.w, m.h, 12);
+  roundRect(ctx2, rx, ry, m.w, m.h, 6);
   ctx2.fill(); ctx2.stroke();
 
-  ctx2.fillStyle='#111'; ctx2.font='12px system-ui'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
+  ctx2.fillStyle='#17212b'; ctx2.font='600 13px system-ui'; ctx2.textAlign='center'; ctx2.textBaseline='middle';
   ctx2.fillText(text, cx, cy);
   ctx2.restore();
 }
-function drawOverlayToCanvas(ctx2){
+function wrapCanvasText(context,text,width){
+  const lines=[];let line='';
+  for(const char of String(text)){
+    if(char==='\n'){lines.push(line);line='';continue;}
+    if(line&&context.measureText(line+char).width>width){
+      const space=line.lastIndexOf(' ');
+      if(space>0){lines.push(line.slice(0,space+1));line=line.slice(space+1)+char;}else{lines.push(line);line=char;}
+    }else line+=char;
+  }
+  lines.push(line);return lines;
+}
+function drawCalloutLabel(context,layout,text){
+  context.save();context.font='12px system-ui';
+  const lines=wrapCanvasText(context,text,layout.w-20),height=lines.length*18+16;
+  const x=layout.x,y=Math.max(height/2+12,Math.min(wrap.clientHeight-height/2-12,layout.y));
+  const left=x-layout.w/2,top=y-height/2,anchor=layout.anchor;
+  context.strokeStyle='#365a83';context.lineWidth=1.5;context.beginPath();context.moveTo(anchor.x,anchor.y);
+  context.lineTo(Math.max(left,Math.min(left+layout.w,anchor.x)),Math.max(top,Math.min(top+height,anchor.y)));context.stroke();
+  context.fillStyle='#fff';context.strokeStyle='#aaa';roundRect(context,left,top,layout.w,height,8);context.fill();context.stroke();
+  context.fillStyle='#17212b';context.textAlign='left';context.textBaseline='top';
+  lines.forEach((line,index)=>context.fillText(line,left+10,top+8+index*18));context.restore();
+}
+function drawRouteOverlayToCanvas(ctx2){
   ensureAnnoNumbers();
 
-  if(state.calc){
+  if(state.calc&&(routeInteractive||state.showAllDimensions)){
     let pos=originTop();
     for(let i=0;i<state.segs.length;i++){
-      const cur=state.segs[i], L=cur.len|0, prev=state.segs[i-1], next=state.segs[i+1];
+      const cur=state.segs[i], L=Number(cur.len), prev=state.segs[i-1], next=state.segs[i+1];
       const sc=prev?elbowCuts(prev.dir,cur.dir).b:0, ec=next?elbowCuts(cur.dir,next.dir).a:0;
       const start=adv(pos,cur.dir,sc); const Ldraw=Math.max(0,L-sc-ec);
       if(Ldraw>0){
         const mid=adv(start,cur.dir,Ldraw/2);
         const p2=proj(...mid); const base=localToScreen(p2[0],p2[1]);
-        const off=getDimOffset(i);
-        const cx=base.x+(off.dx||0), cy=base.y+(off.dy||0);
-        drawLabel(ctx2, cx, cy, (axis(cur.dir)==='Z'?'H':'L')+' = '+L+' мм');
+        const text=routeDimensionLabel((axis(cur.dir)==='Z'?'H':'L')+' ось = '+L+' мм');
+        const placed=dimensionPosition(i,base,text);
+        drawLabel(ctx2, placed.x, placed.y, text);
       }
       pos=adv(pos,cur.dir,L);
     }
     if(['FRONT','BACK','LEFT','RIGHT'].includes(viewMode) && $('endType').value==='NKU'){
       const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
-      const delta=Math.abs(eBase-sBase)|0;
-      const sPt=proj(p.startW/2,p.startD/2,sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
+      const delta=Math.abs(eBase-sBase);
+      const origin=originTop(),sPt=proj(origin[0],origin[1],sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
       const mid={u:(sPt[0]+ePt[0])/2, v:(sPt[1]+ePt[1])/2}; const base=localToScreen(mid.u,mid.v);
-      const off=getDimOffset('__deltaH'); drawLabel(ctx2, base.x+(off.dx||0), base.y+(off.dy||0), `ΔH = ${delta} мм`);
+      const text=`ΔH = ${delta} мм`, placed=dimensionPosition('__deltaH',base,text); drawLabel(ctx2, placed.x, placed.y, text);
     }
   }
+  drawRouteAnnotations(ctx2);
+}
+function drawRouteAnnotations(ctx2){
   // выноски
   state.annos.forEach(a=>{
-    const pv=ensurePos(a,viewMode); const aScr=localToScreen(pv.ax,pv.ay), bScr=localToScreen(pv.bx,pv.by);
-    const label=`A${a.num}. ${a.text}`;
-    drawLabel(ctx2, bScr.x, bScr.y, label, {x:aScr.x,y:aScr.y});
+    const layout=annotationLayout(a);if(!layout)return;const aScr=layout.anchor,bScr={x:layout.x,y:layout.y};
+    const label=routeDimensionLabel(`A${a.num}. ${a.text}`);
+    drawCalloutLabel(ctx2,layout,label);
     // точка-якорь
     ctx2.fillStyle='#2d6cdf'; ctx2.beginPath(); ctx2.arc(aScr.x,aScr.y,5,0,Math.PI*2); ctx2.fill();
   });
 }
 function captureWithOverlay(){
-  const prev=state.drawAnnoLines; state.drawAnnoLines=false; draw();
-  const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height; const c2=off.getContext('2d');
-  c2.drawImage(cvs,0,0);
-  drawOverlayToCanvas(c2);
-  state.drawAnnoLines=prev; draw();
-  return off;
+  const prev=state.drawAnnoLines;
+  try{
+    state.drawAnnoLines=false;draw();
+    const off=document.createElement('canvas');off.width=cvs.width;off.height=cvs.height;const c2=off.getContext('2d');
+    if(!c2)throw new Error('Не удалось подготовить изображение.');
+    c2.fillStyle='#fff';c2.fillRect(0,0,off.width,off.height);c2.drawImage(cvs,0,0);
+    c2.save();c2.setTransform(DPR,0,0,DPR,0,0);drawOverlayToCanvas(c2);c2.restore();return off;
+  }finally{state.drawAnnoLines=prev;draw();}
 }
 
 /* ===== ЭКСПОРТ (PNG/PDF/XLS/DXF/CSV) ===== */
 /* ... функции сохранения PNG, PNG все, DXF, XLS — без изменений ... */
 
+function showExportPreview(title){$('exportTitle').textContent=title;$('exportContent').innerHTML='';$('exportPreview').style.display='flex';$('exportClose').focus({preventScroll:true});}
+$('exportClose').onclick=()=>{$('exportPreview').style.display='none';$('exportContent').innerHTML='';};
+$('exportPreview').addEventListener('keydown',event=>{if(event.key==='Escape')$('exportClose').onclick();});
 $('savePNG').onclick=()=>{ const off=captureWithOverlay(); const url=off.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.png`; a.click(); };
 
 $('savePNGAll').onclick=()=>{
-  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT']; const zscale=scale, zpanX=panX, zpanY=panY, zview=viewMode;
-  const files=[]; (async ()=>{
-    for(const v of views){
-      setProjection(v); fit();
-      const off=captureWithOverlay();
-      files.push({name:`bus_${v.toLowerCase()}.png`,data:off.toDataURL('image/png')});
-    }
-    setProjection(zview); panX=zpanX; panY=zpanY; scale=zscale; draw();
-    const w=window.open('about:blank','_blank'); w.document.write('<h2>PNG файлы</h2>'); files.forEach(f=>w.document.write(`<div><a download="${f.name}" href="${f.data}">${f.name}</a></div>`));
-  })();
+  try{
+    const files=captureProjectViews();showExportPreview('PNG — все виды');
+    files.forEach(file=>{const figure=document.createElement('figure'),link=document.createElement('a'),image=document.createElement('img');link.download=`bus_${file.name.toLowerCase()}.png`;link.href=file.src;link.textContent='Скачать '+link.download;image.src=file.src;image.alt=link.download;figure.appendChild(link);figure.appendChild(image);$('exportContent').appendChild(figure);});
+  }catch(error){msg.textContent='Не удалось подготовить PNG: '+error.message;}
 };
 
-$('saveDXF').onclick=()=>{
-  DXF_COLLECT=true; DXF_ENT.length=0; draw(); DXF_COLLECT=false;
-  const header=`0
-SECTION
-2
-ENTITIES
-`;
-  const footer=`0
-ENDSEC
-0
-EOF
-`;
-  let body='';
-  DXF_ENT.forEach(L=>{
-    const a=L.a, b=L.b, layer=L.layer||'0', color=DXF_COLORS[layer]||7;
-    body+=`0
-LINE
-8
-${layer}
-62
-${color}
-10
-${(a[0]).toFixed(3)}
-20
-${(-a[1]).toFixed(3)}
-30
-0
-11
-${(b[0]).toFixed(3)}
-21
-${(-b[1]).toFixed(3)}
-31
-0
-`;
+function collectCadDrawing(){
+  DXF_ENT.length=0;cadGroup=0;cadMeta={};DXF_COLLECT=true;
+  try{draw();}finally{DXF_COLLECT=false;if(beautifulView())draw();}
+  const annotations=[],dimensions=[],labels=[];
+  for(const route of visibleRoutes())withRoute(route,()=>{
+    ensureAnnoNumbers();
+    annotations.push(...state.annos.map(a=>({a,p:ensurePos(a,viewMode)})).filter(x=>x.p).map(({a,p})=>({text:`${state.routeName} / A${a.num}: ${a.text}`,point:[p.bx,-p.by],anchor:[p.ax,-p.ay]})));
+    let pos=originTop();
+    for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
   });
-  const blob=new Blob([header+body+footer],{type:'application/dxf'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`bus_${viewMode.toLowerCase()}.dxf`; a.click(); URL.revokeObjectURL(url);
+  return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,labels,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
+}
+$('saveDXF').onclick=()=>{
+  if(visibleRoutes().some(route=>boundRouteGap(route))){msg.textContent='Показанная ручная трасса не достигает выбранного НКУ. Скорректируйте путь перед CAD-экспортом.';return;}
+  if(visibleRoutes().some(route=>route.segs.length&&!route.calc)){msg.textContent='Сначала рассчитайте все показанные трассы для экспорта деталей.';return;}
+  const data=buildCadDXF(collectCadDrawing());
+  const blob=new Blob([data],{type:'application/dxf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`bus_${viewMode.toLowerCase()}_mm.dxf`;a.click();URL.revokeObjectURL(url);
 };
 
+function buildProjectWorkbook(){
+  const sp=specForScope(),cost=costForScope(sp),book=XLSX.utils.book_new();
+  const append=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows);sheet['!cols']=widths.map(wch=>({wch}));XLSX.utils.book_append_sheet(book,sheet,name);return sheet;};
+  const source=PRICE.source||{};
+  if(equipmentExportRows().length)append('Оборудование',[['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows()],[28,20,18,18,22,18,18,18]);
+  if(equipmentColumnRows().length)append('Колонны НКУ',[['НКУ','№','Колонна','ID','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentColumnRows()],[28,6,28,10,18,18,22,18,18,18]);
+  append('Проект',[
+    ['Параметр','Значение'],['Статус','Предварительная спецификация; монтажная комплектность требует проверки'],
+    ['Название',state.meta?.title||''],['Объект',state.meta?.object||''],['Адрес',state.meta?.addr||''],['Заказчик',state.meta?.customer||''],['Подрядчик',state.meta?.contractor||''],['Шифр',state.meta?.code||''],['Дата',state.meta?.date||''],['Примечания',state.meta?.notes||''],['Область спецификации',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По листу «Трассы»':($('mat').value==='CU'?'Медь':'Алюминий')],
+    ['Номинальный ток, А',sp.routes?'По трассам':Number($('rating').value)],['Проводники',sp.routes?'По трассам':conductorLabel()],['Степень защиты',sp.routes?'По трассам':$('ip').value],
+    ['Положение',sp.routes?'По трассам':($('orientation').value==='EDGE'?'На ребро':'На плоскость')],['Осевая длина, мм',sp.totalLen],['Длина прямых деталей, мм',sp.straightLen],
+    ['Горизонтальные крепления, шт',sp.mounts],['Тариф',source.filename||'Источник не подтверждён'],['Лист тарифа',source.sheet||''],['Дата тарифа',source.date||''],['Валюта / НДС','RUB / без НДС']
+  ],[32,90]);
+  const rows=[['№','Позиция','Артикул','Количество','Единица','Цена без НДС, ₽','Сумма без НДС, ₽']];
+  cost.lines.forEach((line,index)=>rows.push([index+1,line.title,line.ref,line.quantity??parseFloat(line.qty),typeof line.qty==='string'&&line.qty.endsWith(' м')?'м':'шт',line.price??null,line.sum??null]));
+  rows.push(['','Итого','','','','',cost.total??'Не определено: есть позиции без цены']);
+  const sheet=append('Калькуляция',rows,[6,58,24,14,10,20,22]);
+  cost.lines.forEach((line,index)=>{const row=index+2;if(line.sum!=null)sheet['G'+row]={t:'n',f:`ROUND(D${row}*F${row},2)`,v:line.sum,z:'#,##0.00'};if(sheet['F'+row])sheet['F'+row].z='#,##0.00';});
+  const last=cost.lines.length+2;if(cost.total!=null&&cost.lines.length)sheet['G'+last]={t:'n',f:`SUM(G2:G${last-1})`,v:cost.total,z:'#,##0.00'};
+  sheet['!autofilter']={ref:`A1:G${cost.lines.length+1}`};
+  if(sp.routes){
+    append('Трассы',[['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт','Начало','Конец'],...routeSummaryRows().map((row,i)=>[...row,...routeEndpointNames(specificationRoutes()[i])])],[28,12,12,10,24,18,20,20,20,12,12,20,20,22,28,28]);
+    const cutRows=[['Трасса','Артикул прямой секции','Длина прямой детали, мм','Количество, шт']];
+    for(const routeSpec of sp.routes)withRoute(routeSpec.route,()=>{for(const [length,quantity]of [...routeSpec.parts].sort((a,b)=>b[0]-a[0]))cutRows.push([routeSpec.route.name,refFor('ST',Number($('rating').value)),length,quantity]);});
+    append('Раскрой',cutRows,[28,28,30,20]);
+  }else append('Раскрой',[['Длина прямой детали, мм','Количество, шт'],...[...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).map(([length,quantity])=>[length,quantity])],[30,20]);
+  append('Проверки',[
+    ['Проверка','Статус'],['Позиции без цены',cost.missingPrices],...cost.lines.filter(line=>line.price==null).map(line=>[line.ref,'Цена отсутствует или не совпадает единица тарифа']),
+    ['Подключения FE/FET','Геометрия условная, заказные размеры не учтены в раскрое'],['Вертикальные опоры и подвесы углов','Не рассчитаны'],
+    ['IP','Полная монтажная комплектность не подтверждена'],...specificationRoutes().map(route=>withRoute(route,()=>{updateGeometryStatus();return [route.name+' — геометрия и монтаж',$('geometryStatus').textContent||'См. проект монтажа'];}))
+  ],[36,110]);
+  updateGeometryStatus();return book;
+}
 $('saveXLS').onclick=()=>{
-  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
-  const sp=computeSpec(), calcData=computeCost(sp);
-  let html=`<html><head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:4px 6px} table{border-collapse:collapse} .r{text-align:right}</style></head><body>`;
-  html+=`<h2>Спецификация</h2>
-  <table>
-    <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
-    <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
-    <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
-    <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
-    <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
-    <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
-    <tr><td>Соединители (всего)</td><td>${sp.joints.total}</td></tr>
-    <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
-  </table>`;
-  html+=`<h3>Сегменты по длинам</h3><table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
-  html+=`</table>`;
-  html+=`<h2>Калькуляция</h2><table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
-  const calc=calcData;
-  calc.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${L.price}</td><td class="r">${Math.round(L.sum)}</td></tr>`; });
-  html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${Math.round(calc.total)}</th></tr></table>`;
-  html+='</body></html>';
-  const blob=new Blob([html],{type:'application/vnd.ms-excel'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='busway_spec.xls'; a.click(); URL.revokeObjectURL(url);
+  if(!exportScopeReady())return;
+  XLSX.writeFile(buildProjectWorkbook(),'busway_spec.xlsx',{bookType:'xlsx'});
 };
 
-$('savePDF').onclick=()=>{
-  if(!state.calc){ alert('Сначала рассчитай разбиение.'); return; }
-  const views=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
-  const z={view:viewMode,panX:panX,panY:panY,scale:scale};
-  const images=[];
-  (async ()=>{
-    for(const v of views){
-      setProjection(v); fit();
-      const off=captureWithOverlay();
-      images.push({name:v,src:off.toDataURL('image/png')});
-    }
-    setProjection(z.view); panX=z.panX; panY=z.panY; scale=z.scale; draw();
-
-    const sp=computeSpec(), calcData=computeCost(sp);
-    const m=state.meta;
+function buildPrintableProject(images){
+    const sp=specForScope(), calcData=costForScope(sp);
+    const m=Object.fromEntries(Object.entries(state.meta).map(([key,value])=>[key,escapeHtml(value)]));
+    const scopeLabel=sp.routes?'Все трассы':escapeHtml(state.routeName);
     const css=`<style>
       @page{size:A4;margin:10mm}
       body{font:12px Arial,Helvetica,sans-serif;color:#111}
-      .page{page-break-after:always; position:relative; min-height:270mm; padding:12mm 12mm 22mm 12mm; box-sizing:border-box;}
+      .page{page-break-after:always;break-inside:avoid; position:relative; min-height:270mm; padding:12mm 12mm 22mm 12mm; box-sizing:border-box;}
       .frame{position:absolute; inset:8mm; border:1px solid #000;}
       .title{position:absolute; right:8mm; bottom:8mm; border:1px solid #000; padding:6px 8px; font-size:11px}
       h1,h2{margin:0 0 8px}
-      img{max-width:100%; border:1px solid #ccc; padding:4px; background:#fff}
+      img{display:block;max-width:100%;max-height:220mm;width:auto;height:auto;object-fit:contain;margin:auto;border:1px solid #ccc; padding:4px; background:#fff}
       table{border-collapse:collapse;width:100%}
       th,td{border:1px solid #ccc;padding:4px 6px;vertical-align:top}
       .r{text-align:right}
       .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10}
       .btn{padding:6px 10px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}
       .muted{color:#666}
+      td.r,th.r{white-space:nowrap}thead{display:table-header-group}tr{break-inside:avoid}
+      @media print{body{margin:0}.toolbar{display:none}.page:last-child{page-break-after:auto}}
+
     </style>`;
     let html=`<html><head><meta charset="utf-8">${css}</head><body>`;
     html+=`<div class="toolbar"><button class="btn" onclick="window.print()">Печать</button></div>`;
@@ -1078,11 +1372,13 @@ $('savePDF').onclick=()=>{
     /* Титул */
     html+=`<div class="page">
       <div class="frame"></div>
-      <div class="title">Проект шинопровода · ${$('mat').value==='CU'?'Медь (Cu)':'Алюминий (Al)'} · ${$('rating').value} A · ${$('ip').value}</div>
+      <div class="title">Проект шинопровода · ${scopeLabel}</div>
       <h1>${m.title||'Проект шинопровода'}</h1>
       <div class="muted">${m.object||'Объект не указан'} · ${m.addr||'Адрес не указан'}</div>
       <p>Итого длина трассы: <b>${sp.totalLen} мм</b>; повороты — горизонтальные: ${sp.horiz}, вертикальные: ${sp.vert}; соединители: ${sp.joints.total}; крепления: ${sp.mounts}.</p>
-      <p><b>Итоговая стоимость:</b> ${money(calcData.total)}</p>
+      <p><b>Предварительная стоимость без НДС:</b> ${calcData.missingPrices?'Не определена: есть позиции без цены':money(calcData.total)}</p>
+      <p>Предварительная спецификация. Подключения FE/FET, вертикальные опоры, подвесы углов и монтажная комплектность IP требуют проверки.</p>
+      <p>Тариф: ${escapeHtml(PRICE.source?.filename||'Источник не подтверждён')}; дата: ${escapeHtml(PRICE.source?.date||'не указана')}. RUB, без НДС.</p>
     </div>`;
 
     /* Общие данные проекта */
@@ -1102,129 +1398,234 @@ $('savePDF').onclick=()=>{
       </table>
     </div>`;
 
+    if(sp.routes){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Трассы проекта</div><h2>Трассы проекта</h2><table><thead><tr><th>Трасса</th><th>Исполнение</th><th>Секция, мм</th><th>Ось, мм</th><th>Прямые, мм</th></tr></thead><tbody>`;
+      routeSummaryRows().forEach(row=>{html+=`<tr><td>${escapeHtml(row[0])}</td><td>${escapeHtml(`${row[1]} / ${row[2]} А / ${row[3]} / ${row[4]} / ${row[5]}`)}</td><td>${row[6]}</td><td>${row[7]}</td><td>${row[8]}</td></tr>`;});
+      html+='</tbody></table></div>';
+    }
     /* Виды */
+    if(equipmentExportRows().length){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Размещение оборудования</div><h2>Размещение оборудования</h2><p>Нижний угол корпуса; размеры в мм. Подключение НКУ — условно в центре верха выбранной колонны, ТР — корпуса.</p><table><thead><tr><th>Объект</th><th>Тип</th><th>X</th><th>Y</th><th>Z основания</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
+      equipmentExportRows().forEach(row=>{html+='<tr>'+row.map(value=>`<td>${escapeHtml(String(value))}</td>`).join('')+'</tr>';});
+      html+='</tbody></table><h3>Подключения трасс</h3><table><tr><th>Трасса</th><th>Начало</th><th>Конец</th></tr>';
+      specificationRoutes().forEach(route=>{html+='<tr>'+[route.name,...routeEndpointNames(route)].map(value=>`<td>${escapeHtml(value)}</td>`).join('')+'</tr>';});html+='</table></div>';
+    }
+    const columns=equipmentColumnRows();
+    for(let offset=0;offset<columns.length;offset+=14){
+      html+=`<div class="page"><div class="frame"></div><div class="title">Колонны НКУ</div><h2>Колонны НКУ</h2><p>Ряд по X; размеры в мм. Номера колонн — слева направо.</p><table><thead><tr><th>НКУ</th><th>№</th><th>Колонна</th><th>ID</th><th>X</th><th>Y</th><th>Z</th><th>W</th><th>D</th><th>H</th></tr></thead><tbody>`;
+      columns.slice(offset,offset+14).forEach(row=>{html+='<tr>'+row.map(value=>`<td>${escapeHtml(String(value))}</td>`).join('')+'</tr>';});html+='</tbody></table></div>';
+    }
     images.forEach(img=>{ html+=`<div class="page"><div class="frame"></div><div class="title">Вид: ${img.name}</div><h2>Вид: ${img.name}</h2><img src="${img.src}"></div>`; });
 
     /* Спецификация */
     html+=`<div class="page"><div class="frame"></div><div class="title">Спецификация</div><h2>Спецификация</h2>
       <table>
-        <tr><td>Материал / номинал / IP</td><td>${$('mat').value==='CU'?'Cu':'Al'} / ${$('rating').value} A / ${$('ip').value}</td></tr>
+        <tr><td>Материал / номинал / IP</td><td>${sp.routes?'По таблице трасс':($('mat').value==='CU'?'Cu':'Al')+' / '+$('rating').value+' A / '+$('ip').value+' / '+conductorLabel()}</td></tr>
         <tr><td>Итого длина</td><td>${sp.totalLen} мм</td></tr>
         <tr><td>Горизонт</td><td>${sp.lenHoriz} мм</td></tr>
         <tr><td>Вверх</td><td>${sp.lenUp} мм</td></tr>
         <tr><td>Вниз</td><td>${sp.lenDown} мм</td></tr>
         <tr><td>Повороты (гор./верт.)</td><td>${sp.horiz} / ${sp.vert}</td></tr>
         <tr><td>Соединители</td><td>${sp.joints.total}</td></tr>
-        <tr><td>Крепления</td><td>${sp.mounts}</td></tr>
+        <tr><td>Подключения к НКУ / ТР</td><td>${sp.nkuBlocks} / ${sp.trBlocks}</td></tr>
+        <tr><td>Концевые заглушки</td><td>${sp.endCap}</td></tr>
+        <tr><td>Горизонтальные крепления</td><td>${sp.mounts}</td></tr>
       </table>
-      <h3>Сегменты по длинам</h3>
-      <table><tr><th>Длина, мм</th><th>Кол-во</th></tr>`;
-    const sp2=computeSpec();
-    [...sp2.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>{ html+=`<tr><td>${len}</td><td class="r">${cnt}</td></tr>`; });
+      <h3>Прямые детали по заказным длинам</h3>
+      <table><tr><th>Трасса / артикул</th><th>Длина, мм</th><th>Кол-во</th></tr>`;
+    for(const route of specificationRoutes())withRoute(route,()=>{
+      const routeSpec=computeSpec(),ref=refFor('ST',Number($('rating').value));
+      for(const [length,count]of [...routeSpec.parts].sort((a,b)=>b[0]-a[0]))html+=`<tr><td>${escapeHtml(route.name)} / ${escapeHtml(ref)}</td><td>${length}</td><td class="r">${count}</td></tr>`;
+    });
     html+=`</table></div>`;
 
     /* Калькуляция */
     html+=`<div class="page"><div class="frame"></div><div class="title">Калькуляция</div><h2>Калькуляция</h2>
       <table><tr><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>`;
-    const calcData2=computeCost(sp2);
-    calcData2.lines.forEach(L=>{ html+=`<tr><td>${L.title}</td><td>${L.ref||''}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
-    html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${money(calcData2.total)}</th></tr></table></div>`;
+    const calcData2=calcData;
+    calcData2.lines.forEach(L=>{ html+=`<tr><td>${escapeHtml(L.title)}</td><td>${escapeHtml(L.ref||'')}</td><td class="r">${L.qty}</td><td class="r">${money(L.price)}</td><td class="r">${money(L.sum)}</td></tr>`; });
+    html+=`<tr><th colspan="4" class="r">Итого</th><th class="r">${calcData2.missingPrices?'Не определено: есть позиции без цены':money(calcData2.total)}</th></tr></table></div>`;
 
     html+='</body></html>';
-    const w=window.open('', '_blank'); w.document.write(html); w.document.close(); w.focus();
-  })();
+    return html;
+}
+$('savePDF').onclick=()=>{
+  if(!exportScopeReady())return;
+  try{
+    const html=buildPrintableProject(captureProjectViews(state.specScope==='all'));
+    showExportPreview('Проект — печать / PDF');const frame=document.createElement('iframe');frame.title='Печатный проект';frame.srcdoc=html;$('exportContent').appendChild(frame);
+  }catch(error){msg.textContent='Не удалось подготовить проект: '+error.message;}
 };
 
 $('saveCSV').onclick=()=>{
-  if(!state.calc) return;
-  const sp=computeSpec();
-  const rows=[['Материал',$('mat').value==='CU'?'Cu':'Al'],['Номинал, A',$('rating').value],['IP',$('ip').value],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Крепления, шт',sp.mounts],[],['Длина сегмента (мм)','Кол-во, шт']];
-  [...sp.parts.entries()].sort((a,b)=>b[0]-a[0]).forEach(([len,cnt])=>rows.push([len,cnt]));
-  const csv=rows.map(r=>r.join(';')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
+  if(!exportScopeReady())return;
+  const sp=specForScope();
+  const rows=[['Область',sp.routes?'Все трассы':state.routeName],['Материал',sp.routes?'По трассам':($('mat').value==='CU'?'Cu':'Al')],['Номинал, A',sp.routes?'По трассам':$('rating').value],['IP',sp.routes?'По трассам':$('ip').value],['Проводники',sp.routes?'По трассам':conductorLabel()],['Модуль (мм)',sp.module],['Итого длина (мм)',sp.totalLen],['Повороты гориз., шт',sp.horiz],['Повороты верт., шт',sp.vert],['Соединители всего, шт',sp.joints.total],['Горизонтальные крепления, шт',sp.mounts]];
+  if(sp.routes)rows.push([],['Трасса','Материал','Ток, А','IP','Проводники','Положение','Макс. секция, мм','Осевая длина, мм','Прямые детали, мм','FE, шт','FET, шт','Соединители, шт','Крепления, шт','Расчёт'],...routeSummaryRows());
+  if(equipmentExportRows().length){rows.push([],['Объект','Тип','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentExportRows(),[],['Трасса','Начало','Конец'],...specificationRoutes().map(route=>[route.name,...routeEndpointNames(route)]));}
+  if(equipmentColumnRows().length)rows.push([],['НКУ','№','Колонна','ID','X, мм','Y, мм','Z основания, мм','W, мм','D, мм','H, мм'],...equipmentColumnRows());
+  rows.push([],['Трасса','Артикул','Длина сегмента (мм)','Кол-во, шт']);
+  for(const route of specificationRoutes())withRoute(route,()=>{for(const [length,count]of [...computeSpec().parts].sort((a,b)=>b[0]-a[0]))rows.push([route.name,refFor('ST',Number($('rating').value)),length,count]);});
+  const csv='\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\r\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='spec.csv'; a.click(); URL.revokeObjectURL(url);
 };
 
 /* ===== ПАНЕЛЬ / СОБЫТИЯ (без изменений) ===== */
-function fillRatings(){ const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); if(!sel.value) sel.value=list[0]; draw(); if(state.calc) renderSpec(); saveState(); }
-$('mat').addEventListener('change',fillRatings);
-$('rating').addEventListener('change',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
+function fillRatings(persist=true){ const previous=$('rating').value; const sel=$('rating'); sel.innerHTML=''; const list=$('mat').value==='CU'?R_CU:R_AL; list.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); sel.value=list.includes(+previous)?previous:list[0]; if(persist){if(previous&&!list.includes(+previous))msg.textContent=`${previous} А недоступно для выбранного материала. Выбрано ${sel.value} А; проверьте номинал.`;draw();renderSpec();saveState();} }
+$('mat').addEventListener('change',()=>fillRatings());
+$('conductors').addEventListener('change',()=>{draw();renderSpec();saveState();});
+$('orientation').addEventListener('change',()=>{fit();renderSpec();saveState();});
+$('rating').addEventListener('change',()=>{if(msg.textContent.includes('недоступно для выбранного материала.'))msg.textContent='';draw();renderSpec();saveState();});
 $('startType').addEventListener('change',()=>{
   const v=$('startType').value;
   if(v==='NKU'){ $('startW').value=600; $('startD').value=600; $('startH').value=2200; }
   else { $('startW').value=2000; $('startD').value=1400; $('startH').value=1700; }
-  draw(); if(state.calc) renderSpec(); saveState();
+  draw(); renderSpec(); saveState();
 });
-$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); if(state.calc) renderSpec(); saveState(); });
-['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep','moduleLen'].forEach(id=>{
-  $(id).addEventListener('input',()=>{ draw(); if(state.calc) renderSpec(); saveState(); });
+$('endType').addEventListener('change',()=>{ const v=$('endType').value; $('endDims').classList.toggle('hid',v!=='NKU'); draw(); renderSpec(); saveState(); });
+['startW','startD','startH','endW','endD','endH','ip','mountOn','mountStep'].forEach(id=>{
+  $(id).addEventListener('input',()=>{ draw(); renderSpec(); saveState(); });
 });
-$('calc').onclick=()=>{ const m=+$('moduleLen').value||0; if(!(m>0)){ msg.textContent='Укажите длину модуля (>0)'; setTimeout(()=>msg.textContent='',1500); return; } state.module=m; state.calc=true; giz.style.display='none'; tag.style.display='none'; pop.style.display='none'; draw(); renderSpec(); saveState(); };
+function moduleError(value){const m=Number(value);return !Number.isFinite(m)||m<400||m>3000||m%10!==0?'Введите максимальную длину от 400 до 3000 мм с шагом 10 мм. Минимальная заказная длина детали проверяется отдельно.':'';}
+function syncModule(){const error=moduleError($('moduleLen').value);$('moduleHint').textContent=error;$('moduleLen').setAttribute('aria-invalid',error?'true':'false');if(error)return false;state.module=Number($('moduleLen').value);return true;}
+$('moduleLen').addEventListener('input',()=>{syncModule();draw();renderSpec();saveState();});
+$('calc').onclick=()=>{if(!syncModule())return;state.calc=true;giz.style.display='none';tag.style.display='none';pop.style.display='none';draw();renderSpec();saveState();};
 $('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); saveState(); };
-$('undo').onclick=()=>{ state.segs.pop(); draw(); if(state.calc) renderSpec(); saveState(); };
+$('undo').onclick=()=>{ state.segs.pop();state.routeRouting.mode='manual';updateEquipmentControls();draw(); renderSpec(); saveState(); };
 
-$('clear').onclick=()=>{
-  state.segs=[]; state.calc=false; state.module=3000;
-  state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
-  state.annos=[]; state.movingAnno={id:null,what:null,view:null};
-  state.meta={title:'',object:'',addr:'',customer:'',contractor:'',code:'',date:'',notes:''};
-  state.annoSeq=1;
-  $('mat').value='AL'; fillRatings(); $('rating').value=R_AL[0];
-  $('ip').value='IP55'; $('startType').value='NKU'; $('endType').value='ENDCAP';
-  $('startW').value=600; $('startD').value=600; $('startH').value=2200;
-  $('endW').value=600; $('endD').value=600; $('endH').value=2200;
-  $('endDims').classList.add('hid'); $('mountOn').value='1'; $('mountStep').value=1000; $('moduleLen').value=3000;
-  fillMetaInputs();
-  saveState(); fit();
-  msg.textContent='Проект сброшен (прайс не тронут)'; setTimeout(()=>msg.textContent='',1800);
-};
+$('clear').onclick=clearSelectedRoute;
 $('fit').onclick=()=>fit();
 
 /* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
+let pendingTariff=null;
+function showTariffStatus(){
+  const source=PRICE.version===5?PRICE.source:null;
+  $('tariffStatus').textContent=source?`Тариф: ${source.filename}; лист ${source.sheet}; дата ${source.date}; RUB, без НДС. Позиций: ${Object.keys(PRICE.entries).length}.`:'Тариф Excel не загружен. Старые цены не подтверждают текущий прайс.';
+}
+function initExcelTariffUI(){
+  $('tariffExcelBtn').onclick=()=>$('tariffExcel').click();
+  $('tariffExcel').addEventListener('change',async e=>{
+    const file=e.target.files[0];if(!file)return;pendingTariff=null;$('tariffApply').disabled=true;
+    try{
+      if(file.size>30*1024*1024)throw new Error('Файл больше30 МБ.');
+      $('tariffStatus').textContent='Читаю тариф…';
+      const binary=await file.arrayBuffer();const inventory=XLSX.read(binary,{type:'array',bookSheets:true});const sheets=inventory.SheetNames.filter(name=>/тариф.*(?:SE[ _-]*LINE|SystemeLine)/i.test(name));
+      const workbook=XLSX.read(binary,{type:'array',cellFormula:false,sheets:sheets.length?sheets:inventory.SheetNames});
+      pendingTariff=parseTariffWorkbook(workbook,file.name,XLSX);
+      const source=pendingTariff.source,count=Object.keys(pendingTariff.entries).length;
+      $('tariffStatus').textContent=`Готов к применению: ${source.sheet}; ${source.date}; ${count} уникальных артикулов; ${source.duplicates} одинаковых дублей объединено; ${source.unpriced} позиций без цены. RUB, без НДС. Текущий тариф заменится целиком.`;
+      $('tariffApply').disabled=false;
+    }catch(error){$('tariffStatus').textContent='Тариф не изменён: '+error.message;}
+    finally{e.target.value='';}
+  });
+  $('tariffApply').onclick=()=>{
+    if(!pendingTariff)return;const next=validateReferenceTariff(pendingTariff);
+    try{localStorage.setItem('BUS_TARIFF_V5',JSON.stringify(next));PRICE=next;pendingTariff=null;$('tariffApply').disabled=true;$('priceJSON').value=JSON.stringify(PRICE,null,2);renderSpec();showTariffStatus();}
+    catch(error){$('tariffStatus').textContent='Не удалось сохранить тариф: '+error.message;}
+  };
+}
 function initPriceUI(){ /* ... тот же код, что и ранее ... */ }
-function parsePriceLine(line){ /* ... как в прошлой версии ... */ }
+function parsePriceLine(line){ throw new Error('Загрузчик тарифных строк ещё не реализован. Тариф нельзя считать загруженным.'); }
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function decodeRating(ref){ const m=ref.match(/5(04|05|06|08|10|12|16|20|25|32|40|50|63)/); if(!m) return null; const map={'04':400,'05':500,'06':630,'08':800,'10':1000,'12':1250,'16':1600,'20':2000,'25':2500,'32':3200,'40':4000,'50':5000,'63':6300}; return map[m[1]]||null; }
 
 /* ===== СОХРАНЕНИЕ/ЗАГРУЗКА ===== */
-function saveState(){ try{ const s={segs:state.segs, calc:state.calc, module:state.module, dimOffsets:state.dimOffsets, annos:state.annos, meta:state.meta, annoSeq:state.annoSeq, ui:{mat:$('mat').value, rating:$('rating').value, ip:$('ip').value, startType:$('startType').value, endType:$('endType').value, startW:$('startW').value, startD:$('startD').value, startH:$('startH').value, endW:$('endW').value, endD:$('endD').value, endH:$('endH').value, mountOn:$('mountOn').value, mountStep:$('mountStep').value, moduleLen:$('moduleLen').value}}; localStorage.setItem(STORAGE_STATE, JSON.stringify(s)); }catch(e){} }
-function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
-function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; saveState(); }
-$('metaSave').onclick=()=>{ readMetaInputs(); msg.textContent='Данные проекта сохранены'; setTimeout(()=>msg.textContent='',1400); };
-function loadState(){
+let projectStorageBlocked=false,recoveryProjectRaw=null;
+const PROJECT_VIEWS=['ISO','TOP','FRONT','BACK','LEFT','RIGHT'];
+const PROJECT_UI_KEYS=['conductors','mat','rating','ip','orientation','startType','endType','startW','startD','startH','endW','endD','endH','mountOn','mountStep','moduleLen'];
+const PROJECT_UI_LABELS={mat:'материал шин',conductors:'защитный проводник',ip:'степень защиты',orientation:'положение шинопровода',startType:'начало трассы',endType:'конец трассы',mountOn:'крепления',rating:'номинальный ток',startW:'ширина оборудования в начале трассы',startD:'глубина оборудования в начале трассы',startH:'высота оборудования в начале трассы',endW:'ширина оборудования в конце трассы',endD:'глубина оборудования в конце трассы',endH:'высота оборудования в конце трассы',mountStep:'шаг креплений',moduleLen:'максимальная длина секции'};
+function singleProjectSnapshot(){return {segs:state.segs,calc:state.calc,module:state.module,dimOffsets:state.dimOffsets,annos:state.annos,meta:state.meta,annoSeq:state.annoSeq,ui:Object.fromEntries(PROJECT_UI_KEYS.map(key=>[key,$(key).value]))};}
+function validateSingleProjectSnapshot(s){
+  const record=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+  if(!record(s)||!Array.isArray(s.segs)||!s.segs.every(p=>record(p)&&['+X','-X','+Y','-Y','+Z','-Z'].includes(p.dir)&&Number.isFinite(p.len)&&p.len>0))throw new Error('Некорректные участки трассы.');
+  if(s.calc!==undefined&&typeof s.calc!=='boolean')throw new Error('Некорректный режим расчёта.');
+  const module=s.module===undefined?3000:s.module;
+  if(moduleError(module))throw new Error('Некорректная максимальная длина секции.');
+  const defaults={mat:'AL',rating:400,conductors:'5',ip:'IP55',orientation:'FLAT',startType:'NKU',endType:'ENDCAP',startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200,mountOn:'1',mountStep:1000,moduleLen:module};
+  if(s.ui!==undefined&&!record(s.ui))throw new Error('Некорректные параметры проекта.');
+  const ui={...defaults,...s.ui};
+  for(const [key,allowed] of Object.entries({mat:['AL','CU'],conductors:['5','7'],ip:['IP55','IP65'],orientation:['FLAT','EDGE'],startType:['NKU','TR','NONE'],endType:['NKU','ENDCAP','NONE'],mountOn:['0','1']})){
+    if(!allowed.includes(ui[key]))throw new Error(`Некорректный параметр: ${PROJECT_UI_LABELS[key]}.`);
+  }
+  if(!(ui.mat==='CU'?R_CU:R_AL).includes(Number(ui.rating)))throw new Error('Номинал недоступен для выбранного материала.');
+  for(const key of ['rating','startW','startD','startH','endW','endD','endH','mountStep','moduleLen']){
+    if(!['number','string'].includes(typeof ui[key])||!Number.isFinite(Number(ui[key]))||Number(ui[key])<=0)throw new Error(`Введите положительное число: ${PROJECT_UI_LABELS[key]}.`);
+    ui[key]=Number(ui[key]);
+  }
+  if(moduleError(ui.moduleLen))throw new Error(moduleError(ui.moduleLen));
+  // Old versions could save a changed field with the previous calculated module.
+  // The visible maximum is authoritative; reload recalculates the same limit.
+  const dimOffsets=Object.fromEntries(PROJECT_VIEWS.map(view=>[view,{}]));
+  if(s.dimOffsets!==undefined&&!record(s.dimOffsets))throw new Error('Некорректные позиции размеров.');
+  for(const view of PROJECT_VIEWS){
+    const offsets=s.dimOffsets?.[view];if(offsets===undefined)continue;
+    if(!record(offsets))throw new Error('Некорректные позиции размеров.');
+    for(const [key,p] of Object.entries(offsets)){
+      if(!record(p)||!Number.isFinite(p.dx)||!Number.isFinite(p.dy))throw new Error('Некорректная позиция размера.');
+      dimOffsets[view][key]={dx:p.dx,dy:p.dy};
+    }
+  }
+  const annos=s.annos===undefined?[]:s.annos;
+  if(!Array.isArray(annos))throw new Error('Некорректные выноски.');
+  const cleanAnnos=annos.map(a=>{
+    if(!record(a)||typeof a.text!=='string'||(a.pos!==undefined&&!record(a.pos)))throw new Error('Некорректная выноска.');
+    const pos={};for(const view of PROJECT_VIEWS){const p=a.pos?.[view];if(p===undefined)continue;if(!record(p)||!['ax','ay','bx','by'].every(k=>Number.isFinite(p[k])))throw new Error('Некорректная позиция выноски.');pos[view]={ax:p.ax,ay:p.ay,bx:p.bx,by:p.by};}
+    return {id:a.id,text:a.text,pos};
+  });
+  if(s.meta!==undefined&&!record(s.meta))throw new Error('Некорректные данные проекта.');
+  const meta={};for(const key of Object.keys(state.meta)){const value=s.meta?.[key];if(value!==undefined&&typeof value!=='string')throw new Error('Некорректные данные проекта.');meta[key]=value??'';}
+  return {segs:s.segs.map(p=>({dir:p.dir,len:p.len})),calc:s.calc??false,module:ui.moduleLen,dimOffsets,annos:cleanAnnos,meta,annoSeq:cleanAnnos.length+1,ui};
+}
+function saveState(){
+  if(routeContextDepth)return false;
+  if(projectStorageBlocked){$('storageStatus').textContent='Автосохранение отключено: исходные данные защищены. Скачайте их; очистка выбранной трассы сохранит отдельную резервную копию исходных данных.';return false;}
   try{
-    const raw=localStorage.getItem(STORAGE_STATE); if(!raw) return;
-    const s=JSON.parse(raw);
-    state.segs=s.segs||[]; state.calc=!!s.calc; state.module=s.module||3000;
-    state.dimOffsets=s.dimOffsets||state.dimOffsets; state.annos=s.annos||[];
-    state.meta=s.meta||state.meta;
-    state.annoSeq=s.annoSeq||1;
-    if(s.ui){
-      $('mat').value=s.ui.mat||'AL';
-      fillRatings();
-      $('rating').value=s.ui.rating||$('rating').value;
-      $('ip').value=s.ui.ip||'IP55';
-      $('startType').value=s.ui.startType||'NKU';
-      $('endType').value=s.ui.endType||'ENDCAP';
-      $('startW').value=s.ui.startW||600; $('startD').value=s.ui.startD||600; $('startH').value=s.ui.startH||2200;
-      $('endW').value=s.ui.endW||600; $('endD').value=s.ui.endD||600; $('endH').value=s.ui.endH||2200;
-      $('mountOn').value=s.ui.mountOn||'1'; $('mountStep').value=s.ui.mountStep||1000; $('moduleLen').value=s.ui.moduleLen||3000;
-      $('endDims').classList.toggle('hid',$('endType').value!=='NKU');
-    } else fillRatings();
-  }catch(e){ fillRatings(); }
-  fillMetaInputs();
-  ensureAnnoNumbers();
+    const snapshot=validateProjectSnapshot(projectSnapshot());
+    // Preserve a still-applicable legacy undo before moving to the new key.
+    if(legacyEquipmentUndo&&lastEquipmentAction&&equipmentActionFingerprint(snapshot)===equipmentActionFingerprint(lastEquipmentAction.after)){
+      localStorage.setItem(STORAGE_STATE+'.equipmentUndo',JSON.stringify(lastEquipmentAction));legacyEquipmentUndo=false;
+    }
+    localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';updateEquipmentUndoControl();return true;
+  }
+  catch(error){$('storageStatus').textContent='Изменения не сохранены: '+error.message;return false;}
+}
+function releaseRecoveryStorage(){
+  if(!projectStorageBlocked)return true;
+  if(recoveryProjectRaw===null){$('storageStatus').textContent='Исходные данные не удалось прочитать. Перезагрузите страницу, когда доступ к сохранению восстановится; сброс пока недоступен.';return false;}
+  try{if(recoveryProjectRaw!==null)localStorage.setItem(STORAGE_STATE+'.recovery.'+Date.now(),recoveryProjectRaw);projectStorageBlocked=false;$('saveRecovery').classList.add('hid');return true;}
+  catch(error){$('storageStatus').textContent='Не удалось создать резервную копию; исходные данные сохранены. '+error.message;return false;}
+}
+$('saveRecovery').onclick=()=>{if(recoveryProjectRaw===null)return;const url=URL.createObjectURL(new Blob([recoveryProjectRaw],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='busway_recovery.json';a.click();URL.revokeObjectURL(url);};
+function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
+function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; return saveState(); }
+$('metaSave').onclick=()=>{ if(readMetaInputs()){msg.textContent='Данные проекта сохранены';setTimeout(()=>msg.textContent='',1400);}else msg.textContent='Данные проекта не сохранены — см. сообщение об автосохранении.'; };
+let loadedProjectStorageKey=null;
+function loadState(){
+  let raw=null;
+  try{
+    loadedProjectStorageKey=null;
+    for(const key of [STORAGE_STATE,STORAGE_STATE_V6,STORAGE_STATE_PREVIOUS,STORAGE_STATE_MULTI,STORAGE_STATE_OLD]){raw=localStorage.getItem(key);if(raw!==null){loadedProjectStorageKey=key;break;}}
+    if(!raw){fillMetaInputs();return;}
+    const s=validateProjectSnapshot(JSON.parse(raw));
+    Object.assign(state,{equipment:s.equipment,routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
+    installRoute(s.routes.find(route=>route.id===s.activeRouteId));
+    $('endDims').classList.toggle('hid',$('endType').value!=='NKU');syncModule();fillMetaInputs();ensureAnnoNumbers();updateRouteControls();
+    projectStorageBlocked=false;recoveryProjectRaw=null;$('storageStatus').textContent='';$('saveRecovery').classList.add('hid');
+  }catch(error){projectStorageBlocked=true;recoveryProjectRaw=raw;$('saveRecovery').classList.toggle('hid',raw===null);$('storageStatus').textContent='Не удалось восстановить проект: '+error.message+' Исходные данные не перезаписаны; автосохранение отключено.';}
 }
 
 /* ===== ФУЛЛСКРИН ===== */
 $('btnFS').onclick=()=>{ const el=wrap, req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen; const exit=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen; if(!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement)){ req&&req.call(el); } else { exit&&exit.call(document); } setTimeout(()=>{ resize(); fit(); },120); };
 
 /* ===== СТАРТ ===== */
-function initPriceUI(){const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);dlg.style.display='flex';};const close=()=>{dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{PRICE=JSON.parse(rd.result);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс очищен');};$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
+function initPriceUI(){initExcelTariffUI();const dlg=$('priceDlg'),ta=$('pricePaste'),out=$('priceJSON');const open=()=>{out.value=JSON.stringify(PRICE,null,2);showTariffStatus();dlg.style.display='flex';};const close=()=>{pendingTariff=null;$('tariffApply').disabled=true;dlg.style.display='none';};$('btnPrice').onclick=open;$('priceClose').onclick=close;$('priceExport').onclick=()=>{const blob=new Blob([JSON.stringify(PRICE,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='price.json';a.click();URL.revokeObjectURL(url);};$('priceImportBtn').onclick=()=>$('priceImport').click();$('priceImport').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const incoming=JSON.parse(rd.result);if(incoming?.version===5){PRICE=validateReferenceTariff(incoming);savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();showTariffStatus();return;}if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)||!incoming.AL||!incoming.CU)throw new Error('Нужны разделы AL и CU');for(const mat of ['AL','CU']){for(const prices of Object.values(incoming[mat])){if(!prices||typeof prices!=='object'||Array.isArray(prices))throw new Error('Некорректный раздел цен');for(const value of Object.values(prices)){if(typeof value!=='number'||!Number.isFinite(value)||value<0)throw new Error('Цена должна быть неотрицательным числом');}}}PRICE=incoming;savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Прайс загружен');}catch(err){alert('Ошибка JSON: '+err.message);}};rd.readAsText(f,'utf-8');});$('priceReset').onclick=()=>{PRICE=emptyPrice();try{localStorage.removeItem(STORAGE_PRICE);localStorage.removeItem(STORAGE_PRICE_OLD);localStorage.removeItem('BUS_TARIFF_V5');}catch(e){};out.value=JSON.stringify(PRICE,null,2);renderSpec();pendingTariff=null;$('tariffApply').disabled=true;showTariffStatus();alert('Прайс очищен');};$('priceParse').disabled=true;$('priceParse').title='Разбор будет настроен после получения тарифа';$('priceParse').onclick=()=>{const lines=ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let ok=0;lines.forEach(s=>{const parsed=parsePriceLine(s);if(!parsed)return;const {mat,type,price,rating,stepKey}=parsed;if(!PRICE[mat])PRICE[mat]=emptyPrice()[mat];if(type==='EC'){const key=stepKey;if(!key)return;PRICE[mat][type][key]=price;ok++;}else{if(!rating)return;PRICE[mat][type][rating]=price;ok++;}});savePrice();out.value=JSON.stringify(PRICE,null,2);renderSpec();alert('Обновлено позиций: '+ok);};}
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
-  resize(); setProjection('ISO'); initPriceUI(); loadState(); draw(); fit(); if(state.calc) renderSpec();
+  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();initEquipmentUI();initVisualStyle();draw();fit();renderSpec();
   ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
     $(id).addEventListener('input',()=>{ readMetaInputs(); });
   });
+  window.systemelineReady=true;
 }
 document.addEventListener('DOMContentLoaded',start);
 </script>
