@@ -2,12 +2,12 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const html=fs.readFileSync('index.html','utf8');
 const assets=[...html.matchAll(/<script src="([^"]+)"/g)].map(match=>match[1]);
 const build=fs.readFileSync('routes.js','utf8').match(/SYSTEMELINE_BUILD='([^']+)'/)[1];
-function browser({storage=new Map(),missingColumnsModule=false,oldMarkup=false}={}){
+function browser({storage=new Map(),missingColumnsModule=false,oldMarkup=false,context2d}={}){
  const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]));
  if(oldMarkup)ids.delete('routeStartColumn');
  const defaults={mat:'AL',rating:'400',conductors:'5',orientation:'FLAT',ip:'IP55',startType:'NKU',endType:'ENDCAP',startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200,moduleLen:3000,mountOn:'1',mountStep:1000,routeKind:'TR_NKU'};
  const elements=new Map(),events={},errors={};
- const canvas=new Proxy({measureText:text=>({width:String(text).length*7})},{get:(o,k)=>o[k]??(()=>{})});
+ const canvas=context2d??new Proxy({measureText:text=>({width:String(text).length*7})},{get:(o,k)=>o[k]??(()=>{})});
  function element(id){
   const item={id,value:defaults[id]??'',style:{},dataset:{},options:[],children:[],clientWidth:820,clientHeight:760,classList:{toggle(){},add(){},remove(){}},setAttribute(){},focus(){},setPointerCapture(){},querySelector:()=>element(),addEventListener(name,fn){this[name]=fn;},getContext:()=>canvas,appendChild(child){this.children.push(child);this.options.push(child);if(child.id)elements.set(child.id,child);},getBoundingClientRect:()=>({left:0,top:0,width:820,height:760})};
   Object.defineProperty(item,'innerHTML',{get:()=>'',set:()=>{item.children=[];item.options=[];}});
@@ -25,7 +25,7 @@ module.exports={browser};
 if(require.main===module){
 let count=0;function check(name,fn){fn();count++;console.log('PASS '+name);}
 check('all browser assets use the same build revision and resolve to existing files',()=>{
- assert.equal(assets.length,6);
+ assert.equal(assets.length,7);
  for(const src of assets){assert.equal(new URL(src,'http://localhost/').searchParams.get('v'),build);assert.ok(fs.existsSync(src.split('?')[0]));}
  assert.ok(assets.findIndex(src=>src.startsWith('nku-columns.js'))<assets.length);
 });

@@ -25,6 +25,7 @@
   .viewbar-bottom{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;z-index:12;justify-content:center;flex-wrap:wrap;user-select:none}
   .viewbtn{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;box-shadow:var(--shadow);font-size:13px}
   .viewbtn.active{background:#eef3ff;border-color:#bcd}
+  .visual-style-switch{display:flex;justify-content:center;gap:6px;flex-basis:100%}
   #view{width:100%;height:100%;display:block;background:#fff}
   #gizmo{position:absolute;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
   #tag{position:absolute;left:0;top:0;transform:translate(-50%,-110%);background:#fff;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;box-shadow:var(--shadow);z-index:7}
@@ -257,6 +258,10 @@
 
   <div class="viewer" id="wrap">
     <div class="viewbar-top">
+      <div class="visual-style-switch" role="group" aria-label="Визуализация">
+        <button class="viewbtn" id="styleBeautiful" aria-pressed="false">Красивый</button>
+        <button class="viewbtn active" id="styleTechnical" aria-pressed="true">Чертёжный</button>
+      </div>
       <button class="viewbtn active" data-view="ISO">Изометрия</button>
       <button class="viewbtn" data-view="TOP">Сверху</button>
       <button class="viewbtn" data-view="FRONT">Спереди</button>
@@ -347,12 +352,13 @@
 </div>
 
 <!-- Bump every local asset revision together when the HTML/module contract changes. -->
-<script src="vendor/xlsx.full.min.js?v=20261006-plan-columns-1"></script>
-<script src="tariff-import.js?v=20261006-plan-columns-1"></script>
-<script src="cad-export.js?v=20261006-plan-columns-1"></script>
-<script src="routes.js?v=20261006-plan-columns-1"></script>
-<script src="equipment.js?v=20261006-plan-columns-1"></script>
-<script src="nku-columns.js?v=20261006-plan-columns-1"></script>
+<script src="vendor/xlsx.full.min.js?v=20261006-two-styles-1"></script>
+<script src="tariff-import.js?v=20261006-two-styles-1"></script>
+<script src="cad-export.js?v=20261006-two-styles-1"></script>
+<script src="routes.js?v=20261006-two-styles-1"></script>
+<script src="equipment.js?v=20261006-two-styles-1"></script>
+<script src="nku-columns.js?v=20261006-two-styles-1"></script>
+<script src="visual-style.js?v=20261006-two-styles-1"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -500,7 +506,7 @@ function pushDXF(a,b,layer){ if(!DXF_COLLECT) return; const type=cadMeta.type;DX
 /* ===== РИСОВАНИЕ 3D/2D ЛИНИЙ ===== */
 function line3(a,b,col='#111',lw=1/scale,layer='BUS'){
   const p=proj(...a), q=proj(...b);
-  ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  if(!hideTechnicalPrimitive(layer)&&!(layer==='ANNOT'&&queueVisualOverlay(p,q,col,lw))){ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();}
   pushDXF(p,q,layer);
 }
 function line3Dashed(a,b,col='#777',lw=1/scale,dash=[6/scale,6/scale],layer='FLOOR'){
@@ -512,7 +518,7 @@ function fillPoly3(pts, fill, alpha,layer='BUS'){
   const p=pts.map(v=>proj(...v));
   if(layer==='FLOOR'&&drawingStyle())return;
   ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=fill; ctx.beginPath();
-  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); if(!drawingStyle())ctx.fill(); ctx.restore();
+  ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); if(!drawingStyle()&&!hideTechnicalPrimitive(layer))ctx.fill(); ctx.restore();
   for(let i=0;i<p.length;i++){ const A=p[i],B=p[(i+1)%p.length]; pushDXF(A,B,layer); }
 }
 function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
@@ -522,9 +528,10 @@ function drawText3(p,text,align='center',dy=-6/scale,fill='#888'){
   ctx.fillText(text, s[0], s[1]+dy);
   ctx.restore();
 }
-function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
+function box(x,y,z,w,d,h,layer='BUS',edge='#111',appearance){
   cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  queueVisualBox(v,layer,appearance);
   line3(v[0],v[4],edge,1/scale,layer); line3(v[1],v[5],edge,1/scale,layer); line3(v[2],v[6],edge,1/scale,layer); line3(v[3],v[7],edge,1/scale,layer);
   line3(v[4],v[5],edge,1/scale,layer); line3(v[5],v[6],edge,1/scale,layer); line3(v[6],v[7],edge,1/scale,layer); line3(v[7],v[4],edge,1/scale,layer);
   line3(v[0],v[1],edge,1/scale,layer); line3(v[1],v[2],edge,1/scale,layer); line3(v[2],v[3],edge,1/scale,layer); line3(v[3],v[0],edge,1/scale,layer);
@@ -532,6 +539,7 @@ function box(x,y,z,w,d,h,layer='BUS',edge='#111'){
 function solidBox(x,y,z,w,d,h,color,alpha=0.5,layer='BUS'){
   cadGroup++;
   const v=[[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z],[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]];
+  queueVisualBox(v,layer);
   const f=[[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
   f.forEach(ff=>fillPoly3([v[ff[0]],v[ff[1]],v[ff[2]],v[ff[3]]],color,alpha,layer));
   [ [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7] ].forEach(([a,b])=>line3(v[a],v[b],'#111',1/scale,layer));
@@ -545,6 +553,7 @@ function extrudeSolid(poly, thick, O, U, V, N,layer){
   cadGroup++;
   const t2=thick/2; const up=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]+N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]+N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]+N[2]*t2]);
   const dn=poly.map(p=>[O[0]+U[0]*p[0]+V[0]*p[1]-N[0]*t2,O[1]+U[1]*p[0]+V[1]*p[1]-N[1]*t2,O[2]+U[2]*p[0]+V[2]*p[1]-N[2]*t2]);
+  queueVisualExtrusion(up,dn,layer);
   const color='rgba(60,110,220,.6)';
   fillPoly3(dn,color,1,layer); for(let i=0;i<up.length;i++){ const j=(i+1)%up.length; fillPoly3([up[i],up[j],dn[j],dn[i]],color,1,layer);} fillPoly3(up,color,1,layer);
   for(let i=0;i<up.length;i++){ line3(up[i], up[(i+1)%up.length],'#111',1/scale,layer); line3(up[i], dn[i],'#111',1/scale,layer); }
@@ -663,8 +672,8 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 }
 
 /* шкафы / заглушка */
-function drawStartCab(){ if($('startType').value==='NONE')return;const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666'); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
-function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
+function drawStartCab(){ if($('startType').value==='NONE')return;const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666',p.startType); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
+function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666','NKU'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
   if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,P().busH); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
   if(a==='X') solidBox(e[0]-JOINT_LEN/2,e[1]-bw/2,e[2]-P().busH/2,JOINT_LEN,bw,P().busH,'rgba(220,0,0,.55)',1,'ENDCAP');
@@ -728,7 +737,7 @@ function dimensionPosition(key,base,text){
     }
   }
   x=Math.max(size.w/2+6,Math.min(wrap.clientWidth-size.w/2-6,x));
-  y=Math.max(size.h/2+48,Math.min(wrap.clientHeight-size.h/2-48,y));
+  y=Math.max(size.h/2+viewerTopInset(),Math.min(wrap.clientHeight-size.h/2-48,y));
   dimensionBoxes.push({x,y,...size}); return {x,y};
 }
 function renderDeltaH(){
@@ -1035,11 +1044,11 @@ function routeBoundsProjected(){
 function boundsProjected(){return sceneProjectedBounds();}
 function fit(){
   const ext=boundsProjected();
-  const m=60, bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
+  const m=60, top=viewerTopInset(), availableHeight=Math.max(120,wrap.clientHeight-top-m), bw=ext.maxX-ext.minX, bh=ext.maxY-ext.minY;
   const baseW=Math.max(bw,900), baseH=Math.max(bh,640);
-  scale=Math.min((wrap.clientWidth-2*m)/baseW,(wrap.clientHeight-2*m)/baseH);
+  scale=Math.min((wrap.clientWidth-2*m)/baseW,availableHeight/baseH);
   const cx=(ext.minX+ext.maxX)/2, cy=(ext.minY+ext.maxY)/2;
-  panX=wrap.clientWidth/2 - scale*cx; panY=wrap.clientHeight/2 - scale*cy;
+  panX=wrap.clientWidth/2 - scale*cx; panY=top+availableHeight/2 - scale*cy;
   draw();
 }
 
@@ -1279,7 +1288,7 @@ $('savePNGAll').onclick=()=>{
 
 function collectCadDrawing(){
   DXF_ENT.length=0;cadGroup=0;cadMeta={};DXF_COLLECT=true;
-  try{draw();}finally{DXF_COLLECT=false;}
+  try{draw();}finally{DXF_COLLECT=false;if(beautifulView())draw();}
   const annotations=[],dimensions=[],labels=[];
   for(const route of visibleRoutes())withRoute(route,()=>{
     ensureAnnoNumbers();
@@ -1612,7 +1621,7 @@ function initPriceUI(){initExcelTariffUI();const dlg=$('priceDlg'),ta=$('pricePa
 function start(){
   const sel=$('rating'); sel.innerHTML=''; R_AL.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if(!state.meta.date){ const d=new Date(); const z=n=>n.toString().padStart(2,'0'); state.meta.date=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; }
-  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();initEquipmentUI();draw();fit();renderSpec();
+  resize(); setProjection('ISO'); initPriceUI(); loadState(); initRoutesUI();initEquipmentUI();initVisualStyle();draw();fit();renderSpec();
   ['metaTitle','metaObject','metaAddr','metaCustomer','metaContractor','metaCode','metaDate','metaNotes'].forEach(id=>{
     $(id).addEventListener('input',()=>{ readMetaInputs(); });
   });

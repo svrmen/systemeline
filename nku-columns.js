@@ -94,5 +94,5 @@ function equipmentColumnRows(){
 function drawEquipmentColumn(part,item){
   const p=part.position,s=part.size;
   cadMeta={type:'EQUIPMENT',equipmentId:item.id,equipmentName:item.name,equipmentKind:item.kind,equipmentPosition:item.position,equipmentSize:item.size,columnId:part.column?.id,columnName:part.column?.name,columnNumber:part.number,columnPosition:p,columnWidth:s.w};
-  box(p.x,p.y,p.z,s.w,s.d,s.h,'CAB','#666');
+  box(p.x,p.y,p.z,s.w,s.d,s.h,'CAB','#666',item.kind);
 }

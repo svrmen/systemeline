@@ -1,6 +1,6 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
-const SYSTEMELINE_BUILD='20261006-plan-columns-1';
+const SYSTEMELINE_BUILD='20261006-two-styles-1';
 function showStartupFailure(){
   let banner=document.getElementById('startupFailure');
   if(!banner){banner=document.createElement('div');banner.id='startupFailure';(document.querySelector('header')??document.body).appendChild(banner);}
@@ -49,15 +49,19 @@ function sceneFloorBounds(){return unionBounds([...sceneRoutes().map(route=>with
 function sceneProjectedBounds(){return unionBounds([...sceneRoutes().map(route=>withRoute(route,routeBoundsProjected)),...equipmentBounds(true)],['X','Y']);}
 function routeDimensionLabel(label){return state.showAllRoutes&&state.showAllDimensions&&state.routes.length>1?`${state.routeName} · ${label}`:label;}
 function drawSceneRoutes(){
+  beginVisualFrame();
   dimLayer.innerHTML='';dimensionBoxes=[];
   const routes=sceneRoutes().sort((a,b)=>Number(a.id===state.activeRouteId)-Number(b.id===state.activeRouteId));
   const activeId=state.activeRouteId;
   try{for(const route of routes)withRoute(route,()=>{
     routeInteractive=route.id===activeId;
     if(!state.routeBindings.start)drawStartCab();drawPath();if(!state.routeBindings.end)drawEndCab();if(state.segs.length)drawEndCap(P().busW);
+  });drawEquipmentObjects();flushVisualFrame();
+  for(const route of routes)withRoute(route,()=>{
+    routeInteractive=route.id===activeId;
     if(!routeInteractive&&state.drawAnnoLines){ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);drawRouteAnnotations(ctx);ctx.restore();}
     if(routes.length>1&&!state.routeBindings.start)drawText3(originTop(),state.routeName,'center',-24/scale,'#365a83');
-  });drawEquipmentObjects();}finally{routeInteractive=true;}
+  });}finally{visualFrame.active=false;routeInteractive=true;}
 }
 function drawOverlayToCanvas(context){
   dimensionBoxes=[];const activeId=state.activeRouteId,previous=routeInteractive;

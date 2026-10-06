@@ -27,6 +27,7 @@ def refresh_previews(root):
                          ('multiple-routes.html','BUS_QA_MULTI'),
                          ('columns.html','BUS_QA_NKU_COLUMNS'),
                          ('manual-path.html','BUS_QA_MANUAL_PATH'),
+                         ('plan-columns.html','BUS_QA_PLAN_COLUMNS'),
                          ('startup-fresh.html','BUS_QA_STARTUP_FRESH_BUS_PROJECT')]:
         path = qa / name
         if not path.exists():
