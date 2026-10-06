@@ -34,7 +34,8 @@ class PreviewPages(unittest.TestCase):
         path.write_text(old,encoding='utf-8')
         module.refresh_previews(self.root)
         html = path.read_text(encoding='utf-8')
-        self.assertIn("const STORAGE_STATE='BUS_QA_EQUIPMENT_V6'",html)
+        self.assertIn("const STORAGE_STATE='BUS_QA_EQUIPMENT_V7'",html)
+        self.assertIn("const STORAGE_STATE_V6='BUS_QA_EQUIPMENT_V6'",html)
         self.assertIn("const STORAGE_STATE_PREVIOUS='BUS_QA_EQUIPMENT_V5'",html)
         self.assertIn('nku-columns.js?v=',html)
         self.assertIn('\\u003cпример>',html)
@@ -46,6 +47,17 @@ class PreviewPages(unittest.TestCase):
         first = path.read_bytes()
         module.refresh_previews(self.root)
         self.assertEqual(path.read_bytes(),first)
+    def test_active_preview_names_keep_their_existing_legacy_keys(self):
+        for name in ['manual-path.html','startup-fresh.html']:
+            (self.root/'.qa'/name).write_text('old preview')
+        module.refresh_previews(self.root)
+        manual=(self.root/'.qa/manual-path.html').read_text(encoding='utf-8')
+        fresh=(self.root/'.qa/startup-fresh.html').read_text(encoding='utf-8')
+        self.assertIn("const STORAGE_STATE='BUS_QA_MANUAL_PATH_V7'",manual)
+        self.assertIn("const STORAGE_STATE_V6='BUS_QA_MANUAL_PATH_V6'",manual)
+        self.assertIn("const STORAGE_STATE='BUS_QA_STARTUP_FRESH_BUS_PROJECT_V7'",fresh)
+        self.assertIn("const STORAGE_STATE_OLD='BUS_QA_STARTUP_FRESH_BUS_STATE_V3'",fresh)
+        self.assertIn('id="equipmentRouteNKU"',fresh)
 
 if __name__ == '__main__':
     unittest.main()

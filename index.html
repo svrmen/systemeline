@@ -80,7 +80,7 @@
 </style>
 </head>
 <body>
-<header><small style="display:block;color:#555">Проверочная версия · 2026-10-06 · сохранение ручного пути</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-06 · ориентация видов</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
@@ -213,7 +213,8 @@
     <div id="tab-equipment" class="hid">
       <div class="route-card">
         <h3>Размещение оборудования</h3>
-        <small>Координаты нижнего угла, мм. В виде сверху перетаскивайте корпус мышью или задайте координаты ниже. Синим выделен выбранный объект.</small>
+        <small>Координаты нижнего угла, мм. В виде сверху перетаскивайте корпус мышью или задайте координаты ниже. Боковины НКУ примагничиваются при сближении; Alt — без привязки. Синим выделен выбранный объект.</small>
+        <button class="btn" id="equipmentRouteNKU">Колонны НКУ этой трассы</button>
         <button class="btn" id="equipmentImport">Взять оборудование из трасс</button>
         <div class="row"><button class="btn" id="equipmentAddTR">Добавить ТР</button><button class="btn" id="equipmentAddNKU">Добавить НКУ</button></div>
         <label for="equipmentSelect">Оборудование проекта</label><select id="equipmentSelect"></select>
@@ -346,12 +347,12 @@
 </div>
 
 <!-- Bump every local asset revision together when the HTML/module contract changes. -->
-<script src="vendor/xlsx.full.min.js?v=20261006-manual-path-2"></script>
-<script src="tariff-import.js?v=20261006-manual-path-2"></script>
-<script src="cad-export.js?v=20261006-manual-path-2"></script>
-<script src="routes.js?v=20261006-manual-path-2"></script>
-<script src="equipment.js?v=20261006-manual-path-2"></script>
-<script src="nku-columns.js?v=20261006-manual-path-2"></script>
+<script src="vendor/xlsx.full.min.js?v=20261006-plan-columns-1"></script>
+<script src="tariff-import.js?v=20261006-plan-columns-1"></script>
+<script src="cad-export.js?v=20261006-plan-columns-1"></script>
+<script src="routes.js?v=20261006-plan-columns-1"></script>
+<script src="equipment.js?v=20261006-plan-columns-1"></script>
+<script src="nku-columns.js?v=20261006-plan-columns-1"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -368,7 +369,8 @@ const MOUNT_ALONG=10, MOUNT_THICK=10;
 /* расстояния креплений вдоль сегмента */
 
 
-const STORAGE_STATE='BUS_PROJECT_V6';
+const STORAGE_STATE='BUS_PROJECT_V7';
+const STORAGE_STATE_V6='BUS_PROJECT_V6';
 const STORAGE_STATE_PREVIOUS='BUS_PROJECT_V5';
 const STORAGE_STATE_MULTI='BUS_PROJECT_V4';
 const STORAGE_STATE_OLD='BUS_STATE_V3';
@@ -392,7 +394,7 @@ let proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
 function setProjection(mode){
   viewMode=mode;
   if(mode==='ISO') proj=(x,y,z)=>[(x-y)*C,(x+y)*S - z];
-  if(mode==='TOP') proj=(x,y,z)=>[ x, -y ];
+  if(mode==='TOP') proj=(x,y,z)=>[ x, y ];
   if(mode==='FRONT') proj=(x,y,z)=>[ x, -z ];
   if(mode==='BACK') proj=(x,y,z)=>[ -x, -z ];
   if(mode==='LEFT') proj=(x,y,z)=>[ y, -z ];
@@ -1285,8 +1287,6 @@ function collectCadDrawing(){
     let pos=originTop();
     for(const seg of state.segs){const end=adv(pos,seg.dir,seg.len),a=proj(...pos),b=proj(...end);dimensions.push({a:[a[0],-a[1]],b:[b[0],-b[1]],value:seg.len});pos=end;}
   });
-  for(const item of equipmentInScope()){const p=proj(...equipmentTerminal(item));annotations.push({text:item.name,point:[p[0],-p[1]+150],anchor:[p[0],-p[1]]});}
-  for(const item of equipmentInScope().filter(item=>item.columns?.length>1))for(const part of nkuColumnGeometry(item)){const p=proj(part.position.x+part.size.w/2,part.position.y+part.size.d/2,part.position.z+part.size.h/2);labels.push({text:String(part.number),point:[p[0],-p[1]]});}
   return {lines:DXF_ENT.filter(e=>e.layer!=='FLOOR'),annotations,dimensions,labels,view:viewMode,material:$('mat').value,rating:+$('rating').value,ip:$('ip').value,conductors:conductorLabel(),ref:type=>refFor(type,+$('rating').value)};
 }
 $('saveDXF').onclick=()=>{
@@ -1569,7 +1569,14 @@ function validateSingleProjectSnapshot(s){
 function saveState(){
   if(routeContextDepth)return false;
   if(projectStorageBlocked){$('storageStatus').textContent='Автосохранение отключено: исходные данные защищены. Скачайте их; очистка выбранной трассы сохранит отдельную резервную копию исходных данных.';return false;}
-  try{const snapshot=validateProjectSnapshot(projectSnapshot());localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';updateEquipmentUndoControl();return true;}
+  try{
+    const snapshot=validateProjectSnapshot(projectSnapshot());
+    // Preserve a still-applicable legacy undo before moving to the new key.
+    if(legacyEquipmentUndo&&lastEquipmentAction&&equipmentActionFingerprint(snapshot)===equipmentActionFingerprint(lastEquipmentAction.after)){
+      localStorage.setItem(STORAGE_STATE+'.equipmentUndo',JSON.stringify(lastEquipmentAction));legacyEquipmentUndo=false;
+    }
+    localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';updateEquipmentUndoControl();return true;
+  }
   catch(error){$('storageStatus').textContent='Изменения не сохранены: '+error.message;return false;}
 }
 function releaseRecoveryStorage(){
@@ -1582,10 +1589,13 @@ $('saveRecovery').onclick=()=>{if(recoveryProjectRaw===null)return;const url=URL
 function fillMetaInputs(){ $('metaTitle').value=state.meta.title||''; $('metaObject').value=state.meta.object||''; $('metaAddr').value=state.meta.addr||''; $('metaCustomer').value=state.meta.customer||''; $('metaContractor').value=state.meta.contractor||''; $('metaCode').value=state.meta.code||''; $('metaDate').value=state.meta.date||''; $('metaNotes').value=state.meta.notes||''; }
 function readMetaInputs(){ state.meta.title=$('metaTitle').value.trim(); state.meta.object=$('metaObject').value.trim(); state.meta.addr=$('metaAddr').value.trim(); state.meta.customer=$('metaCustomer').value.trim(); state.meta.contractor=$('metaContractor').value.trim(); state.meta.code=$('metaCode').value.trim(); state.meta.date=$('metaDate').value.trim(); state.meta.notes=$('metaNotes').value; return saveState(); }
 $('metaSave').onclick=()=>{ if(readMetaInputs()){msg.textContent='Данные проекта сохранены';setTimeout(()=>msg.textContent='',1400);}else msg.textContent='Данные проекта не сохранены — см. сообщение об автосохранении.'; };
+let loadedProjectStorageKey=null;
 function loadState(){
   let raw=null;
   try{
-    raw=localStorage.getItem(STORAGE_STATE);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_PREVIOUS);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_MULTI);if(raw===null)raw=localStorage.getItem(STORAGE_STATE_OLD);if(!raw){fillMetaInputs();return;}
+    loadedProjectStorageKey=null;
+    for(const key of [STORAGE_STATE,STORAGE_STATE_V6,STORAGE_STATE_PREVIOUS,STORAGE_STATE_MULTI,STORAGE_STATE_OLD]){raw=localStorage.getItem(key);if(raw!==null){loadedProjectStorageKey=key;break;}}
+    if(!raw){fillMetaInputs();return;}
     const s=validateProjectSnapshot(JSON.parse(raw));
     Object.assign(state,{equipment:s.equipment,routes:s.routes,activeRouteId:s.activeRouteId,showAllRoutes:s.showAllRoutes,showAllDimensions:s.showAllDimensions,specScope:s.specScope,meta:s.meta});
     installRoute(s.routes.find(route=>route.id===s.activeRouteId));

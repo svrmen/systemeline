@@ -1,6 +1,6 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
-const SYSTEMELINE_BUILD='20261006-manual-path-2';
+const SYSTEMELINE_BUILD='20261006-plan-columns-1';
 function showStartupFailure(){
   let banner=document.getElementById('startupFailure');
   if(!banner){banner=document.createElement('div');banner.id='startupFailure';(document.querySelector('header')??document.body).appendChild(banner);}
@@ -72,9 +72,16 @@ function validateRouteFields(){
     if(String(value).trim()===''||!Number.isFinite(Number(value))||Math.abs(Number(value))>1000000)throw new Error('Координаты начала: конечные числа от −1 000 000 до 1 000 000 мм.');
   }
 }
+function migrateTopAnnotations(project){
+  // Annotations use projected millimetres. Only legacy TOP Y changes;
+  // world coordinates, screen-pixel dimension offsets and other views do not.
+  for(const anno of project.annos){const p=anno.pos.TOP;if(p){p.ay=-p.ay;p.by=-p.by;}}
+}
 function validateProjectSnapshot(snapshot){
   const root=validateSingleProjectSnapshot(snapshot);
-  if(snapshot.version!==undefined&&![4,5,6].includes(snapshot.version))throw new Error('Версия проекта не поддерживается.');
+  if(snapshot.version!==undefined&&![4,5,6,7].includes(snapshot.version))throw new Error('Версия проекта не поддерживается.');
+  if(snapshot.version===7&&snapshot.topViewRevision!==2)throw new Error('Некорректная версия ориентации вида сверху.');
+  const legacyTop=snapshot.version!==7;
   const raw=snapshot.routes??[{...root,id:'r1',name:'Трасса 1',offset:{x:0,y:0,z:0}}];
   if(!Array.isArray(raw)||!raw.length||raw.length>20)throw new Error('Проект должен содержать от 1 до 20 трасс.');
   const ids=new Set();
@@ -84,6 +91,7 @@ function validateProjectSnapshot(snapshot){
     if(typeof route.name!=='string'||!route.name.trim()||route.name.length>80)throw new Error('Название трассы: от 1 до 80 символов.');
     if(!route.offset||!['x','y','z'].every(axis=>Number.isFinite(route.offset[axis])&&Math.abs(route.offset[axis])<=1000000))throw new Error('Некорректные координаты трассы.');
     const clean=validateSingleProjectSnapshot(route);
+    if(legacyTop)migrateTopAnnotations(clean);
     return {...clean,id:route.id,name:route.name.trim(),offset:{...route.offset},lastDir:['+X','-X','+Y','-Y','+Z','-Z'].includes(route.lastDir)?route.lastDir:'+Z',bindings:route.bindings,routing:route.routing,ports:route.ports};
   });
   const activeRouteId=snapshot.activeRouteId??routes[0].id;
@@ -92,11 +100,12 @@ function validateProjectSnapshot(snapshot){
   if(snapshot.showAllDimensions!==undefined&&typeof snapshot.showAllDimensions!=='boolean')throw new Error('Некорректный режим размеров.');
   if(snapshot.specScope!==undefined&&!['active','all'].includes(snapshot.specScope))throw new Error('Некорректная область спецификации.');
   const placed=validateEquipmentProject(snapshot,routes);
-  return {...root,version:6,...placed,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
+  if(legacyTop)migrateTopAnnotations(root);
+  return {...root,version:7,topViewRevision:2,...placed,activeRouteId,showAllRoutes:snapshot.showAllRoutes??false,showAllDimensions:snapshot.showAllDimensions??false,specScope:snapshot.specScope??'active'};
 }
 function projectSnapshot(){
   validateRouteFields();
-  return {...singleProjectSnapshot(),version:6,equipment:state.equipment,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
+  return {...singleProjectSnapshot(),version:7,topViewRevision:2,equipment:state.equipment,routes:routeEntries(),activeRouteId:state.activeRouteId,showAllRoutes:state.showAllRoutes,showAllDimensions:state.showAllDimensions,specScope:state.specScope};
 }
 function commitActiveRoute(){
   const clean=validateProjectSnapshot(projectSnapshot());state.routes=clean.routes;return clean;
@@ -241,4 +250,4 @@ function initRoutesUI(){
   $('showAllDimensions').addEventListener('change',()=>{state.showAllDimensions=$('showAllDimensions').checked;draw();saveState();});
   $('specScope').addEventListener('change',()=>{state.specScope=$('specScope').value;renderSpec();saveState();});
 }
-function projectRouteDelta(view,[x,y,z]){return view==='ISO'?[(x-y)*C,(x+y)*S-z]:view==='TOP'?[x,-y]:view==='FRONT'?[x,-z]:view==='BACK'?[-x,-z]:view==='LEFT'?[y,-z]:[-y,-z];}
+function projectRouteDelta(view,[x,y,z]){return view==='ISO'?[(x-y)*C,(x+y)*S-z]:view==='TOP'?[x,y]:view==='FRONT'?[x,-z]:view==='BACK'?[-x,-z]:view==='LEFT'?[y,-z]:[-y,-z];}

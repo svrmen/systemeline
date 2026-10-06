@@ -1,6 +1,6 @@
 /* Equipment is shared by route IDs. Coordinates are the lower corner in mm;
    the connection at the top centre is schematic until FE/FET drawings exist. */
-let equipmentUIReady=false,equipmentDrag=null,pendingAutoRoute=null,lastEquipmentAction=null;
+let equipmentUIReady=false,equipmentDrag=null,pendingAutoRoute=null,lastEquipmentAction=null,legacyEquipmentUndo=false;
 const emptyBindings=()=>({start:null,end:null});
 const defaultRouting=()=>({mode:'manual',level:3700,order:'XY',path:'OVERHEAD'});
 function equipmentById(id,list=state.equipment){return list.find(item=>item.id===id);}
@@ -20,7 +20,7 @@ function validateEquipmentProject(snapshot,routes){
     if(!['TR','NKU'].includes(item.kind)||typeof item.name!=='string'||!item.name.trim()||item.name.length>80)throw new Error('Проверьте тип и название оборудования.');
     if(!item.position||!['x','y','z'].every(k=>Number.isFinite(item.position[k])&&Math.abs(item.position[k])<=1000000))throw new Error('Координаты оборудования: от −1 000 000 до 1 000 000 мм.');
     if(!item.size||!['w','d','h'].every(k=>Number.isFinite(item.size[k])&&item.size[k]>0&&item.size[k]<=100000))throw new Error('Габариты оборудования: положительные числа до 100 000 мм.');
-    const columns=validateNKUColumns(item,snapshot.version!==6);
+    const columns=validateNKUColumns(item,![6,7].includes(snapshot.version));
     return {id:item.id,name:item.name.trim(),kind:item.kind,position:{...item.position},size:{...item.size},...(columns?{columns}:{})};
   });
   routes=routes.map(route=>{
@@ -30,7 +30,7 @@ function validateEquipmentProject(snapshot,routes){
     if(bindings.end&&equipmentById(bindings.end,equipment).kind!=='NKU')throw new Error('В конце трассы выберите НКУ.');
     if(!['manual','auto'].includes(routing.mode)||!['XY','YX'].includes(routing.order)||!['OVERHEAD','DIRECT'].includes(routing.path)||!Number.isFinite(routing.level)||Math.abs(routing.level)>1000000)throw new Error('Некорректные настройки пути трассы.');
     const clean={...route,bindings:{start:bindings.start,end:bindings.end},routing};
-    clean.ports=validateRoutePorts(clean,equipment,snapshot.version!==6);
+    clean.ports=validateRoutePorts(clean,equipment,![6,7].includes(snapshot.version));
     // Reject inconsistent saved bindings rather than moving equipment on load.
     for(const side of ['start','end'])if(bindings[side]){
       const item=equipmentById(bindings[side],equipment);
@@ -116,6 +116,28 @@ function importEquipmentFromRoutes(){
     Object.assign(draft,equipmentFromRoutes(draft.routes));applyEquipmentDraft(draft,{fitView:true});return true;
   }catch(error){$('equipmentStatus').textContent=error.message;return false;}
 }
+function editRouteNKU(){
+  try{
+    const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===draft.activeRouteId);
+    let id=route.bindings.end;
+    if(!id){
+      if(!route.segs.length||route.ui.endType!=='NKU')throw new Error('Выберите трассу, которая заканчивается НКУ.');
+      const end=routeWorldEnds(route).end,size={w:Number(route.ui.endW),d:Number(route.ui.endD),h:Number(route.ui.endH)};
+      const same=draft.equipment.filter(item=>item.kind==='NKU').flatMap(item=>nkuColumnGeometry(item).map(part=>({item,part}))).find(({item,part})=>equipmentTerminal(item,part.column.id).every((value,i)=>Math.abs(value-end[i])<1e-6)&&['w','d','h'].every(k=>part.size[k]===size[k]));
+      let item=same?.item,port=same?.part.column.id;
+      if(!item){
+        if(draft.equipment.length>=40)throw new Error('Достигнут предел 40 объектов.');
+        let n=1;while(draft.equipment.some(e=>e.id==='e'+n))n++;
+        item={id:'e'+n,name:'НКУ · '+route.name,kind:'NKU',position:{x:end[0]-size.w/2,y:end[1]-size.d/2,z:end[2]-size.h},size,columns:singleNKUColumn(size.w)};
+        item.name=item.name.slice(0,80);draft.equipment.push(item);port='c1';
+      }
+      id=item.id;route.bindings.end=id;route.ports.end=port;route.routing.mode='manual';synchronizeEquipmentRoute(route,draft.equipment,false);
+      applyEquipmentAction(draft,'взять НКУ этой трассы');
+    }
+    state.selectedEquipmentId=id;updateEquipmentControls();draw();
+    $('equipmentStatus').textContent='Выбрано исходное НКУ. «Добавить колонну» пристыкует её справа без зазора; существующий ввод остаётся на месте.';return true;
+  }catch(error){$('equipmentStatus').textContent=error.message;return false;}
+}
 function removeEquipment(){
   try{
     const draft=JSON.parse(JSON.stringify(commitActiveRoute())),id=state.selectedEquipmentId,item=equipmentById(id,draft.equipment);
@@ -149,7 +171,7 @@ function applyEquipmentAction(draft,label){
   // Reserve recovery data and persist the validated result before changing the scene.
   localStorage.setItem(STORAGE_STATE+'.equipmentUndo',JSON.stringify(record));
   localStorage.setItem(STORAGE_STATE,JSON.stringify(after));
-  lastEquipmentAction=record;pendingAutoRoute=null;
+  lastEquipmentAction=record;legacyEquipmentUndo=false;pendingAutoRoute=null;
   applyEquipmentDraft(after,{fitView:true,persist:false});$('storageStatus').textContent='';updateEquipmentUndoControl();
 }
 function undoEquipmentAction(){
@@ -160,7 +182,7 @@ function undoEquipmentAction(){
     previous.activeRouteId=current.activeRouteId;previous.showAllRoutes=current.showAllRoutes;previous.showAllDimensions=current.showAllDimensions;previous.specScope=current.specScope;
     localStorage.setItem(STORAGE_STATE,JSON.stringify(previous));
     try{localStorage.removeItem(STORAGE_STATE+'.equipmentUndo');}catch(error){}
-    lastEquipmentAction=null;pendingAutoRoute=null;
+    lastEquipmentAction=null;legacyEquipmentUndo=false;pendingAutoRoute=null;
     applyEquipmentDraft(previous,{fitView:true,persist:false});
     $('routeStatus').textContent=$('equipmentStatus').textContent='Отменено: '+label+'. Прежний путь и оборудование восстановлены.';updateEquipmentUndoControl();return true;
   }catch(error){$('routeStatus').textContent=$('equipmentStatus').textContent=error.message;return false;}
@@ -244,12 +266,11 @@ function equipmentInScope(routes=visibleRoutes(),planning=state.equipmentEditMod
 function equipmentBounds(projected){return equipmentInScope().map(item=>{const points=equipmentCorners(item).map(p=>projected?proj(...p):p);return {minX:Math.min(...points.map(p=>p[0])),maxX:Math.max(...points.map(p=>p[0])),minY:Math.min(...points.map(p=>p[1])),maxY:Math.max(...points.map(p=>p[1]))};});}
 function drawEquipmentObjects(){
   for(const item of equipmentInScope()){
-    const p=item.position,s=item.size,top=equipmentTerminal(item),previous=cadMeta;
+    const p=item.position,s=item.size,previous=cadMeta;
     if(item.kind==='NKU')for(const part of nkuColumnGeometry(item))drawEquipmentColumn(part,item);else drawEquipmentColumn({position:p,size:s},item);
     const ports=new Set(visibleRoutes().flatMap(route=>['start','end'].filter(side=>route.bindings?.[side]===item.id).map(side=>route.ports?.[side]??null)));
     if(!ports.size)ports.add(item.columns?.[0]?.id??null);
     for(const port of ports){const point=equipmentTerminal(item,port);cadMeta={type:'CONNECTION_PLATE',equipmentId:item.id,equipmentName:item.name,columnId:port};box(point[0]-60,point[1]-60,point[2],120,120,8,'CAB','#999');}cadMeta=previous;
-    drawText3(top,item.name,'center',-20/scale,'#365a83');
     if(!DXF_COLLECT&&state.equipmentEditMode&&state.drawAnnoLines&&item.id===state.selectedEquipmentId){
       const corners=[[p.x,p.y,p.z+s.h],[p.x+s.w,p.y,p.z+s.h],[p.x+s.w,p.y+s.d,p.z+s.h],[p.x,p.y+s.d,p.z+s.h]];
       for(let i=0;i<4;i++)line3(corners[i],corners[(i+1)%4],'#2d6cdf',3/scale,'ANNOT');
@@ -265,6 +286,7 @@ function updateEquipmentControls(){
   if(selected){$('equipmentName').value=selected.name;for(const k of ['x','y','z'])$('equipment'+k.toUpperCase()).value=selected.position[k];for(const k of ['w','d','h'])$('equipment'+k.toUpperCase()).value=selected.size[k];}
   renderNKUColumnEditor(selected);
   $('equipmentImport').disabled=state.equipment.length>0;
+  $('equipmentRouteNKU').disabled=!state.routeBindings.end&&(!state.segs.length||$('endType').value!=='NKU');
   options($('routeStartEquipment'),state.equipment,'Не выбрано');options($('routeEndEquipment'),state.equipment.filter(e=>e.kind==='NKU'),'Не выбрано');
   $('routeStartEquipment').value=state.routeBindings.start??'';$('routeEndEquipment').value=state.routeBindings.end??'';
   for(const side of ['start','end'])routeColumnControl(side,state.routeBindings[side],state.routePorts[side]);
@@ -281,14 +303,37 @@ function updateEquipmentControls(){
 }
 function setEquipmentEditing(enabled){state.equipmentEditMode=enabled;state.placingEquipment=false;closeRouteEditors();if(enabled){setProjection('TOP');updateEquipmentControls();}else draw();}
 function equipmentAtPointer(event){
-  const p=screenToLocal(event);return [...state.equipment].reverse().find(item=>p.x>=item.position.x&&p.x<=item.position.x+item.size.w&&-p.y>=item.position.y&&-p.y<=item.position.y+item.size.d);
+  const p=screenToLocal(event);return [...state.equipment].reverse().find(item=>p.x>=item.position.x&&p.x<=item.position.x+item.size.w&&p.y>=item.position.y&&p.y<=item.position.y+item.size.d);
 }
-function plannedEquipmentPosition(item,event){const p=screenToLocal(event);return {...item.position,x:Math.round((p.x-item.size.w/2)/10)*10,y:Math.round((-p.y-item.size.d/2)/10)*10};}
+function plannedEquipmentPosition(item,event){const p=screenToLocal(event);return {...item.position,x:Math.round((p.x-item.size.w/2)/10)*10,y:Math.round((p.y-item.size.d/2)/10)*10};}
+function snapNKUSide(item,position,{disabled=false,equipment=state.equipment}={}){
+  if(disabled||item.kind!=='NKU')return {position,snapped:false};
+  let closest=null,distance=Math.min(250,20/scale);
+  for(const other of equipment){
+    if(other.id===item.id||other.kind!=='NKU'||other.position.z!==position.z||other.size.d!==item.size.d||other.size.h!==item.size.h)continue;
+    for(const x of [other.position.x+other.size.w,other.position.x-item.size.w]){
+      const d=Math.hypot(position.x-x,position.y-other.position.y);
+      if(d<=distance){distance=d;closest={...position,x,y:other.position.y};}
+    }
+  }
+  return {position:closest??position,snapped:Boolean(closest)};
+}
+function placeEquipmentOnPlan(item,position,event,{persist=true}={}){
+  const snapped=snapNKUSide(item,position,{disabled:Boolean(event.altKey)});
+  const ok=updateEquipment(item.id,{position:snapped.position},{persist});
+  if(ok&&snapped.snapped)$('equipmentStatus').textContent='Боковины НКУ совмещены. Ручной путь сохранён; при его разрыве проверьте подключение.';
+  return ok;
+}
 function initEquipmentUI(){
   equipmentUIReady=true;
-  try{const record=JSON.parse(localStorage.getItem(STORAGE_STATE+'.equipmentUndo'));lastEquipmentAction=record?.version===1&&typeof record.label==='string'?{...record,before:validateProjectSnapshot(record.before),after:validateProjectSnapshot(record.after)}:null;}catch(error){lastEquipmentAction=null;}
+  try{
+    let raw=localStorage.getItem(STORAGE_STATE+'.equipmentUndo');
+    legacyEquipmentUndo=false;
+    if(raw===null&&loadedProjectStorageKey&&loadedProjectStorageKey!==STORAGE_STATE){raw=localStorage.getItem(loadedProjectStorageKey+'.equipmentUndo');legacyEquipmentUndo=raw!==null;}
+    const record=JSON.parse(raw);lastEquipmentAction=record?.version===1&&typeof record.label==='string'?{...record,before:validateProjectSnapshot(record.before),after:validateProjectSnapshot(record.after)}:null;
+  }catch(error){lastEquipmentAction=null;}
   updateEquipmentControls();
-  $('equipmentImport').onclick=importEquipmentFromRoutes;$('equipmentAddTR').onclick=()=>addEquipment('TR');$('equipmentAddNKU').onclick=()=>addEquipment('NKU');$('equipmentRemove').onclick=removeEquipment;
+  $('equipmentImport').onclick=importEquipmentFromRoutes;$('equipmentRouteNKU').onclick=editRouteNKU;$('equipmentAddTR').onclick=()=>addEquipment('TR');$('equipmentAddNKU').onclick=()=>addEquipment('NKU');$('equipmentRemove').onclick=removeEquipment;
   $('equipmentSelect').addEventListener('change',()=>{state.selectedEquipmentId=$('equipmentSelect').value;updateEquipmentControls();draw();});
   $('equipmentApply').onclick=()=>updateEquipment(state.selectedEquipmentId,readEquipmentForm());
   $('equipmentColumnAdd').onclick=addNKUColumn;
@@ -299,14 +344,14 @@ function initEquipmentUI(){
   $('routeAutoCancel').onclick=()=>{pendingAutoRoute=null;$('routeAutoPreview').classList.add('hid');};
   wrap.addEventListener('pointerdown',event=>{
     if(!state.equipmentEditMode||viewMode!=='TOP'||event.button!==0||event.target!==cvs)return;
-    if(state.placingEquipment){event.preventDefault();event.stopImmediatePropagation();const item=equipmentById(state.selectedEquipmentId);if(item&&updateEquipment(item.id,{position:plannedEquipmentPosition(item,event)}))state.placingEquipment=false;pointerMoved=true;return;}
+    if(state.placingEquipment){event.preventDefault();event.stopImmediatePropagation();const item=equipmentById(state.selectedEquipmentId);if(item&&placeEquipmentOnPlan(item,plannedEquipmentPosition(item,event),event))state.placingEquipment=false;pointerMoved=true;return;}
     const item=equipmentAtPointer(event);if(!item)return;event.preventDefault();event.stopImmediatePropagation();
     state.selectedEquipmentId=item.id;updateEquipmentControls();equipmentDrag={id:item.id,start:screenToLocal(event),position:{...item.position},moved:false};wrap.setPointerCapture(event.pointerId);draw();
   },true);
   wrap.addEventListener('pointermove',event=>{
     if(!equipmentDrag)return;event.preventDefault();event.stopImmediatePropagation();const p=screenToLocal(event),drag=equipmentDrag;
-    const position={...drag.position,x:Math.round((drag.position.x+p.x-drag.start.x)/10)*10,y:Math.round((drag.position.y-p.y+drag.start.y)/10)*10};
-    if(updateEquipment(drag.id,{position},{persist:false})){drag.moved=true;pointerMoved=true;}
+    const position={...drag.position,x:Math.round((drag.position.x+p.x-drag.start.x)/10)*10,y:Math.round((drag.position.y+p.y-drag.start.y)/10)*10};
+    if(placeEquipmentOnPlan(equipmentById(drag.id),position,event,{persist:false})){drag.moved=true;pointerMoved=true;}
   },true);
   const finish=event=>{if(!equipmentDrag)return;event.stopImmediatePropagation();equipmentDrag=null;saveState();};
   wrap.addEventListener('pointerup',finish,true);wrap.addEventListener('pointercancel',finish,true);wrap.addEventListener('lostpointercapture',finish,true);

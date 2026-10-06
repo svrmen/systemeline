@@ -25,7 +25,9 @@ def refresh_previews(root):
         changed.append(name)
     for name, prefix in [('equipment.html','BUS_QA_EQUIPMENT'),
                          ('multiple-routes.html','BUS_QA_MULTI'),
-                         ('columns.html','BUS_QA_NKU_COLUMNS')]:
+                         ('columns.html','BUS_QA_NKU_COLUMNS'),
+                         ('manual-path.html','BUS_QA_MANUAL_PATH'),
+                         ('startup-fresh.html','BUS_QA_STARTUP_FRESH_BUS_PROJECT')]:
         path = qa / name
         if not path.exists():
             continue
@@ -42,8 +44,10 @@ def refresh_previews(root):
             payload = json.dumps(seed, ensure_ascii=False).replace('<', '\\u003c')
             boot = f'<script>try{{if(!localStorage.getItem({key}))localStorage.setItem({key},JSON.stringify({payload}));}}catch(error){{console.warn(error);}}</script>\n'
         html = source.replace('<head>', '<head><base href="/">', 1)
-        for old, new in [('BUS_PROJECT_V6',prefix+'_V6'),('BUS_PROJECT_V5',prefix+'_V5'),
+        for old, new in [('BUS_PROJECT_V7',prefix+'_V7'),('BUS_PROJECT_V6',prefix+'_V6'),('BUS_PROJECT_V5',prefix+'_V5'),
                          ('BUS_PROJECT_V4',prefix+'_V4'),('BUS_STATE_V3',prefix+'_V3')]:
+            if name=='startup-fresh.html' and old=='BUS_STATE_V3':
+                new='BUS_QA_STARTUP_FRESH_BUS_STATE_V3'
             html = html.replace(old, new)
         html = html.replace('<script src="vendor/', boot+'<script src="vendor/', 1)
         path.write_text(html, encoding='utf-8')

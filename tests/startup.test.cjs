@@ -38,7 +38,7 @@ check('creation from empty startup builds two feeds and an NKU link and reloads'
  assert.equal(b.elements.get('routeBuild').onclick(),true,b.elements.get('routeStatus').textContent);
  assert.equal(b.elements.get('routeCopy').onclick(),'r2');b.run("$('routeKind').value='NKU_NKU'");assert.equal(b.elements.get('routeAdd').onclick(),'r3');
  assert.equal(b.run('boundRouteGap()'),null);assert.equal(b.run('specForScope().nkuBlocks'),4);assert.equal(b.run('specForScope().trBlocks'),2);
- const before=b.run('JSON.stringify(projectSnapshot())'),saved=b.storage.get('BUS_PROJECT_V6');assert.ok(saved);
+ const before=b.run('JSON.stringify(projectSnapshot())'),saved=b.storage.get('BUS_PROJECT_V7');assert.ok(saved);
  const reload=browser({storage:b.storage});reload.boot();assert.equal(reload.run('JSON.stringify(projectSnapshot())'),before);assert.equal(reload.run('state.routes.length'),3);assert.equal(reload.run('state.equipment.length'),4);
 });
 check('v5 saved project boots without moving geometry or changing its original key',()=>{
