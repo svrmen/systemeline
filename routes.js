@@ -1,6 +1,6 @@
 /* Route contexts reuse the established geometry engine synchronously. No renderer,
    persistence, or event may run with another route's parameters left installed. */
-const SYSTEMELINE_BUILD='20261005-columns-2';
+const SYSTEMELINE_BUILD='20261006-manual-path-2';
 function showStartupFailure(){
   let banner=document.getElementById('startupFailure');
   if(!banner){banner=document.createElement('div');banner.id='startupFailure';(document.querySelector('header')??document.body).appendChild(banner);}
@@ -110,7 +110,7 @@ function updateRouteControls(){
   $('showAllRoutes').checked=state.showAllRoutes;$('specScope').value=state.specScope;
   $('showAllDimensions').checked=state.showAllDimensions;
   $('routeRemove').disabled=state.routes.length<=1;
-  $('routeHint').textContent=state.showAllRoutes?'Общий вид. Размеры и выноски редактируются у выбранной трассы.':'Показана выбранная трасса. Координаты — нижний угол оборудования в начале, мм.';
+  $('routeHint').textContent=state.showAllRoutes?'Общий вид. Размеры и выноски редактируются у выбранной трассы.':$('startType').value==='NONE'?'Показана выбранная трасса. Координаты — точка её начала, мм.':'Показана выбранная трасса. Координаты — нижний угол оборудования в начале, мм.';
   updateEquipmentControls();
 }
 function closeRouteEditors(){

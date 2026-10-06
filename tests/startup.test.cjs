@@ -21,6 +21,8 @@ function browser({storage=new Map(),missingColumnsModule=false,oldMarkup=false}=
  const run=source=>vm.runInContext(source,sandbox);
  return {sandbox,storage,elements,run,boot:()=>events.DOMContentLoaded(),fail:()=>errors.error()};
 }
+module.exports={browser};
+if(require.main===module){
 let count=0;function check(name,fn){fn();count++;console.log('PASS '+name);}
 check('all browser assets use the same build revision and resolve to existing files',()=>{
  assert.equal(assets.length,6);
@@ -49,3 +51,4 @@ check('old markup with a missing module has a visible recovery link and preserve
  assert.throws(()=>b.boot(),/emptyPorts/);b.fail();const banner=b.elements.get('startupFailure');assert.equal(banner.hidden,false);assert.match(banner.textContent,/не запустился/);const url=new URL(banner.children.at(-1).href);assert.equal(url.origin,'http://127.0.0.1:8767');assert.equal(url.pathname,'/');assert.equal(url.searchParams.get('build'),build);assert.equal(url.searchParams.get('keep'),'1');assert.equal(storage.get('BUS_PROJECT_V5'),'original-project');assert.equal(storage.size,1);
 });
 console.log(`${count} startup checks passed`);
+}

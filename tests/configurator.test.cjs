@@ -384,8 +384,8 @@ check('equipment project reload is exact and corrupt bindings block autosave',()
 check('plan placement uses the centre, preserves Z and snaps to 10 mm',()=>{
  run('scale=1;panX=0;panY=0');const p=run('plannedEquipmentPosition({position:{x:0,y:0,z:123},size:{w:600,d:400}},{clientX:1357,clientY:-2443})');assert.deepEqual({...p},{x:1060,y:2240,z:123});
 });
-check('deleting bound equipment is prevented; deleting a route keeps its placed objects',()=>withProjectStorage(()=>{
- run('state.selectedEquipmentId=state.routes[0].bindings.end');assert.equal(run('removeEquipment()'),false);const count=run('state.equipment.length');assert.equal(run('removeActiveRoute()'),true);assert.equal(run('state.equipment.length'),count);
+check('deleting bound equipment detaches its routes; deleting a route keeps other objects',()=>withProjectStorage(()=>{
+ const origin=Array.from(run('originTop()')),end=Array.from(run('endPoint()'));run('state.selectedEquipmentId=state.routes[0].bindings.end');assert.equal(run('removeEquipment()'),true);assert.deepEqual(Array.from(run('originTop()')),origin);assert.deepEqual(Array.from(run('endPoint()')),end);const count=run('state.equipment.length');assert.equal(run('removeActiveRoute()'),true);assert.equal(run('state.equipment.length'),count);
 }));
 check('plan mode does not invent a cabinet for an empty route and CAD excludes its selection highlight',()=>withProjectStorage(()=>{
  multipleRouteFixture();run('state.segs=[];state.calc=false;initEquipmentUI();addEquipment("TR");state.equipmentEditMode=true;state.selectedEquipmentId=state.equipment[0].id');

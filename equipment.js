@@ -1,9 +1,11 @@
 /* Equipment is shared by route IDs. Coordinates are the lower corner in mm;
    the connection at the top centre is schematic until FE/FET drawings exist. */
-let equipmentUIReady=false,equipmentDrag=null;
+let equipmentUIReady=false,equipmentDrag=null,pendingAutoRoute=null,lastEquipmentAction=null;
 const emptyBindings=()=>({start:null,end:null});
 const defaultRouting=()=>({mode:'manual',level:3700,order:'XY',path:'OVERHEAD'});
 function equipmentById(id,list=state.equipment){return list.find(item=>item.id===id);}
+function manualRouteOrigin(route){const o=route.offset;return route.ui.startType==='NONE'?[o.x,o.y,o.z]:[o.x+Number(route.ui.startW)/2,o.y+Number(route.ui.startD)/2,o.z+Number(route.ui.startH)];}
+function routeWorldEnds(route){const start=withRoute(route,originTop);return {start,end:route.segs.reduce((point,seg)=>adv(point,seg.dir,seg.len),start)};}
 function equipmentTerminal(item,port=null){const column=equipmentPort(item,port),p=column?.position??item.position,s=column?.size??item.size;return [p.x+s.w/2,p.y+s.d/2,p.z+s.h];}
 function equipmentCorners(item){const p=item.position,s=item.size;return [0,s.w].flatMap(x=>[0,s.d].flatMap(y=>[0,s.h].map(z=>[p.x+x,p.y+y,p.z+z])));}
 function validateEquipmentProject(snapshot,routes){
@@ -52,9 +54,9 @@ function equipmentFromRoutes(entries){
   };
   for(const route of routes){
     const ui=route.ui,startSize={w:Number(ui.startW),d:Number(ui.startD),h:Number(ui.startH)},endSize={w:Number(ui.endW),d:Number(ui.endD),h:Number(ui.endH)};
-    const end=[route.offset.x+startSize.w/2,route.offset.y+startSize.d/2,route.offset.z+startSize.h];
+    const end=manualRouteOrigin(route);
     for(const seg of route.segs){const i='XYZ'.indexOf(seg.dir[1]);end[i]+=(seg.dir[0]==='+'?1:-1)*seg.len;}
-    route.bindings={start:get(ui.startType,{...route.offset},startSize),end:ui.endType==='NKU'&&route.segs.length?get('NKU',{x:end[0]-endSize.w/2,y:end[1]-endSize.d/2,z:end[2]-endSize.h},endSize):null};
+    route.bindings={start:ui.startType==='NONE'?null:get(ui.startType,{...route.offset},startSize),end:ui.endType==='NKU'&&route.segs.length?get('NKU',{x:end[0]-endSize.w/2,y:end[1]-endSize.d/2,z:end[2]-endSize.h},endSize):null};
     route.ports={start:ui.startType==='NKU'?'c1':null,end:route.bindings.end?'c1':null};
     route.routing={...defaultRouting(),level:Math.max(...route.segs.reduce((points,seg)=>{const p=adv(points[points.length-1],seg.dir,seg.len);return [...points,p];},[[route.offset.x+startSize.w/2,route.offset.y+startSize.d/2,route.offset.z+startSize.h]]).map(p=>p[2]))};
   }
@@ -73,7 +75,7 @@ function equipmentPath(start,end,routing,ports=emptyPorts()){
 }
 function translateRouteAnnotations(route,delta){for(const anno of route.annos)for(const [view,p]of Object.entries(anno.pos)){const shift=projectRouteDelta(view,delta);for(const key of ['ax','bx'])p[key]+=shift[0];for(const key of ['ay','by'])p[key]+=shift[1];}}
 function synchronizeEquipmentRoute(route,equipment,rebuild=true,previousOrigin=null){
-  const original=equipmentById(route.bindings?.start),before=previousOrigin??(original?equipmentTerminal(original,route.ports?.start):[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)]);
+  const original=equipmentById(route.bindings?.start),before=previousOrigin??(original?equipmentTerminal(original,route.ports?.start):manualRouteOrigin(route));
   route.ports={...emptyPorts(),...route.ports};
   for(const side of ['start','end']){
     const item=equipmentById(route.bindings?.[side],equipment);if(!item)continue;
@@ -82,7 +84,7 @@ function synchronizeEquipmentRoute(route,equipment,rebuild=true,previousOrigin=n
     if(item.kind==='NKU'&&route.ports[side]===null)route.ports[side]=item.columns[0].id;
     if(item.kind!=='NKU')route.ports[side]=null;
   }
-  const updated=equipmentById(route.bindings?.start,equipment),after=updated?equipmentTerminal(updated,route.ports.start):[route.offset.x+Number(route.ui.startW)/2,route.offset.y+Number(route.ui.startD)/2,route.offset.z+Number(route.ui.startH)];
+  const updated=equipmentById(route.bindings?.start,equipment),after=updated?equipmentTerminal(updated,route.ports.start):manualRouteOrigin(route);
   translateRouteAnnotations(route,after.map((value,i)=>value-before[i]));
   if(rebuild&&route.routing?.mode==='auto')route.segs=equipmentPath(equipmentById(route.bindings.start,equipment),equipmentById(route.bindings.end,equipment),route.routing,route.ports);
 }
@@ -116,27 +118,120 @@ function importEquipmentFromRoutes(){
 }
 function removeEquipment(){
   try{
-    const draft=commitActiveRoute(),id=state.selectedEquipmentId;
-    if(draft.routes.some(r=>Object.values(r.bindings).includes(id)))throw new Error('Оборудование используется трассой. Сначала выберите другое начало или конец.');
-    draft.equipment=draft.equipment.filter(e=>e.id!==id);state.selectedEquipmentId=null;applyEquipmentDraft(draft,{fitView:true});return true;
+    const draft=JSON.parse(JSON.stringify(commitActiveRoute())),id=state.selectedEquipmentId,item=equipmentById(id,draft.equipment);
+    if(!item)throw new Error('Выберите объект для удаления.');
+    let affected=0;
+    for(const route of draft.routes){
+      if(!Object.values(route.bindings).includes(id))continue;
+      const origin=routeWorldEnds(route).start;
+      for(const side of ['start','end'])if(route.bindings[side]===id){
+        route.bindings[side]=null;route.ports[side]=null;route.ui[side+'Type']='NONE';
+        if(side==='start')route.offset={x:origin[0],y:origin[1],z:origin[2]};
+      }
+      route.routing.mode='manual';affected++;
+    }
+    draft.equipment=draft.equipment.filter(e=>e.id!==id);
+    applyEquipmentAction(draft,'Удаление '+item.name);state.selectedEquipmentId=null;updateEquipmentControls();
+    $('equipmentStatus').textContent=`${item.name} удалён. ${affected?'Связанные трассы сохранены; привязки к объекту сняты.':'Остальные объекты и трассы сохранены.'}`;return true;
   }catch(error){$('equipmentStatus').textContent=error.message;return false;}
+}
+function equipmentActionFingerprint(snapshot){return JSON.stringify({equipment:snapshot.equipment,routes:snapshot.routes,meta:snapshot.meta});}
+function updateEquipmentUndoControl(){
+  if(!equipmentUIReady)return;
+  let available=false;
+  try{available=Boolean(lastEquipmentAction&&!projectStorageBlocked&&equipmentActionFingerprint(validateProjectSnapshot(projectSnapshot()))===equipmentActionFingerprint(lastEquipmentAction.after));}catch(error){}
+  for(const id of ['routeBuildUndo','equipmentUndo']){$(id).disabled=!available;$(id).textContent=available?'Отменить: '+lastEquipmentAction.label:'Отменить последнее действие';}
+}
+function applyEquipmentAction(draft,label){
+  if(projectStorageBlocked)throw new Error('Сохранённый проект защищён из-за ошибки восстановления. Сначала сохраните его исходные данные.');
+  const before=validateProjectSnapshot(projectSnapshot()),active=draft.routes.find(route=>route.id===draft.activeRouteId);
+  const after=validateProjectSnapshot({...draft,...Object.fromEntries(['segs','calc','module','dimOffsets','annos','annoSeq','ui'].map(key=>[key,active[key]]))}),record={version:1,label,before,after};
+  // Reserve recovery data and persist the validated result before changing the scene.
+  localStorage.setItem(STORAGE_STATE+'.equipmentUndo',JSON.stringify(record));
+  localStorage.setItem(STORAGE_STATE,JSON.stringify(after));
+  lastEquipmentAction=record;pendingAutoRoute=null;
+  applyEquipmentDraft(after,{fitView:true,persist:false});$('storageStatus').textContent='';updateEquipmentUndoControl();
+}
+function undoEquipmentAction(){
+  try{
+    const current=validateProjectSnapshot(projectSnapshot());
+    if(projectStorageBlocked||!lastEquipmentAction||equipmentActionFingerprint(current)!==equipmentActionFingerprint(lastEquipmentAction.after))throw new Error('После этого действия проект изменился; возврат отключён, чтобы сохранить новые правки.');
+    const previous=validateProjectSnapshot(lastEquipmentAction.before),label=lastEquipmentAction.label;
+    previous.activeRouteId=current.activeRouteId;previous.showAllRoutes=current.showAllRoutes;previous.showAllDimensions=current.showAllDimensions;previous.specScope=current.specScope;
+    localStorage.setItem(STORAGE_STATE,JSON.stringify(previous));
+    try{localStorage.removeItem(STORAGE_STATE+'.equipmentUndo');}catch(error){}
+    lastEquipmentAction=null;pendingAutoRoute=null;
+    applyEquipmentDraft(previous,{fitView:true,persist:false});
+    $('routeStatus').textContent=$('equipmentStatus').textContent='Отменено: '+label+'. Прежний путь и оборудование восстановлены.';updateEquipmentUndoControl();return true;
+  }catch(error){$('routeStatus').textContent=$('equipmentStatus').textContent=error.message;return false;}
+}
+function selectedRouteEquipment(route,equipment){
+  route.bindings={start:$('routeStartEquipment').value||null,end:$('routeEndEquipment').value||null};
+  route.ports={start:$('routeStartColumn').value||null,end:$('routeEndColumn').value||null};
+  if(!route.bindings.start||!route.bindings.end)throw new Error('Выберите оборудование в начале и конце трассы.');
+  if(route.bindings.start===route.bindings.end)throw new Error('Начало и конец трассы должны быть разными объектами.');
+  for(const side of ['start','end'])if(!equipmentById(route.bindings[side],equipment))throw new Error('Выбранное оборудование не найдено.');
+  route.ports=validateRoutePorts(route,equipment);
+}
+function automaticEquipmentDraft(){
+  const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===state.activeRouteId),before=routeWorldEnds(route).start;
+  selectedRouteEquipment(route,draft.equipment);
+  if(String($('routeLevel').value).trim()==='')throw new Error('Введите отметку трассы.');
+  route.routing={mode:'auto',level:Number($('routeLevel').value),order:$('routeOrder').value,path:$('routePath').value};
+  if(!Number.isFinite(route.routing.level))throw new Error('Введите конечное число для отметки трассы.');
+  synchronizeEquipmentRoute(route,draft.equipment,true,before);route.calc=true;
+  return validateProjectSnapshot(draft);
 }
 function buildEquipmentRoute(){
   try{
-    const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===state.activeRouteId);
-    const before=withRoute(route,originTop);
-    route.bindings={start:$('routeStartEquipment').value||null,end:$('routeEndEquipment').value||null};
-    route.ports={start:$('routeStartColumn').value||null,end:$('routeEndColumn').value||null};
-    if(!route.bindings.start||!route.bindings.end)throw new Error('Выберите оборудование в начале и конце трассы.');
-    if(String($('routeLevel').value).trim()==='')throw new Error('Введите отметку трассы.');
-    route.routing={mode:'auto',level:Number($('routeLevel').value),order:$('routeOrder').value,path:$('routePath').value};
-    if(!Number.isFinite(route.routing.level))throw new Error('Введите конечное число для отметки трассы.');
-    synchronizeEquipmentRoute(route,draft.equipment,true,before);route.calc=true;
-    applyEquipmentDraft(draft,{fitView:true});$('routeStatus').textContent='Трасса построена. При переносе оборудования этот путь обновляется автоматически.';return true;
+    applyEquipmentAction(automaticEquipmentDraft(),'Автоматическое построение');$('routeStatus').textContent='Автоматический путь применён. Перенос оборудования перестраивает эту трассу.';return true;
+  }catch(error){$('routeStatus').textContent=error.message;return false;}
+}
+function connectEquipmentToManualRoute(){
+  try{
+    const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===state.activeRouteId),ends=routeWorldEnds(route);
+    if(!route.segs.length)throw new Error('Сначала нарисуйте путь либо создайте автоматическую трассу между размещёнными объектами.');
+    selectedRouteEquipment(route,draft.equipment);
+    for(const side of ['start','end']){
+      const item=equipmentById(route.bindings[side],draft.equipment),terminal=equipmentTerminal(item,route.ports[side]),delta=ends[side].map((value,i)=>value-terminal[i]);
+      if(delta.some(value=>Math.abs(value)>.000001)){
+        const shared=draft.routes.filter(r=>r.id!==route.id&&Object.values(r.bindings).includes(item.id));
+        if(shared.length)throw new Error(`${item.name} уже подключён к ${shared.map(r=>r.name).join(', ')}. Его перенос изменит другие линии. Путь сохранён; выберите отдельный объект или совместите точку подключения с концом пути.`);
+        for(const [i,key]of ['x','y','z'].entries())item.position[key]+=delta[i];
+      }
+    }
+    route.routing.mode='manual';synchronizeEquipmentRoute(route,draft.equipment,false,ends.start);route.calc=true;
+    applyEquipmentAction(draft,'Подключение моего пути');
+    $('routeStatus').textContent=`Ваш путь сохранён: ${route.segs.reduce((sum,s)=>sum+s.len,0)} мм. Оборудование размещено на его концах; автоматическая замена выключена.`;return true;
+  }catch(error){$('routeStatus').textContent=error.message;return false;}
+}
+function automaticRouteSelection(){return JSON.stringify(['routeStartEquipment','routeEndEquipment','routeStartColumn','routeEndColumn','routeLevel','routeOrder','routePath'].map(id=>$(id).value));}
+function previewAutomaticRoute(){
+  try{
+    const draft=automaticEquipmentDraft(),route=draft.routes.find(r=>r.id===state.activeRouteId);
+    pendingAutoRoute={draft,activeRouteId:state.activeRouteId,fingerprint:equipmentActionFingerprint(validateProjectSnapshot(projectSnapshot())),selection:automaticRouteSelection()};
+    const old=state.segs.reduce((sum,s)=>sum+s.len,0),next=route.segs.reduce((sum,s)=>sum+s.len,0);
+    $('routeAutoSummary').textContent=`Сейчас: ${old} мм. Новый путь: ${next} мм. Участки: ${route.segs.map(s=>s.dir+' '+s.len+' мм').join(' → ')}. Применение заменит форму и длину выбранной трассы.`;
+    $('routeAutoPreview').classList.remove('hid');return true;
+  }catch(error){pendingAutoRoute=null;$('routeAutoPreview').classList.add('hid');$('routeStatus').textContent=error.message;return false;}
+}
+function applyAutomaticPreview(){
+  try{
+    if(!pendingAutoRoute||pendingAutoRoute.activeRouteId!==state.activeRouteId||pendingAutoRoute.selection!==automaticRouteSelection()||pendingAutoRoute.fingerprint!==equipmentActionFingerprint(validateProjectSnapshot(projectSnapshot())))throw new Error('Параметры или проект изменились. Снова рассчитайте новый путь перед заменой.');
+    applyEquipmentAction(pendingAutoRoute.draft,'Автоматическая замена пути');$('routeStatus').textContent='Новый автоматический путь применён. Предыдущий вариант доступен через отмену.';return true;
   }catch(error){$('routeStatus').textContent=error.message;return false;}
 }
 function detachEquipmentRoute(){
-  const origin=originTop();state.routeOffset={x:origin[0]-Number($('startW').value)/2,y:origin[1]-Number($('startD').value)/2,z:origin[2]-Number($('startH').value)};state.routeBindings=emptyBindings();state.routePorts=emptyPorts();state.routeRouting.mode='manual';updateRouteControls();draw();saveState();$('routeStatus').textContent='Привязки сняты. Геометрия сохранена для ручного редактирования.';
+  const origin=originTop();state.routeOffset=$('startType').value==='NONE'?{x:origin[0],y:origin[1],z:origin[2]}:{x:origin[0]-Number($('startW').value)/2,y:origin[1]-Number($('startD').value)/2,z:origin[2]-Number($('startH').value)};state.routeBindings=emptyBindings();state.routePorts=emptyPorts();state.routeRouting.mode='manual';updateRouteControls();draw();renderSpec();saveState();$('routeStatus').textContent='Привязки сняты. Геометрия сохранена для ручного редактирования.';
+}
+function clearSelectedRoute(){
+  try{
+    if(!releaseRecoveryStorage())return false;
+    const draft=JSON.parse(JSON.stringify(commitActiveRoute())),route=draft.routes.find(r=>r.id===state.activeRouteId);
+    Object.assign(route,{segs:[],calc:false,annos:[],annoSeq:1,dimOffsets:Object.fromEntries(PROJECT_VIEWS.map(view=>[view,{}]))});route.routing.mode='manual';
+    applyEquipmentAction(draft,'Очистка пути');state.movingAnno={id:null,what:null,view:null};closeRouteEditors();
+    msg.textContent='Путь выбранной трассы очищен. Параметры, оборудование и остальные трассы сохранены. Объект удаляется во вкладке «Оборудование».';return true;
+  }catch(error){msg.textContent='Путь не очищен: '+error.message;return false;}
 }
 function boundRouteGap(route=activeRouteData()){
   const item=equipmentById(route.bindings?.end);if(!item||!route.segs.length)return null;
@@ -176,7 +271,13 @@ function updateEquipmentControls(){
   $('routeLevel').value=state.routeRouting.level;$('routeOrder').value=state.routeRouting.order;$('routePath').value=state.routeRouting.path;
   for(const side of ['start','end'])for(const suffix of ['Type','W','D','H'])$(side+suffix).disabled=Boolean(state.routeBindings[side]);
   for(const axis of ['X','Y','Z'])$('route'+axis).disabled=Boolean(state.routeBindings.start);
-  $('routingHint').textContent=state.routeRouting.mode==='auto'?'Автоматический путь: перемещение оборудования перестраивает эту трассу.':'Ручной путь сохранён. «Построить» заменит его выбранным путём между оборудованием.';
+  const drawn=state.segs.length>0;
+  $('routeBuild').textContent=drawn?'Подключить мой путь':'Создать между объектами';
+  $('routeAutomaticSettings').open=!drawn;
+  $('routeOriginLabel').textContent=$('startType').value==='NONE'?'Координаты начала трассы: X / Y / Z, мм':'Координаты начала оборудования: X / Y / Z, мм';
+  $('routingHint').textContent=drawn?'«Подключить мой путь» сохраняет участки и длины, размещая выбранное оборудование на концах. Общий объект других линий не переносится. Автоматическая замена — отдельное действие ниже.':'Пустая трасса: автоматический путь будет создан между выбранными размещёнными объектами.';
+  $('routeModeStatus').textContent=state.routeRouting.mode==='auto'?'Автоматический путь: перемещение оборудования перестраивает эту трассу.':'Ручной путь: заданные участки сохраняются.';
+  $('routeAutoPreview').classList.add('hid');pendingAutoRoute=null;updateEquipmentUndoControl();
 }
 function setEquipmentEditing(enabled){state.equipmentEditMode=enabled;state.placingEquipment=false;closeRouteEditors();if(enabled){setProjection('TOP');updateEquipmentControls();}else draw();}
 function equipmentAtPointer(event){
@@ -184,14 +285,18 @@ function equipmentAtPointer(event){
 }
 function plannedEquipmentPosition(item,event){const p=screenToLocal(event);return {...item.position,x:Math.round((p.x-item.size.w/2)/10)*10,y:Math.round((-p.y-item.size.d/2)/10)*10};}
 function initEquipmentUI(){
-  equipmentUIReady=true;updateEquipmentControls();
+  equipmentUIReady=true;
+  try{const record=JSON.parse(localStorage.getItem(STORAGE_STATE+'.equipmentUndo'));lastEquipmentAction=record?.version===1&&typeof record.label==='string'?{...record,before:validateProjectSnapshot(record.before),after:validateProjectSnapshot(record.after)}:null;}catch(error){lastEquipmentAction=null;}
+  updateEquipmentControls();
   $('equipmentImport').onclick=importEquipmentFromRoutes;$('equipmentAddTR').onclick=()=>addEquipment('TR');$('equipmentAddNKU').onclick=()=>addEquipment('NKU');$('equipmentRemove').onclick=removeEquipment;
   $('equipmentSelect').addEventListener('change',()=>{state.selectedEquipmentId=$('equipmentSelect').value;updateEquipmentControls();draw();});
   $('equipmentApply').onclick=()=>updateEquipment(state.selectedEquipmentId,readEquipmentForm());
   $('equipmentColumnAdd').onclick=addNKUColumn;
   for(const side of ['start','end'])$('route'+(side==='start'?'Start':'End')+'Equipment').addEventListener('change',()=>routeColumnControl(side,$('route'+(side==='start'?'Start':'End')+'Equipment').value,null));
   $('equipmentPlace').onclick=()=>{if(!equipmentById(state.selectedEquipmentId))return;setProjection('TOP');state.placingEquipment=true;$('equipmentStatus').textContent='Щёлкните по плану: здесь будет центр выбранного оборудования. Отметка Z сохранится.';};
-  $('routeBuild').onclick=buildEquipmentRoute;$('routeDetach').onclick=detachEquipmentRoute;
+  $('routeBuild').onclick=()=>state.segs.length?connectEquipmentToManualRoute():buildEquipmentRoute();$('routeDetach').onclick=detachEquipmentRoute;
+  $('routeAuto').onclick=previewAutomaticRoute;$('routeAutoApply').onclick=applyAutomaticPreview;$('routeBuildUndo').onclick=$('equipmentUndo').onclick=undoEquipmentAction;
+  $('routeAutoCancel').onclick=()=>{pendingAutoRoute=null;$('routeAutoPreview').classList.add('hid');};
   wrap.addEventListener('pointerdown',event=>{
     if(!state.equipmentEditMode||viewMode!=='TOP'||event.button!==0||event.target!==cvs)return;
     if(state.placingEquipment){event.preventDefault();event.stopImmediatePropagation();const item=equipmentById(state.selectedEquipmentId);if(item&&updateEquipment(item.id,{position:plannedEquipmentPosition(item,event)}))state.placingEquipment=false;pointerMoved=true;return;}

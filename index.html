@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Шинопровод SystemeLineB · аудит 2026-10-05</title>
+<title>Шинопровод SystemeLineB · проверка 2026-10-06</title>
 <style>
   [hidden]{display:none!important}
   :root{--bg:#f6f6f6;--card:#fff;--border:#ddd;--shadow:0 6px 18px rgba(0,0,0,.06)}
@@ -80,7 +80,7 @@
 </style>
 </head>
 <body>
-<header><small style="display:block;color:#555">Проверочная версия · 2026-10-05 · несколько трасс</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
+<header><small style="display:block;color:#555">Проверочная версия · 2026-10-06 · сохранение ручного пути</small><b>Шинопровод</b> — виды, спецификация, стоимость, экспорт</header>
 
 <div class="wrap">
   <div class="panel">
@@ -98,7 +98,7 @@
         <div class="row"><label for="routeName">Название</label><input id="routeName" type="text" maxlength="80"></div>
         <div class="row"><select id="routeKind" aria-label="Тип новой трассы"><option value="TR_NKU">ТР → НКУ</option><option value="NKU_NKU">НКУ → НКУ</option></select><button class="btn" id="routeAdd">Добавить трассу</button></div>
         <div class="row"><button class="btn" id="routeCopy">Копия трассы</button><button class="btn" id="routeRemove">Удалить трассу</button></div>
-        <label>Координаты начала оборудования: X / Y / Z, мм</label>
+        <label id="routeOriginLabel">Координаты начала оборудования: X / Y / Z, мм</label>
         <div class="row-3"><input id="routeX" type="number" value="0" aria-label="Координата X"><input id="routeY" type="number" value="0" aria-label="Координата Y"><input id="routeZ" type="number" value="0" aria-label="Отметка Z"></div>
         <label><input id="showAllRoutes" type="checkbox"> Показывать все трассы</label>
         <label style="display:block"><input id="showAllDimensions" type="checkbox"> Размеры всех трасс</label>
@@ -113,11 +113,18 @@
         <div class="row"><label for="routeStartColumn">Из колонны</label><select id="routeStartColumn"></select></div>
         <div class="row"><label for="routeEndEquipment">Конец — НКУ</label><select id="routeEndEquipment"></select></div>
         <div class="row"><label for="routeEndColumn">В колонну</label><select id="routeEndColumn"></select></div>
-        <div class="row"><label for="routePath">Путь</label><select id="routePath"><option value="OVERHEAD">Через заданную высоту</option><option value="DIRECT">Напрямую по осям</option></select></div>
-        <div class="row"><label for="routeLevel">Отметка трассы Z, мм</label><input id="routeLevel" type="number" value="3700"></div>
-        <div class="row"><label for="routeOrder">Порядок поворотов</label><select id="routeOrder"><option value="XY">Сначала X, затем Y</option><option value="YX">Сначала Y, затем X</option></select></div>
-        <small id="routingHint"></small>
-        <div class="row"><button class="btn" id="routeBuild">Построить</button><button class="btn" id="routeDetach">Снять привязки</button></div>
+        <small id="routeModeStatus"></small>
+        <p><small id="routingHint"></small></p>
+        <div class="row"><button class="btn" id="routeBuild">Подключить мой путь</button><button class="btn" id="routeDetach">Снять привязки</button></div>
+        <details id="routeAutomaticSettings"><summary>Автоматический путь между оборудованием</summary>
+          <div class="row"><label for="routePath">Путь</label><select id="routePath"><option value="OVERHEAD">Через заданную высоту</option><option value="DIRECT">Напрямую по осям</option></select></div>
+          <div class="row"><label for="routeLevel">Отметка трассы Z, мм</label><input id="routeLevel" type="number" value="3700"></div>
+          <div class="row"><label for="routeOrder">Порядок поворотов</label><select id="routeOrder"><option value="XY">Сначала X, затем Y</option><option value="YX">Сначала Y, затем X</option></select></div>
+          <p><small>Отметка Z и порядок поворотов используются только для нового автоматического пути. Сначала посмотрите его длины, затем примените замену.</small></p>
+          <button class="btn" id="routeAuto">Рассчитать новый путь</button>
+          <div id="routeAutoPreview" class="hid"><p id="routeAutoSummary"></p><div class="row"><button class="btn" id="routeAutoApply">Заменить мой путь</button><button class="btn" id="routeAutoCancel">Оставить мой путь</button></div></div>
+        </details>
+        <p><button class="btn" id="routeBuildUndo" disabled>Отменить последнее действие</button></p>
         <small>Объекты размещаются на вкладке «Оборудование». Подключение НКУ — условно в центре верха выбранной колонны, ТР — корпуса. Реальные FE/FET требуют заказных чертежей.</small>
       </div>
       <div class="row"><label>Материал шин</label>
@@ -130,7 +137,7 @@
       <div id="geometryStatus" class="warn" role="status"></div>
 
       <div class="row"><label>Начало трассы</label>
-        <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option></select>
+        <select id="startType"><option value="NKU" selected>ГРЩ</option><option value="TR">Трансформатор</option><option value="NONE">Без оборудования</option></select>
       </div>
       <div class="row-3">
         <input id="startW" type="number" value="600"  title="Начало W" placeholder="W">
@@ -139,7 +146,7 @@
       </div>
 
       <div class="row"><label>Конец трассы</label>
-        <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option></select>
+        <select id="endType"><option value="ENDCAP" selected>Заглушка</option><option value="NKU">ГРЩ</option><option value="NONE">Без подключения</option></select>
       </div>
       <div id="endDims" class="row-3 hid">
         <input id="endW" type="number" value="600"  title="Конец W" placeholder="W">
@@ -225,8 +232,10 @@
           </div>
           <button class="btn" id="equipmentApply">Применить координаты и габариты</button>
           <div class="row"><button class="btn" id="equipmentPlace">Поставить на плане</button><button class="btn" id="equipmentRemove">Удалить объект</button></div>
+          <small>Удаление снимает привязки к этому объекту. Пути связанных трасс сохраняются.</small>
         </div>
         <div id="equipmentStatus" class="warn" role="status"></div>
+        <button class="btn" id="equipmentUndo" disabled>Отменить последнее действие</button>
       </div>
     </div>
     <div id="tab-meta" class="hid">
@@ -337,12 +346,12 @@
 </div>
 
 <!-- Bump every local asset revision together when the HTML/module contract changes. -->
-<script src="vendor/xlsx.full.min.js?v=20261005-columns-2"></script>
-<script src="tariff-import.js?v=20261005-columns-2"></script>
-<script src="cad-export.js?v=20261005-columns-2"></script>
-<script src="routes.js?v=20261005-columns-2"></script>
-<script src="equipment.js?v=20261005-columns-2"></script>
-<script src="nku-columns.js?v=20261005-columns-2"></script>
+<script src="vendor/xlsx.full.min.js?v=20261006-manual-path-2"></script>
+<script src="tariff-import.js?v=20261006-manual-path-2"></script>
+<script src="cad-export.js?v=20261006-manual-path-2"></script>
+<script src="routes.js?v=20261006-manual-path-2"></script>
+<script src="equipment.js?v=20261006-manual-path-2"></script>
+<script src="nku-columns.js?v=20261006-manual-path-2"></script>
 <script>
 /* ===== ДАННЫЕ ===== */
 const R_AL=[400,500,630,800,1000,1200,1250,1600,2000,2500,3200,4000,5000];
@@ -474,7 +483,7 @@ function P(){
     busH:edge?width:BUS_H
   };
 }
-function originTop(){ const item=equipmentById(state.routeBindings.start);if(item)return equipmentTerminal(item,state.routePorts.start);const p=P(),o=state.routeOffset; return [o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
+function originTop(){ const item=equipmentById(state.routeBindings.start);if(item)return equipmentTerminal(item,state.routePorts.start);const p=P(),o=state.routeOffset; return p.startType==='NONE'?[o.x,o.y,o.z]:[o.x+p.startW/2,o.y+p.startD/2,o.z+p.startH]; }
 const axis=d=>d[1];
 const sgn=d=>d[0]==='+'?1:-1;
 const adv=(p,dir,dist)=>{ const a=axis(dir),s=sgn(dir); return a==='X'?[p[0]+s*dist,p[1],p[2]]:a==='Y'?[p[0],p[1]+s*dist,p[2]]:[p[0],p[1],p[2]+s*dist]; };
@@ -599,7 +608,7 @@ function connectionLayout(){
     for(const offset of layout.joints)joints.push({point:adv(start,cur.dir,offset),dir:cur.dir,index:i,kind:'module'});
     if(layout.startCut>0)joints.push({point:start,dir:cur.dir,index:i,kind:'corner'});
     if(layout.endCut>0)joints.push({point:adv(start,cur.dir,layout.length),dir:cur.dir,index:i,kind:'corner'});
-    if(i===0)joints.push({point:pos,dir:cur.dir,index:i,kind:$('startType').value==='TR'?'transformer':'nku'});
+    if(i===0&&$('startType').value!=='NONE')joints.push({point:pos,dir:cur.dir,index:i,kind:$('startType').value==='TR'?'transformer':'nku'});
     if(i===state.segs.length-1&&$('endType').value==='NKU')joints.push({point:adv(pos,cur.dir,cur.len),dir:cur.dir,index:i,kind:'nku'});
     pos=adv(pos,cur.dir,cur.len);
   }return joints;
@@ -652,7 +661,7 @@ function drawMountsSmart(startPos, cur, Ldraw, startCut, endCut, prev, next, bw)
 }
 
 /* шкафы / заглушка */
-function drawStartCab(){ const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666'); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
+function drawStartCab(){ if($('startType').value==='NONE')return;const p=P(),o=state.routeOffset,origin=originTop(); const top=origin[2], base=top-p.startH; box(o.x,o.y,base,p.startW,p.startD,p.startH,'CAB','#666'); box(origin[0]-60,origin[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCab(){ if($('endType').value!=='NKU') return; const p=P(), e=endPoint(), top=e[2], base=top-p.endH; box(e[0]-p.endW/2,e[1]-p.endD/2,base,p.endW,p.endD,p.endH,'CAB','#666'); box(e[0]-60,e[1]-60,top,120,120,8,'CAB','#999'); }
 function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPoint(); const last=state.segs[state.segs.length-1]||{dir:'+Z'}; const a=axis(last.dir);
   if(a==='Z'){ const pr=verticalProfile(state.segs.length-1,bw,P().busH); solidBox(e[0]-pr.w/2,e[1]-pr.d/2,e[2]-JOINT_LEN/2,pr.w,pr.d,JOINT_LEN,'rgba(220,0,0,.55)',1,'ENDCAP'); }
@@ -663,7 +672,7 @@ function drawEndCap(bw){ if($('endType').value!=='ENDCAP') return; const e=endPo
 /* ===== ПОЛ ===== */
 function floorBoundsXY(){
   const p=P(); const bw=p.busW;
-  const o=state.routeOffset;let minX=o.x, maxX=o.x+p.startW, minY=o.y, maxY=o.y+p.startD;
+  const o=state.routeOffset,hasStart=p.startType!=='NONE';let minX=o.x, maxX=o.x+(hasStart?p.startW:0), minY=o.y, maxY=o.y+(hasStart?p.startD:0);
   let [x,y,z]=originTop();
   function expand(px,py){ minX=Math.min(minX, px-bw/2); maxX=Math.max(maxX, px+bw/2); minY=Math.min(minY, py-bw/2); maxY=Math.max(maxY, py+bw/2); }
   expand(x,y);
@@ -722,7 +731,7 @@ function dimensionPosition(key,base,text){
 }
 function renderDeltaH(){
   if(!['FRONT','BACK','LEFT','RIGHT'].includes(viewMode)) return;
-  if($('endType').value!=='NKU') return;
+  if($('endType').value!=='NKU'||$('startType').value==='NONE') return;
   const p=P(); const sTop=originTop()[2], sBase=sTop-p.startH; const eTop=endPoint()[2], eBase=eTop-p.endH;
   const delta=Math.abs(eBase-sBase);
   const origin=originTop(),sPt=proj(origin[0],origin[1],sBase), ePt=proj(endPoint()[0],endPoint()[1],eBase);
@@ -984,7 +993,7 @@ function updateGeometryStatus(){
   if(Object.keys(equipmentDimensions).some(key=>!Number.isFinite(Number($(key).value))||Number($(key).value)<=0))warnings.push('Габариты оборудования должны быть положительными числами. Схема использует последние корректные габариты; изменения не сохраняются до исправления ввода.');
   if(conductorCode()==='7')warnings.push('PER: выбраны отдельная защитная шина полного сечения и соответствующие артикулы; внутренние проводники на схеме не показаны.');
   if(state.segs.length)warnings.push('IP55/IP65 — выбранное исполнение, степень защиты обеспечивается после полного монтажа; проходы, уплотнения и специальные детали требуют проверки.');
-  if(state.segs.length){warnings.push('Подключения FE/FET показаны условно: пластина на оборудовании не является монтажным чертежом.');if($('startType').value==='TR')warnings.push('FET: длина и расположение контактов по заказу — требуется чертёж выводов трансформатора.');}
+  if(state.segs.length&&($('startType').value!=='NONE'||$('endType').value==='NKU')){warnings.push('Подключения FE/FET показаны условно: пластина на оборудовании не является монтажным чертежом.');if($('startType').value==='TR')warnings.push('FET: длина и расположение контактов по заказу — требуется чертёж выводов трансформатора.');}
   if(+$('rating').value===1200) warnings.push('1200 А отсутствует в таблицах каталога: габариты и артикулы не подтверждены.');
   for(let i=0;i<state.segs.length;i++){
     const s=state.segs[i],prev=state.segs[i-1],next=state.segs[i+1];
@@ -1015,7 +1024,7 @@ function updateGeometryStatus(){
   $('geometryStatus').textContent=warnings.join(' ');
 }
 function routeBoundsProjected(){
-  const p=P(),o=state.routeOffset; const pts=[[o.x,o.y,o.z],[o.x,o.y,originTop()[2]-p.startH],[o.x+p.startW,o.y+p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
+  const p=P(),o=state.routeOffset; const pts=p.startType==='NONE'?[]:[[o.x,o.y,o.z],[o.x,o.y,originTop()[2]-p.startH],[o.x+p.startW,o.y+p.startD,originTop()[2]]]; let pos=originTop(); pts.push(pos);
   for(const s of state.segs){ pos=adv(pos,s.dir,Number(s.len)); pts.push(pos); }
   if($('endType').value==='NKU'){const item=equipmentById(state.routeBindings.end);if(item)pts.push(...equipmentCorners(item));else{const e=endPoint();pts.push([e[0]-p.endW/2,e[1]-p.endD/2,e[2]-p.endH]);pts.push([e[0]+p.endW/2,e[1]+p.endD/2,e[2]]);}}
   const pr=pts.map(pt=>proj(...pt)); const xs=pr.map(p=>p[0]), ys=pr.map(p=>p[1]);
@@ -1474,23 +1483,7 @@ $('calc').onclick=()=>{if(!syncModule())return;state.calc=true;giz.style.display
 $('uncalc').onclick=()=>{ state.calc=false; draw(); renderSpec(); saveState(); };
 $('undo').onclick=()=>{ state.segs.pop();state.routeRouting.mode='manual';updateEquipmentControls();draw(); renderSpec(); saveState(); };
 
-$('clear').onclick=()=>{
-  if(!releaseRecoveryStorage())return;
-  if(state.routeBindings.start||state.routeBindings.end){state.segs=[];state.calc=false;state.routeRouting.mode='manual';state.annos=[];state.annoSeq=1;state.dimOffsets=Object.fromEntries(PROJECT_VIEWS.map(v=>[v,{}]));closeRouteEditors();updateRouteControls();renderSpec();saveState();fit();msg.textContent='Выбранная трасса очищена; оборудование сохранено.';return;}
-  state.segs=[]; state.calc=false; state.module=3000;
-  state.dimOffsets={ISO:{},TOP:{},FRONT:{},BACK:{},LEFT:{},RIGHT:{}};
-  state.annos=[]; state.movingAnno={id:null,what:null,view:null};
-  state.annoSeq=1;
-  $('mat').value='AL'; fillRatings(false); $('rating').value=R_AL[0];
-  $('ip').value='IP55';$('conductors').value='5'; $('orientation').value='FLAT'; $('startType').value='NKU'; $('endType').value='ENDCAP';
-  $('startW').value=600; $('startD').value=600; $('startH').value=2200;
-  $('endW').value=600; $('endD').value=600; $('endH').value=2200;
-  $('endDims').classList.add('hid'); $('mountOn').value='1'; $('mountStep').value=1000; $('moduleLen').value=3000;
-  syncModule();renderSpec();
-  fillMetaInputs();
-  saveState(); fit();
-  updateRouteControls();msg.textContent='Выбранная трасса очищена'; setTimeout(()=>msg.textContent='',1800);
-};
+$('clear').onclick=clearSelectedRoute;
 $('fit').onclick=()=>fit();
 
 /* ===== ПРАЙС-UI/ПАРСЕР (без изменений) ===== */
@@ -1541,7 +1534,7 @@ function validateSingleProjectSnapshot(s){
   const defaults={mat:'AL',rating:400,conductors:'5',ip:'IP55',orientation:'FLAT',startType:'NKU',endType:'ENDCAP',startW:600,startD:600,startH:2200,endW:600,endD:600,endH:2200,mountOn:'1',mountStep:1000,moduleLen:module};
   if(s.ui!==undefined&&!record(s.ui))throw new Error('Некорректные параметры проекта.');
   const ui={...defaults,...s.ui};
-  for(const [key,allowed] of Object.entries({mat:['AL','CU'],conductors:['5','7'],ip:['IP55','IP65'],orientation:['FLAT','EDGE'],startType:['NKU','TR'],endType:['NKU','ENDCAP'],mountOn:['0','1']})){
+  for(const [key,allowed] of Object.entries({mat:['AL','CU'],conductors:['5','7'],ip:['IP55','IP65'],orientation:['FLAT','EDGE'],startType:['NKU','TR','NONE'],endType:['NKU','ENDCAP','NONE'],mountOn:['0','1']})){
     if(!allowed.includes(ui[key]))throw new Error(`Некорректный параметр: ${PROJECT_UI_LABELS[key]}.`);
   }
   if(!(ui.mat==='CU'?R_CU:R_AL).includes(Number(ui.rating)))throw new Error('Номинал недоступен для выбранного материала.');
@@ -1576,7 +1569,7 @@ function validateSingleProjectSnapshot(s){
 function saveState(){
   if(routeContextDepth)return false;
   if(projectStorageBlocked){$('storageStatus').textContent='Автосохранение отключено: исходные данные защищены. Скачайте их; очистка выбранной трассы сохранит отдельную резервную копию исходных данных.';return false;}
-  try{const snapshot=validateProjectSnapshot(projectSnapshot());localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';return true;}
+  try{const snapshot=validateProjectSnapshot(projectSnapshot());localStorage.setItem(STORAGE_STATE,JSON.stringify(snapshot));$('storageStatus').textContent='';updateEquipmentUndoControl();return true;}
   catch(error){$('storageStatus').textContent='Изменения не сохранены: '+error.message;return false;}
 }
 function releaseRecoveryStorage(){
