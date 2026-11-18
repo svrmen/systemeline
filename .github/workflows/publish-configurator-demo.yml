@@ -1,0 +1,34 @@
+name: Publish configurator demo
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demo/**'
+      - '.github/workflows/publish-configurator-demo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request a build of the existing GitHub Pages site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GH_REPO/pages" > site.json
+          jq '{html_url, build_type, source}' site.json
+          test "$(jq -r .build_type site.json)" = legacy
+          test "$(jq -r .source.branch site.json)" = main
+          curl --fail-with-body --silent --show-error -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GH_REPO/pages/builds" > build.json
+          jq '{status,url}' build.json
