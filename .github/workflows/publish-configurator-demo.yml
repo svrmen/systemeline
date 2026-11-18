@@ -1,7 +1,7 @@
 name: Publish configurator demo
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/rollback-to-previous-working-version-p7n5vz']
     paths:
       - 'demo/**'
       - '.github/workflows/publish-configurator-demo.yml'
@@ -26,7 +26,7 @@ jobs:
             "https://api.github.com/repos/$GH_REPO/pages" > site.json
           jq '{html_url, build_type, source}' site.json
           test "$(jq -r .build_type site.json)" = legacy
-          test "$(jq -r .source.branch site.json)" = main
+          test "$(jq -r .source.branch site.json)" = codex/rollback-to-previous-working-version-p7n5vz
           curl --fail-with-body --silent --show-error -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
