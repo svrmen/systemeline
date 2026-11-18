@@ -1,0 +1,1 @@
+SheetJS Community Edition0.20.3. Локальный vendor/xlsx.full.min.js из https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js. Лицензия:vendor/SHEETJS-LICENSE.txt. Документация:https://docs.sheetjs.com/docs/getting-started/installation/standalone/. Библиотека используется только для локального чтенияExcel; данные не отправляются наCDN.
